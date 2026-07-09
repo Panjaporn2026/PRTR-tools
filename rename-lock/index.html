@@ -300,7 +300,7 @@ function addFiles(fileList) {
   for (const f of fileList) {
     const ext = f.name.split('.').pop().toLowerCase();
     if (ext !== 'xlsx' && ext !== 'pdf') continue;
-    fileEntries.push({ id: nextId++, file: f, newName: '', password: '', status: 'pending', resultBlob: null, resultName: '' });
+    fileEntries.push({ id: nextId++, file: f, newName: '', password: '', doRename: true, status: 'pending', resultBlob: null, resultName: '' });
     added++;
   }
   if (!added) { alert('รองรับเฉพาะไฟล์ .xlsx และ .pdf'); return; }
@@ -348,10 +348,14 @@ function renderList() {
         <span class="row-orig" title="${entry.file.name}">${entry.file.name}</span>
         <button class="row-remove" onclick="removeEntry(${entry.id})" title="ลบ">✕</button>
       </div>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#94a3b8;margin-bottom:6px;cursor:pointer;">
+        <input type="checkbox" ${entry.doRename ? 'checked' : ''} onchange="updateEntry(${entry.id},'doRename',this.checked)" style="cursor:pointer;">
+        เปลี่ยนชื่อไฟล์ (ถ้าไม่ติ๊ก จะล็อกแต่คงชื่อไฟล์เดิม)
+      </label>
       <div class="row-fields">
         <div class="field-wrap">
           <input type="text" placeholder="ชื่อไฟล์ใหม่ (ไม่ต้องใส่นามสกุล)"
-            value="${entry.newName}"
+            value="${entry.newName}" ${entry.doRename ? '' : 'disabled'}
             onchange="updateEntry(${entry.id},'newName',this.value)"
             oninput="updateEntry(${entry.id},'newName',this.value)">
           <span class="field-ext">.${ext}</span>
@@ -417,13 +421,15 @@ async function processAll() {
     // Only skip if it's already done with the SAME password/name it has right now — if either was
     // edited after a previous run (e.g. password typed in after an earlier no-password run), the
     // stale "done" status must not hide the fact that the file was never actually re-locked/renamed.
-    const runKey = entry.newName + ' ' + entry.password;
+    const runKey = entry.doRename + ' ' + entry.newName + ' ' + entry.password;
     if (entry.status === 'done' && entry.processedWith === runKey) { done++; continue; }
     entry.status = 'processing';
     renderList();
 
     const ext = entry.file.name.split('.').pop().toLowerCase();
-    const baseName = (entry.newName.trim() || entry.file.name.replace(/\.[^.]+$/, ''));
+    // Unticked "เปลี่ยนชื่อไฟล์" → keep the original name regardless of whatever is typed in
+    // newName, so flipping the checkbox off/on doesn't lose what was already typed.
+    const baseName = (entry.doRename && entry.newName.trim()) ? entry.newName.trim() : entry.file.name.replace(/\.[^.]+$/, '');
     const outName  = baseName + '.' + ext;
 
     try {
@@ -474,93 +480,16 @@ async function downloadZip() {
 }
 
 // ===================== EXCEL =====================
+// Delegate encryption to xlsx-populate's own native password support (it implements the same
+// ECMA-376 Agile Encryption spec internally) instead of a hand-rolled CFB writer — a previous
+// custom implementation here produced files that decrypted fine under library tools but real
+// Microsoft Excel reported as corrupt, pointing to a subtle incompatibility in a from-scratch
+// Compound File Binary writer rather than in the crypto math itself.
 async function processExcel(buffer, password) {
   if (!password) return new Uint8Array(buffer);
-  return encryptXlsxAgile(new Uint8Array(buffer), password);
-}
-
-// --- ECMA-376 Agile Encryption (AES-256-CBC / SHA-512) ---
-// Algorithm matches xlsx-populate Encryptor.js exactly
-async function encryptXlsxAgile(xlsxBytes, password) {
-  const SPIN=100000, KB=32, BS=16; // AES-256, 32-byte content key
-  const BK_KEY=new Uint8Array([0x14,0x6e,0x0b,0xe7,0xab,0xac,0xd0,0xd6]);
-  const BK_VIN=new Uint8Array([0xfe,0xa7,0xd2,0x76,0x3b,0x4b,0x9e,0x79]);
-  const BK_VH =new Uint8Array([0xd7,0xaa,0x0f,0x6d,0x30,0x61,0x34,0x4e]);
-  const BK_HK =new Uint8Array([0x5f,0xb2,0xad,0x01,0x0c,0xb9,0xe1,0xf6]);
-  const BK_HV =new Uint8Array([0xa0,0x67,0x7f,0x02,0xb2,0x2c,0x84,0x33]);
-
-  const cat=(...a)=>{const n=a.reduce((s,x)=>s+x.length,0);const r=new Uint8Array(n);let o=0;for(const x of a){r.set(x,o);o+=x.length;}return r;};
-  const u32le=n=>{const b=new Uint8Array(4);new DataView(b.buffer).setUint32(0,n,true);return b;};
-  const u64le=n=>{const b=new Uint8Array(8);const dv=new DataView(b.buffer);dv.setUint32(0,n>>>0,true);dv.setUint32(4,Math.floor(n/0x100000000)>>>0,true);return b;};
-  const b64=u8=>{let s='';for(const b of u8)s+=String.fromCharCode(b);return btoa(s);};
-
-  // SHA-512 via WebCrypto
-  async function sha512(...parts){
-    return new Uint8Array(await crypto.subtle.digest('SHA-512', cat(...parts)));
-  }
-
-  // AES-256-CBC: zero-pad data, encrypt, strip the PKCS7 block WebCrypto appends
-  async function aesEnc(key,iv,data){
-    const padLen=data.length%16===0?0:16-data.length%16;
-    const padded=new Uint8Array(data.length+padLen); padded.set(data); // zero-padded
-    const k=await crypto.subtle.importKey('raw',key,'AES-CBC',false,['encrypt']);
-    const enc=new Uint8Array(await crypto.subtle.encrypt({name:'AES-CBC',iv},k,padded));
-    return enc.slice(0,padded.length); // strip PKCS7 block
-  }
-
-  // Password → UTF-16LE
-  const pw=new Uint8Array(password.length*2);
-  for(let i=0;i<password.length;i++){pw[i*2]=password.charCodeAt(i)&0xff;pw[i*2+1]=(password.charCodeAt(i)>>8)&0xff;}
-
-  const dataSalt=crypto.getRandomValues(new Uint8Array(16));
-  const keySalt =crypto.getRandomValues(new Uint8Array(16));
-  const packageKey=crypto.getRandomValues(new Uint8Array(KB)); // random AES-256 content key
-  const verifier =crypto.getRandomValues(new Uint8Array(16));
-
-  // Key derivation (matches xlsx-populate):
-  // H0 = SHA512(keySalt, password)
-  let H=await sha512(keySalt, pw);
-  // H_{i+1} = SHA512(i_le32, H_i)  ← iterator FIRST
-  for(let i=0;i<SPIN;i++) H=await sha512(u32le(i),H);
-  // subKey(bk) = SHA512(H, bk)[0:32]
-  const subKey=async bk=>(await sha512(H,bk)).slice(0,KB);
-
-  // Encrypt key material (IV = keySalt directly)
-  const Kkey=await subKey(BK_KEY), Kvin=await subKey(BK_VIN), Kvh=await subKey(BK_VH);
-  const encKeyValue=await aesEnc(Kkey,keySalt,packageKey);
-  const encVerIn   =await aesEnc(Kvin,keySalt,verifier);
-  const encVerHash =await aesEnc(Kvh, keySalt, await sha512(verifier));
-
-  // Package encryption: IV = SHA512(dataSalt, segIndex_le32)[0:16]
-  const encSegs=[];
-  for(let seg=0,off=0;off<xlsxBytes.length;seg++,off+=4096){
-    const chunk=xlsxBytes.slice(off,Math.min(off+4096,xlsxBytes.length));
-    const iv=(await sha512(dataSalt,u32le(seg))).slice(0,BS);
-    encSegs.push(await aesEnc(packageKey,iv,chunk));
-  }
-  const encPack=cat(u64le(xlsxBytes.length),...encSegs);
-
-  // HMAC-SHA512: key = random 64 bytes, encrypted with packageKey
-  const hmacKeyRaw=crypto.getRandomValues(new Uint8Array(64));
-  const hmacKeyIV=(await sha512(dataSalt,BK_HK)).slice(0,BS);
-  const encHmacKey=await aesEnc(packageKey,hmacKeyIV,hmacKeyRaw);
-  const hmacCK=await crypto.subtle.importKey('raw',hmacKeyRaw,{name:'HMAC',hash:'SHA-512'},false,['sign']);
-  const hmacVal=new Uint8Array(await crypto.subtle.sign('HMAC',hmacCK,encPack));
-  const hmacValIV=(await sha512(dataSalt,BK_HV)).slice(0,BS);
-  const encHmacVal=await aesEnc(packageKey,hmacValIV,hmacVal);
-
-  // EncryptionInfo = 8-byte header (version 4.4 + reserved 0x40) + XML
-  const xml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><encryption xmlns="http://schemas.microsoft.com/office/2006/encryption" xmlns:p="http://schemas.microsoft.com/office/2006/keyEncryptor/password" xmlns:c="http://schemas.microsoft.com/office/2006/keyEncryptor/certificate"><keyData saltSize="16" blockSize="${BS}" keyBits="${KB*8}" hashSize="64" cipherAlgorithm="AES" cipherChaining="ChainingModeCBC" hashAlgorithm="SHA512" saltValue="${b64(dataSalt)}"/><dataIntegrity encryptedHmacKey="${b64(encHmacKey)}" encryptedHmacValue="${b64(encHmacVal)}"/><keyEncryptors><keyEncryptor uri="http://schemas.microsoft.com/office/2006/keyEncryptor/password"><p:encryptedKey spinCount="${SPIN}" saltSize="16" blockSize="${BS}" keyBits="${KB*8}" hashSize="64" cipherAlgorithm="AES" cipherChaining="ChainingModeCBC" hashAlgorithm="SHA512" saltValue="${b64(keySalt)}" encryptedVerifierHashInput="${b64(encVerIn)}" encryptedVerifierHash="${b64(encVerHash)}" encryptedKeyValue="${b64(encKeyValue)}"/></keyEncryptor></keyEncryptors></encryption>`;
-  const xmlBytes=new TextEncoder().encode(xml);
-  const encInfo=new Uint8Array(8+xmlBytes.length);
-  const encInfoDv=new DataView(encInfo.buffer);
-  encInfoDv.setUint16(0,4,true); encInfoDv.setUint16(2,4,true); encInfoDv.setUint32(4,0x40,true);
-  encInfo.set(xmlBytes,8);
-
-  const cfb=XLSX.CFB.utils.cfb_new();
-  XLSX.CFB.utils.cfb_add(cfb,'EncryptionInfo',encInfo);
-  XLSX.CFB.utils.cfb_add(cfb,'EncryptedPackage',encPack);
-  return new Uint8Array(XLSX.CFB.write(cfb,{type:'array'}));
+  const wb = await XlsxPopulate.fromDataAsync(buffer);
+  const blob = await wb.outputAsync({ password });
+  return new Uint8Array(await blob.arrayBuffer());
 }
 
 // ===================== PDF =====================
