@@ -347,25 +347,34 @@ async function buildOutputXlsx(templateBuf, selectedRows) {
   var sumCols=EtoAA.concat(['AE','AF','AG','AH','AI','AK']);
   sumCols.forEach(function(c){sums[c]=0;});
 
+  // GL Income account code per template column (row 4 of ★LOW Accrued Income template)
+  var GL_COL={E:'41120102',F:'41120102A',G:'41120103',H:'41120104',I:'41120105',J:'41120106',K:'41120107',L:'41120108',M:'41120109',N:'41120110',O:'41120111',P:'41120112',Q:'41120113',R:'41120114',S:'41120115',T:'41120116',U:'41120117',V:'41120118',W:'41120119',X:'41120120',Y:'41120121',Z:'41120122',AA:'41120101'};
+  var COL_BY_GL={}; Object.keys(GL_COL).forEach(function(c){COL_BY_GL[GL_COL[c]]=c;});
+  // Logical field → GL Income code (per GL - update.xlsx Income/Cost crosswalk)
+  var FIELD_GL={sal:'41120102',ssf:'41120103',pvf:'41120104',hlth:'41120105',sev:'41120106',alwF:'41120107',oInc:'41120108',ot:'41120109',comm:'41120110',bon:'41120111',rimb:'41120112',inc:'41120113',chk:'41120114',tmp:'41120115',awd:'41120116',uni:'41120117',trvF:'41120118',trn:'41120119',evt:'41120120',alwNF:'41120121',oex:'41120122',fee:'41120101'};
+
   selectedRows.forEach(function(r,idx){
     if(idx>=MAXR)return;
     var ri=DS+idx;
     var sal=+r.salary||0, ssf=+r.ssf||0, hlth=+r.health||0, pvf=+r.pvf||0,
         alwF=+r.alwFix||0, ot=+r.ot||0, alwNF=+r.alwNonFix||0, fee=+r.fee||0,
         comm=+r.commission||0, inc=+r.incentive||0;
+    var trvF=+r.travelFixed||0,rimb=+r.reimburse||0;
+    var bon=+r.bonus||0,awd=+r.awards||0,sev=+r.severance||0;
+    var chk=+r.checkup||0,uni=+r.uniform||0,evt=+r.eventRoom||0;
+    var trn=+r.training||0,oex=+r.otherExp||0,tmp=+r.tempSalary||0;
+    var oInc=+r.otherInc||0;
     var accInc=sal+alwF+ot+alwNF+comm+inc+trvF+rimb+bon+awd+sev+chk+uni+evt+trn+oex+tmp+oInc;
     var totAcc=accInc+fee+ssf+pvf+hlth;
     var totInc=accInc+ssf+pvf+hlth+fee;
     var my=mmyy(r.period);
     function nc(col,v){var n=parseFloat((+v||0).toFixed(2));return '<c r="'+col+ri+'"><v>'+n+'</v></c>';}
     function sc(col,v){return '<c r="'+col+ri+'" t="inlineStr"><is><t>'+esc(v)+'</t></is></c>';}
-    // Map known cols to values; rest = 0
-    var trvF=+r.travelFixed||0,rimb=+r.reimburse||0;
-    var bon=+r.bonus||0,awd=+r.awards||0,sev=+r.severance||0;
-    var chk=+r.checkup||0,uni=+r.uniform||0,evt=+r.eventRoom||0;
-    var trn=+r.training||0,oex=+r.otherExp||0,tmp=+r.tempSalary||0;
-    var oInc=+r.otherInc||0;
-    var cv={E:sal,F:pvf,G:ssf,I:hlth,J:sev,K:alwF,L:oInc,M:ot,N:comm,O:bon,P:rimb,Q:inc,R:chk,S:tmp,T:awd,U:uni,V:trvF,W:trn,X:evt,Y:alwNF,Z:oex,AA:fee};
+    // Resolve each logical field's column via its GL Income code — not a hardcoded letter,
+    // so it can't silently drift out of sync with the template's row-4 GL codes again.
+    var fieldVals={sal:sal,ssf:ssf,pvf:pvf,hlth:hlth,sev:sev,alwF:alwF,oInc:oInc,ot:ot,comm:comm,bon:bon,rimb:rimb,inc:inc,chk:chk,tmp:tmp,awd:awd,uni:uni,trvF:trvF,trn:trn,evt:evt,alwNF:alwNF,oex:oex,fee:fee};
+    var cv={};
+    Object.keys(FIELD_GL).forEach(function(fld){var col=COL_BY_GL[FIELD_GL[fld]];if(col)cv[col]=(cv[col]||0)+fieldVals[fld];});
     var numCells=EtoAA.map(function(c){return nc(c,cv[c]||0);}).join('');
     // Accumulate sums
     EtoAA.forEach(function(c){sums[c]+=(cv[c]||0);});
@@ -671,12 +680,15 @@ function getRows(){
     });
     order.forEach(function(key){
       var grp=groups[key];
-      var detail=ag.length?ag.map(function(g){return grp[0][g.col]||'ไม่ระบุ';}).join(' / '):'รวมทั้งหมด';
+      // Multi-company file (grouped by Cost Center): Cost Center IS the company for that row
+      var useCCAsCompany=groupByState.costCenter&&grp[0].costCenter;
+      var agDetail=useCCAsCompany?ag.filter(function(g){return g.key!=='costCenter';}):ag;
+      var detail=agDetail.length?agDetail.map(function(g){return grp[0][g.col]||'ไม่ระบุ';}).join(' / '):'รวมทั้งหมด';
       var pndCnt=grp.filter(function(e){return(e.cc1||'').toLowerCase().indexOf('pending')>=0;}).length;
       if(pndCnt>0) detail+=' [Pending PO: '+pndCnt+' คน]';
       var rk=f.filename+'||'+key;
       function sum(k){return grp.reduce(function(s,e){return s+(parseFloat(e[k])||0);},0);}
-      rows.push({rowKey:rk,filename:f.filename,company:f.company,period:f.period,
+      rows.push({rowKey:rk,filename:f.filename,company:useCCAsCompany?grp[0].costCenter:f.company,period:f.period,
         project:grp[0].project||f.projects[0]||'',detail:detail,count:grp.length,
         salary:sum('salary'),alwFix:sum('alwFix'),alwNonFix:sum('alwNonFix'),ot:sum('ot'),
         netPay:sum('netPay'),gross:sum('gross'),ssf:sum('ssf'),health:sum('health'),fee:sum('fee'),totalInv:sum('totalInv'),commission:sum('commission'),incentive:sum('incentive'),travelFixed:sum('travelFixed'),reimburse:sum('reimburse'),
