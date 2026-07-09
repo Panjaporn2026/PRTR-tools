@@ -322,9 +322,13 @@ function detectCat(t) {
 function extractRatesFromText(text) {
   const rates = {};
   const prtrCats = new Set();
+  const guessedCats = new Set(); // categories where no % was actually found in the text — value below is a hardcoded fallback, not read from the contract
 
   const lines = text.split('\n');
   for (const line of lines) {
+    // Skip PRTR's own signature block ("PRTR Group Public Company Limited" / "Labor Supplier: PRTR...") —
+    // it appears on every contract and is not a "this line item belongs to PRTR" signal.
+    if (/Labor\s*Supplier|Group\s*Public\s*Company|PCL\b/i.test(line)) continue;
     if (!/\bPRTR\b/i.test(line)) continue;
     const pcts = extractPcts(line);
     if (pcts.length > 0) continue;
@@ -363,33 +367,37 @@ function extractRatesFromText(text) {
   else if (fp.length === 3) rates.fixed = fp.slice(0,3);
   else if (fp.length >= 2) rates.fixed = fp.slice(0,2);
   else if (fp.length === 1) rates.fixed = pad4(fp);
+  else guessedCats.add('fixed');
 
   if (vp.length >= 4) rates.variable = vp.slice(0,4);
   else if (vp.length === 3) rates.variable = vp.slice(0,3);
   else if (vp.length >= 2) rates.variable = vp.slice(0,2);
   else if (vp.length === 1) rates.variable = pad4(vp);
+  else guessedCats.add('variable');
 
-  function findRate(patterns, def) {
+  function findRate(patterns, def, catKey) {
     for (const pat of patterns) {
       const re = new RegExp(pat + '[\\s\\S]{0,200}?(\\d+(?:\\.\\d+)?)\\s*%', 'i');
       const m = text.match(re);
       if (m) { const v = parseFloat(m[1]); if (v > 0 && v <= 100) return v / 100; }
     }
+    guessedCats.add(catKey);
     return def;
   }
 
-  if (!prtrCats.has('pvd'))        rates.pvd         = pad4([findRate(['Provident Fund','กองทนุ\\s*สา\\s*รอง','กองทุนส.{0,5}รอง'], 0.05)]);
-  if (!prtrCats.has('health_ins')) rates.health_ins  = pad4([findRate(['Health Ins','ประกนั\\s*สขุ','ประกันสุข'], 0.05)]);
-  if (!prtrCats.has('health_check')) rates.health_check = pad4([findRate(['Health Check','ตรวจสขุ','ตรวจสุข'], 0.05)]);
-  if (!prtrCats.has('uniform'))    rates.uniform     = pad4([findRate(['Uniform','เครื่องแบบ'], 0.05)]);
-  if (!prtrCats.has('expense'))    rates.expense     = pad4([findRate(['Reimbursement','Expense','รายจ่าย','ค่าใช.{0,8}ประสาน'], 0.10)]);
+  if (!prtrCats.has('pvd'))        rates.pvd         = pad4([findRate(['Provident Fund','กองทนุ\\s*สา\\s*รอง','กองทุนส.{0,5}รอง'], 0.05, 'pvd')]);
+  if (!prtrCats.has('health_ins')) rates.health_ins  = pad4([findRate(['Health Ins','ประกนั\\s*สขุ','ประกันสุข'], 0.05, 'health_ins')]);
+  if (!prtrCats.has('health_check')) rates.health_check = pad4([findRate(['Health Check','ตรวจสขุ','ตรวจสุข'], 0.05, 'health_check')]);
+  if (!prtrCats.has('uniform'))    rates.uniform     = pad4([findRate(['Uniform','เครื่องแบบ'], 0.05, 'uniform')]);
+  if (!prtrCats.has('expense'))    rates.expense     = pad4([findRate(['Reimbursement','Expense','รายจ่าย','ค่าใช.{0,8}ประสาน'], 0.10, 'expense')]);
   if (!prtrCats.has('compensation')) {
     const cm = text.match(/(?:compensation|ชดเชย)[\s\S]{0,200}?(?:plus|บวก)\s+(\d+(?:\.\d+)?)\s*%/i);
-    rates.compensation = pad4([cm ? parseFloat(cm[1])/100 : 0.03]);
+    if (cm) rates.compensation = pad4([parseFloat(cm[1])/100]);
+    else { rates.compensation = pad4([0.03]); guessedCats.add('compensation'); }
   }
   rates.sso = [0,0,0,0];
 
-  return { rates, prtrCats };
+  return { rates, prtrCats, guessedCats };
 }
 
 // ── n_cols: supports 1, 2, 3, 4 ──────────────────────────────────────────────
@@ -443,7 +451,7 @@ async function runOCR() {
   for (let p = 1; p <= pdfDoc.numPages; p++) {
     setStatus(`OCR หน้า ${p} / ${pdfDoc.numPages}...`, 5 + (p / pdfDoc.numPages) * 80);
     const page = await pdfDoc.getPage(p);
-    const vp = page.getViewport({ scale: 2.5 });
+    const vp = page.getViewport({ scale: 3.5 }); // higher scale → fewer digit misreads (e.g. "11%" read as "1%")
     const canvas = document.createElement('canvas');
     canvas.width = vp.width; canvas.height = vp.height;
     await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
@@ -452,17 +460,25 @@ async function runOCR() {
   }
   await worker.terminate();
   setStatus('OCR เสร็จแล้ว ✅', 100);
-  processText(text);
+  processText(text, true);
 }
 
-function processText(text) {
-  const { rates, prtrCats } = extractRatesFromText(text);
-  if (!rates.fixed)    rates.fixed    = pad4([0.20]);
-  if (!rates.variable) rates.variable = pad4([(rates.fixed||[0.15])[0]]);
+function processText(text, viaOCR) {
+  const { rates, prtrCats, guessedCats } = extractRatesFromText(text);
+  if (!rates.fixed)    { rates.fixed    = pad4([0.20]); guessedCats.add('fixed'); }
+  if (!rates.variable) { rates.variable = pad4([(rates.fixed||[0.15])[0]]); guessedCats.add('variable'); }
   const nCols = detectNCols(rates);
   const company = extractCompany(text, pdfFile ? pdfFile.name : 'Contract');
-  appState = { rates, prtrCats, nCols, company, xlsxFile };
+  appState = { rates, prtrCats, guessedCats, viaOCR: !!viaOCR, nCols, company, xlsxFile };
   renderResult();
+}
+
+// A real fee-table addendum always contains several "%" values. If none show up in the
+// extracted text, the addendum page(s) almost certainly didn't have a usable text layer
+// (e.g. scanned/signed-and-rescanned pages mixed into an otherwise text-based contract) —
+// checking overall document length isn't enough since earlier pages can pad it out.
+function countPcts(text) {
+  return (text.match(/\d{1,3}(?:\.\d+)?\s*%/g) || []).length;
 }
 
 async function processFiles() {
@@ -475,9 +491,9 @@ async function processFiles() {
     setStatus('กำลังอ่านข้อความ...', 30);
     const text = await extractText(pdfDoc);
     setStatus('วิเคราะห์...', 70);
-    if (text.replace(/\s+/g,'').length < 200) {
-      setStatus('ไม่พบข้อความใน PDF', 100);
-      document.getElementById('ocrNotice').classList.add('visible');
+    if (text.replace(/\s+/g,'').length < 200 || countPcts(text) === 0) {
+      setStatus('อ่านตาราง fee ไม่เจอ — กำลังลอง OCR อัตโนมัติ...', 100);
+      await runOCR();
       return;
     }
     setStatus('อ่านสัญญาเสร็จแล้ว ✅', 100);
@@ -489,7 +505,7 @@ async function processFiles() {
 }
 
 function renderResult() {
-  const { rates, prtrCats, nCols, company } = appState;
+  const { rates, prtrCats, guessedCats, viaOCR, nCols, company } = appState;
   // Sync dropdown
   const sel = document.getElementById('nColsSelect');
   if (sel) sel.value = String(nCols);
@@ -498,12 +514,23 @@ function renderResult() {
     <div class="meta-chip">🏢 <strong>${company}</strong></div>
     <div class="meta-chip">📊 ${colLabel}</div>
   `;
+  let banners = '';
+  if (viaOCR) {
+    banners += `<div class="warn-banner">🔍 ค่าด้านล่างอ่านมาจาก OCR (สัญญาเป็นไฟล์สแกน) — OCR อาจอ่านตัวเลขผิดได้ (เช่น "11%" อ่านเป็น "1%") กรุณาเทียบกับ Addendum ในสัญญาจริงทุกค่าก่อนกด Generate</div>`;
+  }
   if (prtrCats.size > 0) {
     const names = [...prtrCats].map(c => CAT_LABELS[c] || c).join(', ');
-    document.getElementById('prtrBanner').innerHTML =
-      `<div class="prtr-banner">📌 รายการที่ PRTR รับผิดชอบ (จะใส่ "PRTR"): <strong>${names}</strong></div>`;
+    banners += `<div class="prtr-banner">📌 รายการที่ PRTR รับผิดชอบ (จะใส่ "PRTR"): <strong>${names}</strong></div>`;
+  }
+  if (banners) {
+    document.getElementById('prtrBanner').innerHTML = banners;
   } else {
     document.getElementById('prtrBanner').innerHTML = '';
+  }
+  if (guessedCats && guessedCats.size > 0) {
+    const names = [...guessedCats].map(c => CAT_LABELS[c] || c).join(', ');
+    document.getElementById('prtrBanner').innerHTML +=
+      `<div class="warn-banner">⚠️ อ่านค่า % ของรายการนี้จากสัญญาไม่เจอ — ใช้ค่า default ไปก่อน กรุณาเช็คกับสัญญาจริงแล้วแก้ในตารางด้านล่าง: <strong>${names}</strong></div>`;
   }
   ['th_K','th_L','th_M'].forEach((id,i) => {
     document.getElementById(id).style.display = (i+1) < nCols ? '' : 'none';
@@ -513,16 +540,18 @@ function renderResult() {
   for (const cat of ORDER) {
     const label = CAT_LABELS[cat] || cat;
     const isPRTR = prtrCats.has(cat);
+    const isGuessed = guessedCats && guessedCats.has(cat);
     const r = pad4(rates[cat] || [0]);
-    html += `<tr><td class="cat-label">${label}</td>`;
+    html += `<tr><td class="cat-label">${label}${isGuessed ? ' <span title="ค่า default ไม่ได้อ่านจากสัญญา" style="color:#f59e0b">⚠️</span>' : ''}</td>`;
     for (let i = 0; i < 4; i++) {
       const show = i < nCols ? '' : ' style="display:none"';
+      const warnStyle = isGuessed ? 'border-color:#f59e0b;background:#fffbeb;' : '';
       if (cat === 'sso') {
         html += `<td${show}><input class="rate-input" type="number" id="r_${cat}_${i}" value="0" min="0" max="100" step="0.5"><span class="pct-label">%</span></td>`;
       } else if (isPRTR) {
         html += `<td${show}><span class="prtr-badge">PRTR</span></td>`;
       } else {
-        html += `<td${show}><input class="rate-input" type="number" id="r_${cat}_${i}" value="${(r[i]*100).toFixed(1)}" min="0" max="100" step="0.5"><span class="pct-label">%</span></td>`;
+        html += `<td${show}><input class="rate-input" type="number" id="r_${cat}_${i}" value="${(r[i]*100).toFixed(1)}" min="0" max="100" step="0.5" style="${warnStyle}"><span class="pct-label">%</span></td>`;
       }
     }
     html += '</tr>';
