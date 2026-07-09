@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PRTR Accrued Income Generator</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',Arial,sans-serif;font-size:13px;background:#f0f2f5;color:#1a1a2e;}
+.app{max-width:960px;margin:0 auto;padding:16px;}
+.card{background:#fff;border-radius:10px;border:1px solid #e0e4ea;padding:20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+h1{font-size:20px;font-weight:700;color:#1a237e;}
+.subtitle{color:#546e7a;font-size:11.5px;margin-top:3px;}
+h2{font-size:13.5px;font-weight:700;color:#1a237e;margin-bottom:12px;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:600px){.two-col{grid-template-columns:1fr;}}
+.ubox{border:2px dashed #90a4ae;border-radius:8px;background:#f8fafc;transition:all .2s;position:relative;overflow:hidden;min-height:110px;}
+.ubox.has-file{border-color:#43a047;background:#f1f8e9;}
+.ubox.drag{border-color:#3f51b5;background:#e8eaf6;}
+.ubox label{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px 12px;cursor:pointer;height:100%;gap:5px;}
+.ubox input[type=file]{position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:999px;}
+.uico{font-size:26px;}
+.utitle{font-weight:700;font-size:12px;color:#1a237e;}
+.udesc{font-size:11px;color:#607d8b;text-align:center;}
+.ufname{font-size:10.5px;color:#2e7d32;font-weight:600;text-align:center;word-break:break-all;margin-top:2px;}
+.notice{background:#e3f2fd;border:1px solid #90caf9;border-radius:6px;padding:10px 14px;font-size:12px;color:#1565c0;margin-bottom:14px;}
+.msg{border-radius:6px;padding:8px 14px;font-size:12px;margin-top:8px;display:none;}
+.msg.err{background:#ffebee;color:#c62828;border:1px solid #ef9a9a;}
+.msg.ok{background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;}
+.dbg{background:#263238;color:#80cbc4;border-radius:6px;padding:8px 12px;font-size:10px;font-family:monospace;white-space:pre-wrap;max-height:150px;overflow-y:auto;display:block;margin-top:8px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+.chip{display:flex;align-items:center;gap:5px;background:#e8eaf6;border-radius:20px;padding:3px 10px;font-size:11px;color:#283593;}
+.chip .rm{cursor:pointer;color:#e53935;font-size:13px;}
+.summary-grid{display:flex;flex-wrap:wrap;gap:10px;}
+.sc{border:1px solid #e0e4ea;border-radius:8px;padding:12px 14px;min-width:195px;flex:1;}
+.sc .fn{font-size:10.5px;color:#3f51b5;font-weight:700;margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sr{display:flex;justify-content:space-between;font-size:11px;padding:1px 0;}
+.sr .l{color:#607d8b;}.sr .v{font-weight:600;color:#1a237e;}
+.badge{background:#ffecb3;color:#e65100;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;margin-left:3px;}
+.gb-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.cbi{display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;padding:5px 8px;border-radius:5px;border:1px solid #e0e4ea;}
+.cbi:hover:not(.dis){border-color:#3f51b5;background:#f3f4fb;}
+.cbi.dis{opacity:.38;cursor:not-allowed;}
+.cbi input{cursor:pointer;accent-color:#3f51b5;}
+.rc{font-size:11.5px;color:#546e7a;margin-top:10px;}.rc strong{color:#1a237e;}
+table{width:100%;border-collapse:collapse;font-size:11.5px;}
+thead th{background:#1a237e;color:#fff;padding:6px 7px;text-align:center;font-weight:600;white-space:nowrap;}
+thead th:first-child{border-radius:6px 0 0 0;}thead th:last-child{border-radius:0 6px 0 0;}
+tbody tr:nth-child(odd){background:#f8f9fe;}tbody tr:nth-child(even){background:#fff;}
+tbody tr:hover{background:#eef0fc;}tbody tr.off{opacity:.4;}
+tbody td{padding:5px 7px;border-bottom:1px solid #eee;white-space:nowrap;}
+td.n{text-align:right;}td.w{color:#e65100;text-align:center;}td.ok{color:#2e7d32;text-align:center;}
+tfoot tr{background:#e8eaf6;font-weight:700;}tfoot td{padding:5px 7px;border-top:2px solid #1a237e;}
+.nd{text-align:center;color:#90a4ae;padding:24px;}
+.ss{font-size:11px;color:#546e7a;margin-top:8px;}.ss strong{color:#1a237e;}
+.dlr{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+.bld{background:#1565C0;color:#fff;border:none;border-radius:7px;padding:10px 22px;font-size:13px;font-weight:700;cursor:pointer;}
+.bld:hover{background:#0d47a1;}.bld:disabled{background:#90a4ae;cursor:not-allowed;}
+#sm{font-size:11px;color:#1565C0;margin-left:8px;}
+.fo{font-size:11px;color:#546e7a;}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="card">
+  <h1>📋 PRTR Accrued Income Generator</h1>
+  <div class="subtitle">ทำงานได้โดยไม่ต้องโหลด library จากอินเทอร์เน็ต — ใช้ browser API ล้วนๆ</div>
+</div>
+<div class="card">
+  <div class="notice">ℹ️ อัปโหลดทั้ง 2 ไฟล์ แล้วกด Download เพื่อรับไฟล์ Accrue Income ที่กรอกข้อมูลแล้ว</div>
+  <h2>📂 อัปโหลดไฟล์</h2>
+  <div class="two-col">
+    <div>
+      <div style="font-size:11.5px;font-weight:700;color:#1a237e;margin-bottom:6px;">1. Detail of Invoice <span style="color:#607d8b;font-weight:400;">(เลือกได้หลายไฟล์)</span></div>
+      <div class="ubox" id="bInv">
+        <label><span class="uico">📄</span><span class="utitle">คลิกหรือลากไฟล์มาวาง</span><span class="udesc">Detail of Invoice .xlsx</span>
+          <input type="file" id="fiInv" multiple accept=".xlsx,.xls" onchange="onInvChange(this)">
+        </label>
+      </div>
+      <div class="chips" id="invChips"></div>
+    </div>
+    <div>
+      <div style="font-size:11.5px;font-weight:700;color:#1a237e;margin-bottom:6px;">2. Template Accrue Income <span style="color:#607d8b;font-weight:400;">(ไฟล์ ★LOW...)</span></div>
+      <div class="ubox" id="bTpl">
+        <label><span class="uico">📋</span><span class="utitle">คลิกหรือลากไฟล์มาวาง</span><span class="udesc">★LOW Accrued Income EXP .xlsx</span>
+          <span class="ufname" id="tplName"></span>
+          <input type="file" id="fiTpl" accept=".xlsx,.xls" onchange="onTplChange(this)">
+        </label>
+      </div>
+    </div>
+  </div>
+  <div class="msg err" id="errBox"></div>
+  <div class="msg ok" id="okBox"></div>
+  <div class="dbg" id="dbgBox"></div>
+</div>
+<div class="card" id="summaryCard" style="display:none"><h2>📄 สรุปข้อมูล</h2><div class="summary-grid" id="summaryGrid"></div></div>
+<div class="card" id="groupCard" style="display:none">
+  <h2>🔀 Group By</h2><div class="gb-grid" id="gbGrid"></div><div class="rc" id="rc"></div>
+</div>
+<div class="card" id="previewCard" style="display:none">
+  <h2>👁 Preview</h2>
+  <div style="overflow-x:auto"><table>
+    <thead><tr>
+      <th style="width:28px"><input type="checkbox" id="selAll" onchange="selAll(this.checked)" checked style="cursor:pointer;"></th>
+      <th>บริษัท / Detail</th><th>คน</th><th>Salary</th><th>SSF</th><th>PVF</th><th>Health</th><th>Check up</th><th>Allowance (Fix)</th><th>Other Income</th><th>OT</th><th>Commission</th><th>Incentive</th><th>Bonus</th><th>Non-Fix</th><th>Fee</th><th>Total Inv</th><th></th>
+    </tr></thead>
+    <tbody id="pb"></tbody>
+    <tfoot><tr id="pf" style="display:none">
+      <td></td><td><b>รวมที่เลือก</b></td>
+      <td id="f0" class="n"></td><td id="f1" class="n"></td><td id="f2" class="n"></td><td id="f3" class="n"></td><td id="f4" class="n"></td>
+      <td id="f5" class="n"></td><td id="f6" class="n"></td><td id="f7" class="n"></td><td id="f8" class="n"></td><td id="f9" class="n"></td><td id="f10" class="n"></td><td id="f11" class="n"></td>
+      <td id="f12" class="n"></td><td id="f13" class="n"></td><td></td>
+    </tr></tfoot>
+  </table></div>
+  <div class="ss" id="ss"></div>
+</div>
+<div class="card" id="dlCard" style="display:none">
+  <div class="dlr">
+    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;">
+      <button class="bld" id="btnDl" onclick="downloadExcel()">⬇ Download Accrued Income Form (.xlsx)</button>
+      <span id="sm"></span>
+    </div>
+    <span class="fo" id="fo"></span>
+  </div>
+</div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  PART 1: ZIP Reader (no CDN needed)
+// ══════════════════════════════════════════════════════
+function parseZipEntries(buf) {
+  var b = new Uint8Array(buf);
+  var entries = {};
+  var i = 0;
+  while (i < b.length - 4) {
+    // Local file header: PK\x03\x04
+    if (b[i]===0x50 && b[i+1]===0x4B && b[i+2]===0x03 && b[i+3]===0x04) {
+      var method = b[i+8] | (b[i+9]<<8);
+      var csize  = b[i+18]|(b[i+19]<<8)|(b[i+20]<<16)|(b[i+21]<<24);
+      var usize  = b[i+22]|(b[i+23]<<8)|(b[i+24]<<16)|(b[i+25]<<24);
+      var fnlen  = b[i+26]|(b[i+27]<<8);
+      var exlen  = b[i+28]|(b[i+29]<<8);
+      var dstart = i + 30 + fnlen + exlen;
+      var fname  = new TextDecoder().decode(b.slice(i+30, i+30+fnlen));
+      entries[fname] = {method, csize, usize, dstart};
+      i = dstart + csize;
+    } else { i++; }
+  }
+  return entries;
+}
+
+async function decompressEntry(entry, buf) {
+  var raw = new Uint8Array(buf).slice(entry.dstart, entry.dstart + entry.csize);
+  if (entry.method === 0) return new TextDecoder().decode(raw);
+  // deflate-raw
+  var ds = new DecompressionStream('deflate-raw');
+  var w = ds.writable.getWriter(), r = ds.readable.getReader();
+  w.write(raw); w.close();
+  var chunks = [], tot = 0;
+  while (true) { var {done,value} = await r.read(); if(done) break; chunks.push(value); tot+=value.length; }
+  var out = new Uint8Array(tot), off = 0;
+  for (var c of chunks) { out.set(c,off); off+=c.length; }
+  return new TextDecoder().decode(out);
+}
+
+async function decompressEntryBytes(entry, buf) {
+  var raw = new Uint8Array(buf).slice(entry.dstart, entry.dstart + entry.csize);
+  if (entry.method === 0) return raw;
+  var ds = new DecompressionStream('deflate-raw');
+  var w = ds.writable.getWriter(), r = ds.readable.getReader();
+  w.write(raw); w.close();
+  var chunks = [], tot = 0;
+  while (true) { var {done,value} = await r.read(); if(done) break; chunks.push(value); tot+=value.length; }
+  var out = new Uint8Array(tot), off = 0;
+  for (var c of chunks) { out.set(c,off); off+=c.length; }
+  return out;
+}
+
+// ══════════════════════════════════════════════════════
+//  PART 2: XLSX Reader (Detail of Invoice)
+// ══════════════════════════════════════════════════════
+async function readXlsxAsAoA(buf) {
+  var entries = parseZipEntries(buf);
+  // Read shared strings
+  var ss = [];
+  if (entries['xl/sharedStrings.xml']) {
+    var xml = await decompressEntry(entries['xl/sharedStrings.xml'], buf);
+    var doc = new DOMParser().parseFromString(xml, 'text/xml');
+    ss = Array.from(doc.querySelectorAll('si')).map(function(si){
+      return Array.from(si.querySelectorAll('t')).map(function(t){return t.textContent;}).join('');
+    });
+  }
+  // Find the right worksheet — prefer "Detail of Invoice" sheets over sheet1
+  var sheetKey = null;
+  if (entries['xl/workbook.xml'] && entries['xl/_rels/workbook.xml.rels']) {
+    try {
+      var wbXml = await decompressEntry(entries['xl/workbook.xml'], buf);
+      var rXml  = await decompressEntry(entries['xl/_rels/workbook.xml.rels'], buf);
+      var rmap  = {}, rm2, rre2 = /Id="([^"]+)"[^>]*Target="([^"]+)"/g;
+      while((rm2=rre2.exec(rXml))!==null) rmap[rm2[1]]=rm2[2];
+      var preferred=['detail of invoice (new)','detail of invoice (actual)','detail of invoice'];
+      var sre2=/name="([^"]+)"[^>]*r:id="([^"]+)"/g, sm2, allSheets=[];
+      while((sm2=sre2.exec(wbXml))!==null) allSheets.push({name:sm2[1].toLowerCase(),rid:sm2[2]});
+      for(var pi=0;pi<preferred.length;pi++){
+        var sh=allSheets.filter(function(s){return s.name===preferred[pi];})[0];
+        if(sh&&rmap[sh.rid]){
+          var t=rmap[sh.rid];
+          sheetKey='xl/'+(t.indexOf('worksheets/')>=0?t.replace(/^.*?(worksheets\/)/,'$1'):'worksheets/'+t);
+          break;
+        }
+      }
+    } catch(eWb){ /* fall through */ }
+  }
+  if(!sheetKey){
+    for(var k of Object.keys(entries)){if(/^xl\/worksheets\/sheet\d+\.xml$/.test(k)){sheetKey=k;break;}}
+  }
+  if (!sheetKey) throw new Error('ไม่พบ worksheet');
+  var sheetXml = await decompressEntry(entries[sheetKey], buf);
+  var sheetDoc = new DOMParser().parseFromString(sheetXml, 'text/xml');
+
+  // Parse rows
+  var rowMap = {};
+  Array.from(sheetDoc.querySelectorAll('row')).forEach(function(row) {
+    var r = parseInt(row.getAttribute('r'));
+    rowMap[r] = {};
+    Array.from(row.querySelectorAll('c')).forEach(function(cell) {
+      var ref = cell.getAttribute('r');
+      var type = cell.getAttribute('t') || '';
+      var vEl = cell.querySelector('v');
+      var tEl = cell.querySelector('is > t');
+      var val = '';
+      if (type === 's' && vEl) {
+        val = ss[parseInt(vEl.textContent)] || '';
+      } else if (type === 'inlineStr' && tEl) {
+        val = tEl.textContent;
+      } else if (vEl) {
+        var n = parseFloat(vEl.textContent);
+        val = isNaN(n) ? vEl.textContent : n;
+      }
+      // col index from ref (e.g. "AB3" → col)
+      var col = 0;
+      for (var ci=0; ci<ref.length; ci++) {
+        var ch = ref.charCodeAt(ci);
+        if (ch < 65) break;
+        col = col * 26 + (ch - 64);
+      }
+      rowMap[r][col-1] = val;
+    });
+  });
+
+  var maxRow = Math.max.apply(null, Object.keys(rowMap).map(Number));
+  var aoa = [];
+  for (var ri = 1; ri <= maxRow; ri++) {
+    var row = rowMap[ri] || {};
+    var maxCol = Object.keys(row).length ? Math.max.apply(null, Object.keys(row).map(Number)) + 1 : 0;
+    var arr = [];
+    for (var ci = 0; ci < maxCol; ci++) arr.push(row[ci] !== undefined ? row[ci] : '');
+    aoa.push(arr);
+  }
+  return aoa;
+}
+
+// ══════════════════════════════════════════════════════
+//  PART 3: ZIP Writer + CRC32
+// ══════════════════════════════════════════════════════
+function crc32(data) {
+  var c = 0xFFFFFFFF;
+  for (var i=0; i<data.length; i++) {
+    c ^= data[i];
+    for (var j=0; j<8; j++) c = (c&1) ? ((c>>>1)^0xEDB88320) : (c>>>1);
+  }
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+function u32(n){return [n&0xFF,(n>>8)&0xFF,(n>>16)&0xFF,(n>>24)&0xFF];}
+function u16(n){return [n&0xFF,(n>>8)&0xFF];}
+
+function buildZip(files) {
+  // files: [{name:string, data:Uint8Array}]
+  var enc = new TextEncoder();
+  var locals = [], cds = [], offset = 0;
+  for (var fi=0; fi<files.length; fi++) {
+    var f = files[fi];
+    var nb = enc.encode(f.name);
+    var crc = crc32(f.data);
+    var lh = new Uint8Array([
+      0x50,0x4B,0x03,0x04, 0x14,0x00, 0x00,0x00, 0x00,0x00, // sig,ver,flags,method(stored),time,date
+      0x00,0x00, 0x00,0x00  // time,date
+    ].concat(u32(crc), u32(f.data.length), u32(f.data.length), u16(nb.length), [0,0]));
+    var lhFull = concat([lh, nb]);
+    var cd = new Uint8Array([
+      0x50,0x4B,0x01,0x02, 0x14,0x00, 0x14,0x00, 0x00,0x00, 0x00,0x00, // sig,ver*2,flags,method,time,date
+      0x00,0x00, 0x00,0x00  // time,date
+    ].concat(u32(crc), u32(f.data.length), u32(f.data.length), u16(nb.length), [0,0,0,0,0,0,0,0,0,0,0,0], u32(offset)));
+    var cdFull = concat([cd, nb]);
+    locals.push(lhFull, f.data);
+    cds.push(cdFull);
+    offset += lhFull.length + f.data.length;
+  }
+  var cdStart = offset, cdSize = 0;
+  for (var c of cds) cdSize += c.length;
+  var eocd = new Uint8Array([
+    0x50,0x4B,0x05,0x06, 0x00,0x00, 0x00,0x00
+  ].concat(u16(files.length), u16(files.length), u32(cdSize), u32(cdStart), [0,0]));
+  return concat(locals.concat(cds).concat([eocd]));
+}
+function concat(parts) {
+  var tot = 0;
+  for (var p of parts) tot += p.length;
+  var out = new Uint8Array(tot), off = 0;
+  for (var p of parts) { out.set(p,off); off+=p.length; }
+  return out;
+}
+
+// ══════════════════════════════════════════════════════
+//  PART 4: XLSX Writer — string-based (no namespace issues)
+// ══════════════════════════════════════════════════════
+async function buildOutputXlsx(templateBuf, selectedRows) {
+  var enc = new TextEncoder();
+  dbg('--- buildOutputXlsx: '+selectedRows.length+' rows ---');
+
+  var entries = parseZipEntries(templateBuf);
+  dbg('ZIP entries: '+Object.keys(entries).length);
+
+  // Find worksheet key
+  var sheetKey = null;
+  Object.keys(entries).forEach(function(k){
+    if(/xl\/worksheets\/sheet\d+\.xml$/.test(k)) sheetKey = sheetKey||k;
+  });
+  if(!sheetKey) throw new Error('ไม่พบ worksheet ใน template');
+  dbg('sheet: '+sheetKey);
+
+  var sheetXml = await decompressEntry(entries[sheetKey], templateBuf);
+  dbg('sheetXml: '+sheetXml.length+' chars');
+  if(sheetXml.indexOf('<sheetData')<0) throw new Error('ไม่พบ <sheetData> ใน template');
+
+  function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  function mmyy(p){var m={jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};var mt=(p||'').match(/([a-z]+)[\-\s]+(\d{4})/i);if(!mt)return'';return(m[mt[1].toLowerCase().slice(0,3)]||'00')+mt[2].slice(-2);}
+  function monthPayStr(p){var m={jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};var n=parseFloat(p);if(!isNaN(n)&&n>40000&&n<60000){var dd=new Date((n-25569)*86400*1000);var mo=('0'+(dd.getUTCMonth()+1)).slice(-2);return '01/'+mo+'/'+String(dd.getUTCFullYear());}var mt=String(p||'').match(/([a-z]+)[\-\s]+(\d{4}|\d{2})/i);if(!mt)return p||'';var yr=mt[2].length===2?'20'+mt[2]:mt[2];return'01/'+(m[mt[1].toLowerCase().slice(0,3)]||'??')+'/'+yr;}
+
+  // Build new data row strings (E through AA all filled; unknown cols = 0)
+  var DS=5, MAXR=29;
+  // All numeric cols E(5)..AA(27) in order
+  var EtoAA=['E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','AA'];
+  var newRows=[], sums={};
+  // columns to sum for total row
+  var sumCols=EtoAA.concat(['AE','AF','AG','AH','AI','AK']);
+  sumCols.forEach(function(c){sums[c]=0;});
+
+  selectedRows.forEach(function(r,idx){
+    if(idx>=MAXR)return;
+    var ri=DS+idx;
+    var sal=+r.salary||0, ssf=+r.ssf||0, hlth=+r.health||0, pvf=+r.pvf||0,
+        alwF=+r.alwFix||0, ot=+r.ot||0, alwNF=+r.alwNonFix||0, fee=+r.fee||0,
+        comm=+r.commission||0, inc=+r.incentive||0;
+    var accInc=sal+alwF+ot+alwNF+comm+inc+trvF+rimb+bon+awd+sev+chk+uni+evt+trn+oex+tmp+oInc;
+    var totAcc=accInc+fee+ssf+pvf+hlth;
+    var totInc=accInc+ssf+pvf+hlth+fee;
+    var my=mmyy(r.period);
+    function nc(col,v){var n=parseFloat((+v||0).toFixed(2));return '<c r="'+col+ri+'"><v>'+n+'</v></c>';}
+    function sc(col,v){return '<c r="'+col+ri+'" t="inlineStr"><is><t>'+esc(v)+'</t></is></c>';}
+    // Map known cols to values; rest = 0
+    var trvF=+r.travelFixed||0,rimb=+r.reimburse||0;
+    var bon=+r.bonus||0,awd=+r.awards||0,sev=+r.severance||0;
+    var chk=+r.checkup||0,uni=+r.uniform||0,evt=+r.eventRoom||0;
+    var trn=+r.training||0,oex=+r.otherExp||0,tmp=+r.tempSalary||0;
+    var oInc=+r.otherInc||0;
+    var cv={E:sal,F:pvf,G:ssf,I:hlth,J:sev,K:alwF,L:oInc,M:ot,N:comm,O:bon,P:rimb,Q:inc,R:chk,S:tmp,T:awd,U:uni,V:trvF,W:trn,X:evt,Y:alwNF,Z:oex,AA:fee};
+    var numCells=EtoAA.map(function(c){return nc(c,cv[c]||0);}).join('');
+    // Accumulate sums
+    EtoAA.forEach(function(c){sums[c]+=(cv[c]||0);});
+    sums['AE']+=totInc; sums['AF']+=accInc; sums['AG']+=fee;
+    sums['AH']+=ssf; sums['AI']+=hlth; sums['AK']+=totAcc;
+    newRows.push('<row r="'+ri+'">'+
+      sc('A',monthPayStr(r.period))+sc('B',r.project)+sc('C',r.company)+sc('D',r.detail)+
+      numCells+
+      nc('AE',totInc)+nc('AF',accInc)+nc('AG',fee)+nc('AH',ssf)+nc('AI',hlth)+nc('AK',totAcc)+
+      sc('AL','Accrued Income')+sc('AM','Normal cycle')+sc('AN',r.period)+sc('AO','Naam')+
+      sc('AS','Accrued Income_'+my)+sc('AT',' / Please approve accrue income '+my)+
+    '</row>');
+  });
+
+  // SUM row at row 34
+  var sumRi=DS+MAXR; // =34
+  function ncS(col,v){var n=parseFloat((+v||0).toFixed(2));return '<c r="'+col+sumRi+'"><v>'+n+'</v></c>';}
+  var sumCells=sumCols.map(function(c){return ncS(c,sums[c]);}).join('');
+  newRows.push('<row r="'+sumRi+'">'+sumCells+'</row>');
+  dbg('built '+newRows.length+' rows (inc. SUM at row '+sumRi+')');
+
+  // Splice sheetData: keep header rows (r<5 or r>34), replace rows 5-34
+  var sdStart=sheetXml.indexOf('<sheetData');
+  var sdEnd=sheetXml.indexOf('</sheetData>');
+  var sdTagEnd=sheetXml.indexOf('>',sdStart)+1;
+  var sdOpenTag=sheetXml.slice(sdStart,sdTagEnd);
+  var sdBody=sdEnd>=0?sheetXml.slice(sdTagEnd,sdEnd):'';
+  var pre=sheetXml.slice(0,sdStart);
+  var post=sdEnd>=0?sheetXml.slice(sdEnd+'</sheetData>'.length):'';
+
+  // Keep non-data rows (header rows 1-4, total row kept as structural, replaced by data)
+  var kept=[];
+  var rowRe=/(<row\b[^>]*>[\s\S]*?<\/row>)/g, rm;
+  while((rm=rowRe.exec(sdBody))!==null){
+    var rn=parseInt((rm[1].match(/\br="(\d+)"/)||[0,0])[1]);
+    if(rn<5||rn>34) kept.push(rm[1]);
+  }
+  dbg('kept '+kept.length+' header/footer rows');
+
+  var newSheetXml=pre+sdOpenTag+kept.join('')+newRows.join('')+'</sheetData>'+post;
+  dbg('newSheetXml: '+newSheetXml.length+' chars, row5 present:'+(newSheetXml.indexOf('<row r="5"')>=0));
+
+  // Rebuild ZIP
+  var zipFiles=[];
+  var names=Object.keys(entries);
+  for(var i=0;i<names.length;i++){
+    var nm=names[i];
+    zipFiles.push({name:nm, data: nm===sheetKey ? enc.encode(newSheetXml) : await decompressEntryBytes(entries[nm],templateBuf)});
+  }
+  var result=buildZip(zipFiles);
+  dbg('output ZIP: '+result.length+' bytes');
+  return result;
+}
+
+// ══════════════════════════════════════════════════════
+//  PART 5: App State & UI
+// ══════════════════════════════════════════════════════
+var files=[], templateBuf=null, groupByState={}, rowSelected={};
+var GROUP_DEFS=[
+  {key:'isPending',label:'Pending PO',col:'isPending'},   // ← first
+  {key:'staff',label:'Staff',col:'name'},{key:'section',label:'SECTION',col:'section'},
+  {key:'lineManager',label:'LINE MANAGER',col:'lineManager'},
+  {key:'costCenter',label:'Cost Center',col:'costCenter'},
+  {key:'po',label:'PO',col:'po'},{key:'cc1',label:'COST CENTER 1',col:'cc1'},
+  {key:'cc2',label:'COST CENTER 2',col:'cc2'},{key:'cc3',label:'COST CENTER 3',col:'cc3'},
+  {key:'cc4',label:'COST CENTER 4',col:'cc4'},
+];
+
+function dbg(m){var b=document.getElementById('dbgBox');b.style.display='block';b.textContent+='['+new Date().toLocaleTimeString()+'] '+m+'\n';b.scrollTop=9999;console.log(m);}
+function showErr(m){var b=document.getElementById('errBox');b.textContent=m;b.style.display='block';}
+function showOk(m){var b=document.getElementById('okBox');b.textContent=m;b.style.display='block';setTimeout(function(){b.style.display='none';},5000);}
+
+// Drag & Drop
+['bInv','bTpl'].forEach(function(id){
+  var box=document.getElementById(id);
+  box.addEventListener('dragover',function(e){e.preventDefault();box.classList.add('drag');});
+  box.addEventListener('dragleave',function(){box.classList.remove('drag');});
+  box.addEventListener('drop',function(e){
+    e.preventDefault();box.classList.remove('drag');
+    var fl=e.dataTransfer&&e.dataTransfer.files;
+    if(!fl||!fl.length)return;
+    if(id==='bInv') processInvFiles(fl);
+    else { var inp={files:fl}; onTplChange(inp); }
+  });
+});
+
+function onInvChange(inp){ if(inp.files&&inp.files.length) processInvFiles(inp.files); }
+
+function processInvFiles(fileList) {
+  dbg('processInvFiles: '+fileList.length);
+  var pending = 0;
+  Array.from(fileList).forEach(function(f) {
+    if (files.find(function(x){return x.rawName===f.name;})){dbg('ซ้ำ:'+f.name);return;}
+    pending++;
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      readXlsxAsAoA(ev.target.result).then(function(aoa) {
+        var parsed = parseDetailAoA(f.name, aoa);
+        parsed.rawName = f.name;
+        files.push(parsed);
+        showOk('✅ '+f.name+' — '+parsed.employees.length+' คน');
+        dbg('parse OK: '+parsed.employees.length+' คน');
+        pending--; if(pending<=0){render();document.getElementById('bInv').classList.add('has-file');}
+      }).catch(function(err){
+        showErr('อ่าน "'+f.name+'" ไม่ได้: '+err.message);
+        dbg('ERR: '+err.message);
+        pending--; if(pending<=0) render();
+      });
+    };
+    reader.onerror = function(){showErr('FileReader error');pending--;if(pending<=0)render();};
+    reader.readAsArrayBuffer(f);
+  });
+  if(pending===0)render();
+}
+
+function onTplChange(inp) {
+  dbg('onTplChange');
+  if(!inp.files||!inp.files[0])return;
+  var f=inp.files[0];
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    templateBuf=ev.target.result;
+    document.getElementById('tplName').textContent='✅ '+f.name;
+    document.getElementById('bTpl').classList.add('has-file');
+    dbg('template OK: '+f.name+' ('+f.size+' bytes)');
+    showOk('✅ Template โหลดสำเร็จ');
+    renderDl();
+  };
+  reader.onerror=function(){showErr('โหลด template ไม่ได้');};
+  reader.readAsArrayBuffer(f);
+}
+
+// ── Parse Detail of Invoice (from AoA) ──────
+function norm(v){return v?String(v).replace(/[\r\n]+/g,' ').toLowerCase().trim().replace(/\s+/g,' '):''}
+function findCol(H,kws){
+  // 1. Exact match
+  for(var k=0;k<kws.length;k++){var kw=kws[k].toLowerCase();for(var i=0;i<H.length;i++){if(norm(H[i])===kw)return i;}}
+  // 2. Word-boundary partial (avoids "PO" matching "Position", etc.)
+  for(var k=0;k<kws.length;k++){var kw=kws[k].toLowerCase().replace(/[.*+?^${}()|[\]\\]/g,'\\$&');var re=new RegExp('(?:^|\\W)'+kw+'(?:\\W|$)');for(var i=0;i<H.length;i++){var h=norm(H[i]);if(h&&re.test(h))return i;}}
+  return -1;
+}
+function parseDetailAoA(filename, aoa) {
+  var company='',period='';
+  // Search more rows for company/period (DKSH has header at row 12)
+  for(var r=0;r<Math.min(20,aoa.length);r++){
+    for(var ci=0;ci<Math.min(5,(aoa[r]||[]).length);ci++){
+      var c=String(aoa[r][ci]||'');
+      if(c.indexOf('COMPANY NAME:')>=0&&!company){var cv=c.replace(/COMPANY NAME:/i,'').trim();if(cv){company=cv;}else{for(var cj=0;cj<(aoa[r]||[]).length;cj++){var cv2=String(aoa[r][cj]||'').trim();if(cv2&&!/COMPANY NAME/i.test(cv2)){company=cv2;break;}}}}
+      if(c.indexOf('STAFF PAYROLL FOR THE MONTH OF:')>=0&&!period){var pv=c.replace(/STAFF PAYROLL FOR THE MONTH OF:/i,'').trim();if(pv){period=pv;}else{for(var pj=0;pj<(aoa[r]||[]).length;pj++){var pv2=String(aoa[r][pj]||'').trim();if(pv2&&!/STAFF PAYROLL FOR/i.test(pv2)){period=pv2;break;}}}}
+    }
+  }
+  // Fallback: derive period from date serials in CUT-OFF/PAY DATE rows (e.g. KOHLER where period is formula-only)
+  if(!period){
+    var latestSerial=0;
+    for(var rf=0;rf<Math.min(30,aoa.length);rf++){
+      var a0=String((aoa[rf]||[])[0]||'').toUpperCase();
+      if(a0.indexOf('CUT-OFF')>=0||a0.indexOf('PAY DATE')>=0||a0.indexOf('PAYROLL')>=0){
+        for(var cf=0;cf<(aoa[rf]||[]).length;cf++){
+          var sv=aoa[rf][cf];
+          if(typeof sv==='number'&&sv>40000&&sv<55000&&sv>latestSerial) latestSerial=sv;
+        }
+      }
+    }
+    if(latestSerial){
+      var dd=new Date((latestSerial-25569)*86400*1000);
+      var monNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      period=monNames[dd.getUTCMonth()]+'-'+dd.getUTCFullYear();
+    }
+  }
+  var hdrIdx=-1;
+  // Use LAST "No." row — files like KOHLER have multiple header rows (col-index row + Thai row + English row + section header)
+  for(var r=0;r<aoa.length;r++){if(String(aoa[r][0]||'').trim()==='No.'){hdrIdx=r;}}
+  if(hdrIdx<0)throw new Error('ไม่พบ header row (ต้องมีคอลัมน์ "No.")');
+  var H=aoa[hdrIdx];
+  // Find COST BY row dynamically (scan all rows before header)
+  var clntCols=null;
+  for(var _cbi=0;_cbi<hdrIdx;_cbi++){
+    var _cbrow=aoa[_cbi],_hasCB=false;
+    for(var _cj=0;_cj<_cbrow.length;_cj++){if(norm(_cbrow[_cj])==='cost by'){_hasCB=true;break;}}
+    if(_hasCB){clntCols=new Set();for(var _cj2=0;_cj2<_cbrow.length;_cj2++){if(norm(_cbrow[_cj2])==='clnt')clntCols.add(_cj2);}}
+  }
+  var C={
+    name:findCol(H,['NAME']),project:findCol(H,['Project Code SAP','Project Code']),
+    costCenter:findCol(H,['Cost Center']),cc1:findCol(H,['Cost Center 1']),cc2:findCol(H,['Cost Center 2']),
+    cc3:findCol(H,['Cost Center 3']),cc4:findCol(H,['Cost Center 4']),
+    lineManager:findCol(H,['Line Manager']),section:findCol(H,['Section','SECTION']),po:findCol(H,['PO','PO Number','PO No']),
+    salary:findCol(H,['SALARY','Salary']),alwFix:findCol(H,['Mobile (Fixed)','Allowance Fix','Allowance (Fix)']),
+    alwNonFix:findCol(H,['Allowance Non-Fix (TAX)','Allowance Non-Fix','Allowance (Non Fixed)']),
+    ot:findCol(H,['Total.OT','Total OT']),netPay:findCol(H,['Net Pay Value','Net Pay']),
+    gross:findCol(H,['Gross Income','Gross']),ssf:findCol(H,['SSO Employer','SSF Employer']),
+    ssfTotal:findCol(H,['SSF EMPLOYER TOTAL','SSO Employer Total']),
+    health:findCol(H,['Insurance Employer']),fee:findCol(H,['Service Fee']),
+    totalInv:findCol(H,['Total Invoice Before Vat','Total Inoivce Before Vat','Total Invoice Before VAT','Total Invoice Before Tax','Total Invoice']),
+    salaryAdjust:findCol(H,['Salary Adjust']),
+    wageDailyFixed:findCol(H,['Wage Daily (Fixed)']),
+    lateDeduct:findCol(H,['Late, Absence and Early Deduct']),
+    perdiem:findCol(H,['Perdiem']),
+    alwNonFixNTax:findCol(H,['Allowance Non-Fix (N-TAX)','Allowance Non-Fix (N-Tax)']),
+    commission:findCol(H,['Commission']),
+    incentive:findCol(H,['Diligent+ Incentive','Incentive']),
+    diligent:findCol(H,['Diligent']),
+    travelFixed:findCol(H,['Travel (Fixed)']),
+    reimburse:findCol(H,['Reimburst (N-Tax) INV','Reimbursement (N-Tax) INV','Reimbursement (N-Tax)']),
+    travelAccom:findCol(H,['Travelling &\naccomodation','Travelling & Accomodation','Travelling & accommodation']),
+    bonus:findCol(H,['Bonus']),
+    awards:findCol(H,['Awards']),
+    severance:findCol(H,['Severance Pay']),
+    healthCheck:findCol(H,['Health Check']),
+    preMedical:findCol(H,['Pre\nmedical\ncheck','Pre medical check']),
+    annualMedical:findCol(H,['Annual\nmedical\ncheck up','Annual medical check up']),
+    uniform:findCol(H,['Uniform CLNT','Uniform']),
+    eventRoom:findCol(H,['Event\n& Meeting room rental','Event & Meeting room rental']),
+    training:findCol(H,['Training &\ncertificate testing','Training & certificate testing','Training and \nLic test fee']),
+    otherExp:findCol(H,['Other expense 3','Other expenses']),
+    tempSalary:findCol(H,['One Month Notice','Temp Salary']),
+    transport:findCol(H,['Transport']),
+    mobileNoSSO:findCol(H,['Mobile (No SSO)']),
+    food:findCol(H,['Food']),
+    otAdjust:findCol(H,['OT Adjust (Amount)','OT Adjust']),
+    overnightShift:findCol(H,['Overnight Shift']),
+    annualLeaveRefund:findCol(H,['Annual Leave Refund']),
+    expenseRefund:findCol(H,['Expense Refund']),
+    commDeduct:findCol(H,['Commission Deduct']),
+    bonusDeduct:findCol(H,['Bonus Deduct']),
+    otDeduct:findCol(H,['Overtime Deduct']),
+    leaveNoPay:findCol(H,['Leave Without Pay']),
+    leaveDeductNoSSO:findCol(H,['Leave Deduct (No SSO)']),
+    salaryDeduct:findCol(H,['Salary Deduct']),
+    salaryDeductNoSSO:findCol(H,['Salary Deduct (No SSO)']),
+    mobileSubsidyDeduct:findCol(H,['Mobile Subsidy Deduct']),
+    alwNTaxDD:findCol(H,['Allowance Non-Fix (N-TAX) DD']),
+    alwTaxDD:findCol(H,['Allowance Non-Fix (TAX) DD']),
+    alwFixDD:findCol(H,['Allowance Fixed DD']),
+    awardDeductNTax:findCol(H,['Award Deduct (Non Tax)','Award Deduct Non Tax']),
+    awardDeduct:findCol(H,['Award Deduct']),
+    diligentDeduct:findCol(H,['Diligent Deduct']),
+    uniformDeduct:findCol(H,['Uniform Deduct']),
+    travelDD:findCol(H,['TRAVEL DD']),
+    grade:findCol(H,['Grade']),
+    gradeAlwRetro:findCol(H,['Grade Allowance RETRO']),
+    workmenFund:findCol(H,["Workmen\u2019s Compensation Fund 0.5% (Monthly)","Workmen's Compensation Fund 0.5% (Monthly)","Workmen's Compensation Fund"]),
+    checkUpPhysical:findCol(H,['Check up physical','Check Up Physical']),
+    pvf:findCol(H,['PROVIDENT FUND EMPLOYER TOTAL','Provident Fund Employer Total','Provident Fund Employer','PVF Employer']),
+  };
+  // All columns with "(Fixed)" in name → sum into alwFix; exclude Wage Daily (Fixed) → goes to salary
+  var fixedColIdxs=[];
+  var _wdc=0,_dupStart=H.length;
+  for(var _wi=0;_wi<H.length;_wi++){if(norm(H[_wi]).indexOf('wage daily')>=0){_wdc++;if(_wdc>=2){_dupStart=_wi;break;}}}
+  for(var fi2=0;fi2<H.length;fi2++){if(norm(H[fi2]).indexOf('(fixed)')>=0&&fi2!==C.wageDailyFixed&&fi2!==C.travelFixed&&fi2<_dupStart&&(clntCols===null||clntCols.has(fi2)))fixedColIdxs.push(fi2);}
+  if(!fixedColIdxs.length&&C.alwFix>=0)fixedColIdxs.push(C.alwFix);
+  function v(row,ci){if(ci<0||ci>=row.length)return 0;var x=row[ci];if(x===''||x==null)return 0;var n=parseFloat(String(x).replace(/,/g,''));return isNaN(n)?0:n;}
+  function s(row,ci){return ci<0?'':String(row[ci]||'').trim();}
+  var emps=[],projDef='';
+  for(var r=hdrIdx+1;r<aoa.length;r++){
+    var row=aoa[r],no=String(row[0]||'').trim();
+    if(!no||no.toUpperCase()==='SUBTOTAL'||no.toUpperCase()==='TOTAL')continue;
+    var noNum=parseInt(no);if(isNaN(noNum)&&!(parseFloat(no)>40000))continue;
+    if(!s(row,C.name))continue;
+    var proj=s(row,C.project)||projDef;if(!projDef&&proj)projDef=proj;
+    var poVal=s(row,C.po), cc1Val=s(row,C.cc1);
+    // isPending: PO column exists but empty, OR cc1 contains "pending"
+    var isPend=(C.po>=0&&!poVal)||cc1Val.toLowerCase().indexOf('pending')>=0;
+    emps.push({no:no,name:s(row,C.name),project:proj,costCenter:s(row,C.costCenter),cc1:cc1Val,
+      cc2:s(row,C.cc2),cc3:s(row,C.cc3),cc4:s(row,C.cc4),lineManager:s(row,C.lineManager),
+      section:s(row,C.section),po:poVal,
+      isPending:isPend?'⚠ Pending PO':(poVal||'มี PO'),
+      salary:v(row,C.salary)+v(row,C.salaryAdjust)+v(row,C.wageDailyFixed)-v(row,C.lateDeduct)+v(row,C.annualLeaveRefund)-v(row,C.leaveNoPay)-v(row,C.leaveDeductNoSSO)-v(row,C.salaryDeduct)-v(row,C.salaryDeductNoSSO),
+      alwFix:fixedColIdxs.reduce(function(s2,i){return s2+v(row,i);},0)-v(row,C.alwFixDD)+v(row,C.grade)-v(row,C.gradeAlwRetro),
+      alwNonFix:v(row,C.alwNonFix)+v(row,C.perdiem)+v(row,C.alwNonFixNTax)+v(row,C.transport)+v(row,C.mobileNoSSO)+v(row,C.food)+v(row,C.overnightShift)+v(row,C.expenseRefund)-v(row,C.mobileSubsidyDeduct)-v(row,C.alwNTaxDD)-v(row,C.alwTaxDD),
+      ot:v(row,C.ot)+v(row,C.otAdjust)-v(row,C.otDeduct),netPay:v(row,C.netPay),gross:v(row,C.gross),
+      ssf:(C.ssfTotal>=0?v(row,C.ssfTotal):v(row,C.ssf)),health:v(row,C.health),pvf:v(row,C.pvf),fee:v(row,C.fee),totalInv:v(row,C.totalInv),
+      commission:v(row,C.commission)-v(row,C.commDeduct),incentive:v(row,C.incentive)+v(row,C.diligent)-v(row,C.diligentDeduct),
+      travelFixed:v(row,C.travelFixed)+v(row,C.travelAccom)-v(row,C.travelDD),reimburse:v(row,C.reimburse),
+      bonus:v(row,C.bonus)-v(row,C.bonusDeduct),awards:v(row,C.awards)-v(row,C.awardDeductNTax)-v(row,C.awardDeduct),severance:v(row,C.severance),
+      checkup:v(row,C.healthCheck)+v(row,C.preMedical)+v(row,C.annualMedical)+v(row,C.checkUpPhysical),
+      uniform:v(row,C.uniform)-v(row,C.uniformDeduct),eventRoom:v(row,C.eventRoom),
+      training:v(row,C.training),otherExp:v(row,C.otherExp),tempSalary:v(row,C.tempSalary),
+      otherInc:v(row,C.workmenFund),
+    });
+  }
+  if(!emps.length)throw new Error('ไม่พบข้อมูลพนักงาน');
+  var pendingPO=emps.filter(function(e){return e.cc1.toLowerCase().indexOf('pending')>=0;}).length;
+  var projects=[...new Set(emps.map(function(e){return e.project;}).filter(Boolean))];
+  function multi(k){return new Set(emps.map(function(e){return e[k]||'';}).filter(Boolean)).size>1;}
+  var hasPending=emps.some(function(e){return e.isPending.indexOf('Pending')>=0;});
+  var available={isPending:hasPending,staff:C.name>=0,section:C.section>=0&&multi('section'),
+    lineManager:C.lineManager>=0&&multi('lineManager'),
+    costCenter:C.costCenter>=0&&multi('costCenter'),
+    po:C.po>=0&&(multi('po')||(emps.some(function(e){return !!e.po;})&&hasPending)),
+    cc1:C.cc1>=0&&multi('cc1'),cc2:C.cc2>=0&&multi('cc2'),cc3:C.cc3>=0&&multi('cc3'),cc4:C.cc4>=0&&multi('cc4')};
+  return{filename:filename,company:company,period:period,projects:projects,employees:emps,pendingPO:pendingPO,available:available};
+}
+
+// ── Aggregate & UI ───────────────────────────
+function getRows(){
+  var ag=GROUP_DEFS.filter(function(g){return groupByState[g.key];});
+  var rows=[];
+  files.forEach(function(f){
+    var groups={},order=[];
+    f.employees.forEach(function(emp){
+      var key=ag.map(function(g){return emp[g.col]||'(ไม่ระบุ)';}).join('|')||'__ALL__';
+      if(!groups[key]){groups[key]=[];order.push(key);}groups[key].push(emp);
+    });
+    order.forEach(function(key){
+      var grp=groups[key];
+      var detail=ag.length?ag.map(function(g){return grp[0][g.col]||'ไม่ระบุ';}).join(' / '):'รวมทั้งหมด';
+      var pndCnt=grp.filter(function(e){return(e.cc1||'').toLowerCase().indexOf('pending')>=0;}).length;
+      if(pndCnt>0) detail+=' [Pending PO: '+pndCnt+' คน]';
+      var rk=f.filename+'||'+key;
+      function sum(k){return grp.reduce(function(s,e){return s+(parseFloat(e[k])||0);},0);}
+      rows.push({rowKey:rk,filename:f.filename,company:f.company,period:f.period,
+        project:grp[0].project||f.projects[0]||'',detail:detail,count:grp.length,
+        salary:sum('salary'),alwFix:sum('alwFix'),alwNonFix:sum('alwNonFix'),ot:sum('ot'),
+        netPay:sum('netPay'),gross:sum('gross'),ssf:sum('ssf'),health:sum('health'),fee:sum('fee'),totalInv:sum('totalInv'),commission:sum('commission'),incentive:sum('incentive'),travelFixed:sum('travelFixed'),reimburse:sum('reimburse'),
+        bonus:sum('bonus'),awards:sum('awards'),severance:sum('severance'),checkup:sum('checkup'),
+        uniform:sum('uniform'),eventRoom:sum('eventRoom'),training:sum('training'),otherExp:sum('otherExp'),tempSalary:sum('tempSalary'),otherInc:sum('otherInc'),pvf:sum('pvf'),
+      });
+    });
+  });
+  return rows;
+}
+function fmt(n){return(!n||isNaN(n))?'-':parseFloat(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function mmyyFn(p){var m={jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};var mt=p.match(/([a-z]+)[\-\s]+(\d{4})/i);if(!mt)return'';return(m[mt[1].toLowerCase().slice(0,3)]||'00')+mt[2].slice(-2);}
+function outFname(rows){var projs=[...new Set(rows.map(function(r){return r.project;}).filter(Boolean))];var periods=[...new Set(files.map(function(f){return mmyyFn(f.period);}).filter(Boolean))];return'★LOW Accrued Income EXP -02_Form_'+(projs.join('_')||'MULTI')+(periods.length?'_'+periods.join('_'):'')+'.xlsx';}
+
+function render(){
+  document.getElementById('invChips').innerHTML=files.map(function(f,i){
+    return '<div class="chip">'+esc(f.filename)+' ('+f.employees.length+' คน)<span class="rm" onclick="removeFile('+i+')">✕</span></div>';
+  }).join('');
+  renderSummary();renderGB();renderPreview();renderDl();
+}
+function removeFile(i){files.splice(i,1);render();}
+function renderSummary(){var card=document.getElementById('summaryCard');if(!files.length){card.style.display='none';return;}card.style.display='block';document.getElementById('summaryGrid').innerHTML=files.map(function(f){return'<div class="sc"><div class="fn">'+esc(f.filename)+'</div><div class="sr"><span class="l">Company</span><span class="v">'+esc(f.company)+'</span></div><div class="sr"><span class="l">Period</span><span class="v">'+esc(f.period)+'</span></div><div class="sr"><span class="l">Project</span><span class="v">'+esc(f.projects.join(', '))+'</span></div><div class="sr"><span class="l">พนักงาน</span><span class="v">'+f.employees.length+' คน'+(f.pendingPO?' <span class="badge">Pending PO: '+f.pendingPO+'</span>':'')+'</span></div></div>';}).join('');}
+function renderGB(){var card=document.getElementById('groupCard');if(!files.length){card.style.display='none';return;}card.style.display='block';var avail={};GROUP_DEFS.forEach(function(g){avail[g.key]=false;});files.forEach(function(f){GROUP_DEFS.forEach(function(g){if(f.available[g.key])avail[g.key]=true;});});document.getElementById('gbGrid').innerHTML=GROUP_DEFS.map(function(g){var en=avail[g.key],ch=groupByState[g.key]&&en;return'<label class="cbi'+(en?'':' dis')+'"><input type="checkbox"'+(en?'':' disabled')+(ch?' checked':'')+' onchange="toggleGroup(\''+g.key+'\',this.checked)">'+g.label+'</label>';}).join('');var rows=getRows();var ag=GROUP_DEFS.filter(function(g){return groupByState[g.key];});document.getElementById('rc').innerHTML=ag.length===0?'จะสร้าง <strong>'+files.length+' row</strong>':'จะสร้าง <strong>'+rows.length+' row</strong> (แยกตาม: '+ag.map(function(g){return g.label;}).join(', ')+')';}
+function toggleGroup(k,v){groupByState[k]=v;rowSelected={};renderGB();renderPreview();renderDl();}
+function selAll(checked){document.querySelectorAll('.rcb').forEach(function(cb){cb.checked=checked;rowSelected[cb.dataset.rk]=checked;cb.closest('tr').classList.toggle('off',!checked);});updateFoot();updateSS();renderDl();}
+function onCbChange(cb){var k=cb.dataset.rk;rowSelected[k]=cb.checked;cb.closest('tr').classList.toggle('off',!cb.checked);var cbs=document.querySelectorAll('.rcb');var all=Array.from(cbs).every(function(c){return c.checked;});var none=Array.from(cbs).every(function(c){return!c.checked;});var sa=document.getElementById('selAll');sa.checked=all;sa.indeterminate=!all&&!none;updateFoot();updateSS();renderDl();}
+function updateFoot(){var rows=getRows().filter(function(r){return rowSelected[r.rowKey]!==false;});var ft=document.getElementById('pf');if(!rows.length){ft.style.display='none';return;}ft.style.display='';var s=[rows.reduce(function(a,r){return a+r.count;},0),rows.reduce(function(a,r){return a+r.salary;},0),rows.reduce(function(a,r){return a+r.ssf;},0),rows.reduce(function(a,r){return a+r.pvf;},0),rows.reduce(function(a,r){return a+r.health;},0),rows.reduce(function(a,r){return a+r.checkup;},0),rows.reduce(function(a,r){return a+r.alwFix;},0),rows.reduce(function(a,r){return a+r.otherInc;},0),rows.reduce(function(a,r){return a+r.ot;},0),rows.reduce(function(a,r){return a+r.commission;},0),rows.reduce(function(a,r){return a+r.incentive;},0),rows.reduce(function(a,r){return a+r.bonus;},0),rows.reduce(function(a,r){return a+r.alwNonFix;},0),rows.reduce(function(a,r){return a+r.fee;},0),rows.reduce(function(a,r){return a+r.totalInv;},0)];['f0','f1','f2','f3','f4','f5','f6','f7','f8','f9','f10','f11','f12','f13'].forEach(function(id,i){document.getElementById(id).textContent=i===0?s[0]:fmt(s[i]);});}
+function updateSS(){var rows=getRows();var sel=rows.filter(function(r){return rowSelected[r.rowKey]!==false;}).length;document.getElementById('ss').innerHTML='เลือก <strong>'+sel+' / '+rows.length+'</strong> แถว';}
+function renderPreview(){var card=document.getElementById('previewCard');if(!files.length){card.style.display='none';return;}card.style.display='block';var rows=getRows();var tb=document.getElementById('pb');if(!rows.length){tb.innerHTML='<tr><td colspan="14" class="nd">ไม่มีข้อมูล</td></tr>';return;}rows.forEach(function(r){if(rowSelected[r.rowKey]===undefined)rowSelected[r.rowKey]=true;});tb.innerHTML=rows.map(function(r){var sel=rowSelected[r.rowKey]!==false;var calcTot=r.salary+r.alwFix+r.alwNonFix+r.ot+r.commission+r.incentive+r.travelFixed+r.reimburse+r.bonus+r.awards+r.severance+r.checkup+r.uniform+r.eventRoom+r.training+r.otherExp+r.tempSalary+r.otherInc+r.ssf+r.pvf+r.health+r.fee;var diff=Math.abs(calcTot-r.totalInv);return'<tr'+(sel?'':' class="off"')+'><td style="text-align:center"><input type="checkbox" class="rcb" data-rk="'+esc(r.rowKey)+'"'+(sel?' checked':'')+' onchange="onCbChange(this)" style="cursor:pointer;accent-color:#1a237e"></td><td>'+esc(r.company)+' / '+esc(r.detail)+'</td><td class="n">'+r.count+'</td><td class="n">'+fmt(r.salary)+'</td><td class="n">'+fmt(r.ssf)+'</td><td class="n">'+fmt(r.pvf)+'</td><td class="n">'+fmt(r.health)+'</td><td class="n">'+fmt(r.checkup)+'</td><td class="n">'+fmt(r.alwFix)+'</td><td class="n">'+fmt(r.otherInc)+'</td><td class="n">'+fmt(r.ot)+'</td><td class="n">'+fmt(r.commission)+'</td><td class="n">'+fmt(r.incentive)+'</td><td class="n">'+fmt(r.bonus)+'</td><td class="n">'+fmt(r.alwNonFix)+'</td><td class="n">'+fmt(r.fee)+'</td><td class="n">'+fmt(r.totalInv)+'</td><td class="'+(diff>1?'w':'ok')+'">'+(diff>1?'⚠':'✓')+'</td></tr>';}).join('');updateFoot();updateSS();}
+function renderDl(){var card=document.getElementById('dlCard');if(!files.length){card.style.display='none';return;}card.style.display='block';var rows=getRows().filter(function(r){return rowSelected[r.rowKey]!==false;});var hasT=!!templateBuf;document.getElementById('fo').textContent=rows.length&&hasT?outFname(rows):(hasT?'':'⚠ กรุณาอัปโหลด Template ด้วย');var btn=document.getElementById('btnDl');btn.disabled=!rows.length||!hasT;btn.textContent=!hasT?'⬇ รอ Template...':rows.length?'⬇ Download Accrued Income Form':'⬇ ยังไม่ได้เลือกแถว';}
+
+// ── Download ─────────────────────────────────
+async function downloadExcel(){
+  var selectedRows=getRows().filter(function(r){return rowSelected[r.rowKey]!==false;});
+  if(!selectedRows.length){alert('กรุณาเลือกอย่างน้อย 1 แถว');return;}
+  if(!templateBuf){alert('กรุณาอัปโหลดไฟล์ Template ก่อน');return;}
+  var btn=document.getElementById('btnDl'),sm=document.getElementById('sm');
+  btn.disabled=true; sm.textContent='⏳ กำลังสร้างไฟล์...';
+  try {
+    var zipBytes = await buildOutputXlsx(templateBuf, selectedRows);
+    var blob = new Blob([zipBytes], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = outFname(selectedRows);
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){URL.revokeObjectURL(url);},3000);
+    sm.textContent='✅ ดาวน์โหลดสำเร็จ';
+    setTimeout(function(){sm.textContent='';},4000);
+  } catch(err) {
+    showErr('เกิดข้อผิดพลาด: '+err.message);
+    console.error(err);
+  } finally {
+    btn.disabled=false;
+  }
+}
+</script></body></html>

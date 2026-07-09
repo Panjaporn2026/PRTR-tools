@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fee Table Filler — PRTR Tools</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <style>
+    :root {
+      --primary: #cc1f1a;
+      --primary-dark: #a31714;
+      --bg: #f5f5f5;
+      --card: #ffffff;
+      --border: #e0e0e0;
+      --text: #1a1a1a;
+      --sub: #6b7280;
+      --green: #16a34a;
+      --green-bg: #f0fdf4;
+      --green-border: #22c55e;
+      --yellow-bg: #fffbeb;
+      --yellow-border: #f59e0b;
+      --blue-bg: #dbeafe;
+      --blue-text: #1d4ed8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* ── Header ── */
+    header {
+      background: white;
+      border-bottom: 3px solid var(--primary);
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      position: sticky; top: 0; z-index: 10;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    }
+    .logo { font-weight: 700; font-size: 16px; color: var(--primary); text-decoration: none; }
+    .breadcrumb { color: #ccc; font-size: 14px; }
+    .breadcrumb-current { font-size: 14px; color: var(--sub); }
+
+    /* ── Layout ── */
+    .container { max-width: 900px; margin: 0 auto; padding: 28px 16px 60px; }
+    .page-title { font-size: 24px; font-weight: 700; color: var(--primary); margin-bottom: 4px; }
+    .page-sub { color: var(--sub); font-size: 14px; margin-bottom: 28px; }
+
+    /* ── Upload Grid ── */
+    .upload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+    @media (max-width: 540px) { .upload-grid { grid-template-columns: 1fr; } }
+
+    .upload-box {
+      border: 2px dashed var(--border);
+      border-radius: 10px; padding: 24px 16px;
+      text-align: center; background: white;
+      transition: border-color .2s, background .2s;
+      cursor: pointer;
+    }
+    .upload-box input[type=file] { display: none; }
+    .upload-box label { cursor: pointer; display: block; }
+    .upload-box:hover { border-color: var(--primary); }
+    .upload-box.drag-over { border-color: var(--primary); background: #fff5f5; }
+    .upload-box.done { border-color: var(--green-border); background: var(--green-bg); }
+    .upload-icon { font-size: 32px; margin-bottom: 10px; }
+    .upload-title { font-weight: 600; font-size: 15px; margin-bottom: 4px; }
+    .upload-hint { font-size: 12px; color: var(--sub); line-height: 1.5; }
+    .upload-box.done .upload-hint { color: var(--green); font-weight: 500; }
+
+    /* ── Status ── */
+    .status-box {
+      display: none; background: white; border: 1px solid var(--border);
+      border-radius: 8px; padding: 14px 16px; margin-bottom: 18px;
+    }
+    .status-box.visible { display: block; }
+    .status-text { font-size: 14px; margin-bottom: 8px; color: var(--sub); }
+    .progress-track { background: #f3f4f6; border-radius: 4px; height: 6px; }
+    .progress-fill {
+      background: var(--primary); height: 100%; border-radius: 4px;
+      transition: width .4s ease; width: 0%;
+    }
+
+    /* ── Result Card ── */
+    .result-card {
+      display: none; background: white; border: 1px solid var(--border);
+      border-radius: 10px; padding: 22px; margin-bottom: 20px;
+    }
+    .result-card.visible { display: block; }
+    .meta-row { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+    .meta-chip {
+      background: #f3f4f6; border-radius: 6px; padding: 5px 12px;
+      font-size: 13px; color: var(--text);
+    }
+    .meta-chip strong { color: var(--primary); }
+
+    .prtr-banner {
+      background: #eff6ff; border: 1px solid #93c5fd;
+      border-radius: 6px; padding: 10px 14px;
+      font-size: 13px; margin-bottom: 12px; color: #1d4ed8;
+    }
+    .warn-banner {
+      background: var(--yellow-bg); border: 1px solid var(--yellow-border);
+      border-radius: 6px; padding: 10px 14px;
+      font-size: 13px; margin-bottom: 14px;
+    }
+
+    /* ── Rate Table ── */
+    .rate-table-wrap { overflow-x: auto; margin-bottom: 4px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th {
+      background: #f9fafb; padding: 9px 12px; text-align: left;
+      border-bottom: 2px solid var(--border); white-space: nowrap; font-size: 13px;
+    }
+    td { padding: 8px 12px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    .cat-label { font-size: 13px; }
+    .prtr-badge {
+      display: inline-block; background: var(--blue-bg); color: var(--blue-text);
+      border-radius: 4px; padding: 3px 9px; font-size: 12px; font-weight: 700;
+    }
+    .rate-input {
+      width: 68px; padding: 5px 6px; border: 1px solid var(--border);
+      border-radius: 5px; text-align: center; font-size: 13px;
+      transition: border-color .15s;
+    }
+    .rate-input:focus { outline: none; border-color: var(--primary); }
+    .pct-label { font-size: 12px; color: var(--sub); margin-left: 2px; }
+
+    /* ── OCR Notice ── */
+    .ocr-notice {
+      display: none; background: #fefce8; border: 1px solid #fde047;
+      border-radius: 6px; padding: 10px 14px; font-size: 13px; margin-bottom: 12px;
+    }
+    .ocr-notice.visible { display: block; }
+
+    /* ── Buttons ── */
+    .btn-primary {
+      display: block; width: 100%; background: var(--primary); color: white;
+      border: none; padding: 14px; border-radius: 8px; font-size: 15px;
+      font-weight: 600; cursor: pointer; margin-top: 18px;
+      transition: background .15s;
+    }
+    .btn-primary:hover:not(:disabled) { background: var(--primary-dark); }
+    .btn-primary:disabled { background: #9ca3af; cursor: not-allowed; }
+    .btn-ocr {
+      display: inline-block; background: white; color: var(--primary);
+      border: 1px solid var(--primary); padding: 7px 16px; border-radius: 6px;
+      font-size: 13px; cursor: pointer; margin-top: 10px;
+      transition: background .15s;
+    }
+    .btn-ocr:hover { background: #fff5f5; }
+  </style>
+</head>
+<body>
+
+<header>
+  <a class="logo" href="/">⚙️ PRTR Tools</a>
+  <span class="breadcrumb">›</span>
+  <span class="breadcrumb-current">Fee Table Filler</span>
+</header>
+
+<div class="container">
+  <div class="page-title">📊 Fee Table Filler</div>
+  <p class="page-sub">อัปโหลดสัญญา PDF + Master Fee Table แล้วระบบจะกรอก fee rate ให้อัตโนมัติ</p>
+
+  <div class="upload-grid">
+    <div class="upload-box" id="pdfBox">
+      <label for="pdfInput">
+        <div class="upload-icon">📄</div>
+        <div class="upload-title">สัญญา PDF</div>
+        <div class="upload-hint" id="pdfHint">
+          คลิกหรือลากไฟล์มาวาง<br>
+          Labor Supplier Contract (OUT-X-XXXX-XXXXX)
+        </div>
+        <input type="file" id="pdfInput" accept=".pdf">
+      </label>
+    </div>
+    <div class="upload-box" id="xlsxBox">
+      <label for="xlsxInput">
+        <div class="upload-icon">📋</div>
+        <div class="upload-title">Master Fee Table</div>
+        <div class="upload-hint" id="xlsxHint">
+          คลิกหรือลากไฟล์มาวาง<br>
+          Master - Fee tebla.xlsx
+        </div>
+        <input type="file" id="xlsxInput" accept=".xlsx,.xls">
+      </label>
+    </div>
+  </div>
+
+  <div class="status-box" id="statusBox">
+    <div class="status-text" id="statusText">กำลังอ่านสัญญา...</div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+  </div>
+
+  <div class="ocr-notice" id="ocrNotice">
+    ⚠️ อ่าน PDF ไม่เจอข้อความ (อาจเป็น PDF สแกน) — กด OCR เพื่อลองอีกครั้ง
+    <br><button class="btn-ocr" onclick="runOCR()">🔍 ใช้ OCR อ่านอีกครั้ง</button>
+  </div>
+
+  <div class="result-card" id="resultCard">
+    <div class="meta-row" id="metaRow"></div>
+    <div id="prtrBanner"></div>
+    <div class="warn-banner">
+      ⚠️ กรุณาตรวจสอบค่าด้านล่างก่อนกด Generate — สามารถแก้ไขได้ก่อนสร้างไฟล์
+      <div style="margin-top:8px;display:flex;align-items:center;gap:8px;font-size:13px;">
+        <span>จำนวน Conditions:</span>
+        <select id="nColsSelect" onchange="overrideNCols(this.value)" style="border:1px solid #d1d5db;border-radius:5px;padding:3px 8px;font-size:13px;cursor:pointer;">
+          <option value="1">1 (J)</option>
+          <option value="2">2 (J, K)</option>
+          <option value="3">3 (J, K, L)</option>
+          <option value="4">4 (J, K, L, M)</option>
+        </select>
+        <span style="color:#9ca3af;font-size:11px;">← แก้ถ้า OCR อ่านไม่ครบ</span>
+      </div>
+    </div>
+    <div class="rate-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="min-width:200px">รายการ</th>
+            <th id="th_J">J</th>
+            <th id="th_K">K</th>
+            <th id="th_L">L</th>
+            <th id="th_M">M</th>
+          </tr>
+        </thead>
+        <tbody id="rateBody"></tbody>
+      </table>
+    </div>
+    <button class="btn-primary" id="generateBtn" onclick="generateExcel()">
+      🚀 Generate Fee Table
+    </button>
+  </div>
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+const ACCOUNT_MAP = {
+  E51110101:'fixed',  E51110106:'fixed',  E51110123:'fixed',
+  E51110102:'sso',
+  E51110103:'pvd',
+  E51110104:'health_ins',
+  E51110105:'variable', E51110108:'variable', E51110109:'variable',
+  E51110110:'variable', E51110111:'variable', E51110112:'variable',
+  E51110127:'variable', E51110116:'variable',
+  E51110107:'health_check',
+  E51110124:'expense',  E21710101:'expense',
+  E51110125:'uniform',
+  E51110126:'compensation',
+  D51110101:'fixed',  D51110106:'fixed',  D51110123:'fixed',
+  D51110104:'health_ins',
+  D51110105:'variable', D51110108:'variable', D51110109:'variable',
+  D51110110:'variable', D51110111:'variable', D51110112:'variable',
+  D51110127:'variable', D51110124:'expense', D21710101:'expense',
+  D51110125:'uniform',
+};
+
+const CAT_LABELS = {
+  fixed:       'Fixed income',
+  variable:    'Variable income',
+  sso:         'Social Security (SSO)',
+  pvd:         'Provident Fund (PVD)',
+  health_ins:  'Health Insurance',
+  health_check:'Annual Health Check',
+  uniform:     'Uniform',
+  expense:     'Reimbursement / Expense',
+  compensation:'Severance / Compensation',
+};
+
+let pdfFile = null, xlsxFile = null, pdfDoc = null;
+let appState = { rates:{}, prtrCats:new Set(), nCols:2, company:'', xlsxFile:null };
+
+function pad4(arr) {
+  if (!arr || !arr.length) return [0,0,0,0];
+  const r = [...arr];
+  while (r.length < 4) r.push(r[r.length-1]);
+  return r.slice(0,4);
+}
+
+function extractPcts(text) {
+  // Normalize OCR artifact: 3-digit numbers like "418%" → "18%"
+  // Happens when OCR reads table row numbers fused with the actual percentage
+  const cleaned = text.replace(/(?<!\d)\d(\d{2}(?:\.\d+)?)\s*%/g, (match, rate) => {
+    const v = parseFloat(rate);
+    return (v > 0 && v <= 50) ? ' ' + rate + '%' : match;
+  });
+  const re = /(\d{1,3}(?:\.\d+)?)\s*%/g;
+  const out = [];
+  let m;
+  while ((m = re.exec(cleaned)) !== null) {
+    const v = parseFloat(m[1]);
+    if (v > 0 && v <= 100) out.push(v / 100);
+  }
+  return out;
+}
+
+function setStatus(msg, pct) {
+  document.getElementById('statusBox').classList.add('visible');
+  document.getElementById('statusText').textContent = msg;
+  document.getElementById('progressFill').style.width = pct + '%';
+}
+
+function detectCat(t) {
+  if (!t) return null;
+  if (/รายได/.test(t) && /ปรผ/.test(t)) return 'variable';
+  if (/Variable\s*income/i.test(t)) return 'variable';
+  if (/รายได/.test(t)) return 'fixed';
+  if (/Fixed\s*income/i.test(t)) return 'fixed';
+  if (/กองทนุ\s*สา\s*รอง|กองทุนส.{0,5}รอง|Provident\s*Fund/i.test(t)) return 'pvd';
+  if (/ประกนั\s*สขุ|ประกันสุข|Health\s*Ins/i.test(t)) return 'health_ins';
+  if (/ตรวจสขุ|ตรวจสุข|Health\s*Check|annual.*health/i.test(t)) return 'health_check';
+  if (/เครื่องแบบ|Uniform/i.test(t)) return 'uniform';
+  if (/รายจ่าย|ค่าใช.{0,8}ประสาน|Reimbursement|Expense/i.test(t)) return 'expense';
+  if (/เงินชดเชย|ค่าชดเชย|Compensation|Severance/i.test(t)) return 'compensation';
+  return null;
+}
+
+function extractRatesFromText(text) {
+  const rates = {};
+  const prtrCats = new Set();
+
+  const lines = text.split('\n');
+  for (const line of lines) {
+    if (!/\bPRTR\b/i.test(line)) continue;
+    const pcts = extractPcts(line);
+    if (pcts.length > 0) continue;
+    const cat = detectCat(line);
+    if (cat && cat !== 'fixed' && cat !== 'variable') prtrCats.add(cat);
+    const idx = lines.indexOf(line);
+    for (let d = -3; d <= 3; d++) {
+      if (d === 0) continue;
+      const nearby = lines[idx + d];
+      if (!nearby) continue;
+      const c = detectCat(nearby);
+      if (c && c !== 'fixed' && c !== 'variable' && extractPcts(nearby).length === 0) prtrCats.add(c);
+    }
+  }
+
+  const fixedBlockRe = /(?:Fixed\s*income|รายได[^\n]{0,30}(?:คงที|คงท|fixed))[^\n]*\n([\s\S]{0,600}?)(?=(?:Variable\s*income|รายได[^\n]{0,30}(?:แปร|ปรผ)|Social\s*Security|กองทนุ|Provident|$))/i;
+  const varBlockRe   = /(?:Variable\s*income|รายได[^\n]{0,30}(?:แปร|ปรผ))[^\n]*\n([\s\S]{0,400}?)(?=(?:Social\s*Security|SSO|กองทนุ|Provident|Expense|รายจ่าย|$))/i;
+
+  const fm = text.match(fixedBlockRe);
+  const vm = text.match(varBlockRe);
+
+  const fixedLinePcts = [];
+  const varLinePcts = [];
+  for (const line of lines) {
+    const pcts = extractPcts(line);
+    if (!pcts.length) continue;
+    const cat = detectCat(line);
+    if (cat === 'fixed') fixedLinePcts.push(...pcts);
+    if (cat === 'variable') varLinePcts.push(...pcts);
+  }
+
+  const fp = fm ? extractPcts(fm[0]) : fixedLinePcts;
+  const vp = vm ? extractPcts(vm[0]) : varLinePcts;
+
+  if (fp.length >= 4) rates.fixed = fp.slice(0,4);
+  else if (fp.length === 3) rates.fixed = fp.slice(0,3);
+  else if (fp.length >= 2) rates.fixed = fp.slice(0,2);
+  else if (fp.length === 1) rates.fixed = pad4(fp);
+
+  if (vp.length >= 4) rates.variable = vp.slice(0,4);
+  else if (vp.length === 3) rates.variable = vp.slice(0,3);
+  else if (vp.length >= 2) rates.variable = vp.slice(0,2);
+  else if (vp.length === 1) rates.variable = pad4(vp);
+
+  function findRate(patterns, def) {
+    for (const pat of patterns) {
+      const re = new RegExp(pat + '[\\s\\S]{0,200}?(\\d+(?:\\.\\d+)?)\\s*%', 'i');
+      const m = text.match(re);
+      if (m) { const v = parseFloat(m[1]); if (v > 0 && v <= 100) return v / 100; }
+    }
+    return def;
+  }
+
+  if (!prtrCats.has('pvd'))        rates.pvd         = pad4([findRate(['Provident Fund','กองทนุ\\s*สา\\s*รอง','กองทุนส.{0,5}รอง'], 0.05)]);
+  if (!prtrCats.has('health_ins')) rates.health_ins  = pad4([findRate(['Health Ins','ประกนั\\s*สขุ','ประกันสุข'], 0.05)]);
+  if (!prtrCats.has('health_check')) rates.health_check = pad4([findRate(['Health Check','ตรวจสขุ','ตรวจสุข'], 0.05)]);
+  if (!prtrCats.has('uniform'))    rates.uniform     = pad4([findRate(['Uniform','เครื่องแบบ'], 0.05)]);
+  if (!prtrCats.has('expense'))    rates.expense     = pad4([findRate(['Reimbursement','Expense','รายจ่าย','ค่าใช.{0,8}ประสาน'], 0.10)]);
+  if (!prtrCats.has('compensation')) {
+    const cm = text.match(/(?:compensation|ชดเชย)[\s\S]{0,200}?(?:plus|บวก)\s+(\d+(?:\.\d+)?)\s*%/i);
+    rates.compensation = pad4([cm ? parseFloat(cm[1])/100 : 0.03]);
+  }
+  rates.sso = [0,0,0,0];
+
+  return { rates, prtrCats };
+}
+
+// ── n_cols: supports 1, 2, 3, 4 ──────────────────────────────────────────────
+function detectNCols(rates) {
+  const f = pad4(rates.fixed || [0.20]);
+  if (f[0]===f[1] && f[1]===f[2] && f[2]===f[3]) return 1;
+  if (f[1]===f[2] && f[2]===f[3]) return f[0]!==f[1] ? 2 : 1;
+  if (f[2]===f[3]) return 3;
+  return 4;
+}
+
+function overrideNCols(val) {
+  if (!document.getElementById('resultCard').classList.contains('visible')) return;
+  appState.nCols = parseInt(val);
+  renderResult();
+}
+
+function extractCompany(text, filename) {
+  const thaiCo = text.match(/บริษัท\s+([^\n,()]{3,60}?)\s*(?:จำกัด(?:\s*\(มหาชน\))?)/g) || [];
+  for (const co of thaiCo) {
+    if (!/PRTR/i.test(co) && !/พีอาร์/i.test(co)) return co.trim().replace(/\s+/g,' ');
+  }
+  const enCo = text.match(/([A-Z][A-Za-z\s&.,()-]{4,60}(?:Limited|Ltd\.?|Co\.?,?\s*Ltd\.?|PCL|Inc\.?))/g) || [];
+  for (const co of enCo) {
+    if (!/PRTR/i.test(co)) return co.trim().replace(/\s+/g,' ');
+  }
+  let name = filename.replace(/\.pdf$/i,'').trim();
+  name = name.replace(/(?:_?OUT[-_]\d+[-_]\d+[-_][\d\w-]*)$/i,'').trim();
+  name = name.replace(/_?(Completely[_ ]?Signed|signed|Complete|รับรอง).*/gi,'').trim();
+  name = name.replace(/[_-]+/g,' ').trim();
+  return name.length > 3 ? name : 'Unknown Company';
+}
+
+async function extractText(pdf) {
+  let text = '';
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    text += content.items.map(i => i.str).join(' ') + '\n';
+  }
+  return text;
+}
+
+async function runOCR() {
+  if (!pdfDoc) return;
+  document.getElementById('ocrNotice').classList.remove('visible');
+  document.getElementById('resultCard').classList.remove('visible');
+  setStatus('กำลัง OCR... อาจใช้เวลา 1–3 นาที (PDF สแกน)', 5);
+  const worker = await Tesseract.createWorker('tha+eng', 1, { logger: () => {} });
+  let text = '';
+  for (let p = 1; p <= pdfDoc.numPages; p++) {
+    setStatus(`OCR หน้า ${p} / ${pdfDoc.numPages}...`, 5 + (p / pdfDoc.numPages) * 80);
+    const page = await pdfDoc.getPage(p);
+    const vp = page.getViewport({ scale: 2.5 });
+    const canvas = document.createElement('canvas');
+    canvas.width = vp.width; canvas.height = vp.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+    const { data: { text: t } } = await worker.recognize(canvas);
+    text += t + '\n';
+  }
+  await worker.terminate();
+  setStatus('OCR เสร็จแล้ว ✅', 100);
+  processText(text);
+}
+
+function processText(text) {
+  const { rates, prtrCats } = extractRatesFromText(text);
+  if (!rates.fixed)    rates.fixed    = pad4([0.20]);
+  if (!rates.variable) rates.variable = pad4([(rates.fixed||[0.15])[0]]);
+  const nCols = detectNCols(rates);
+  const company = extractCompany(text, pdfFile ? pdfFile.name : 'Contract');
+  appState = { rates, prtrCats, nCols, company, xlsxFile };
+  renderResult();
+}
+
+async function processFiles() {
+  document.getElementById('resultCard').classList.remove('visible');
+  document.getElementById('ocrNotice').classList.remove('visible');
+  setStatus('กำลังเปิด PDF...', 10);
+  try {
+    const buf = await pdfFile.arrayBuffer();
+    pdfDoc = await pdfjsLib.getDocument({ data: buf }).promise;
+    setStatus('กำลังอ่านข้อความ...', 30);
+    const text = await extractText(pdfDoc);
+    setStatus('วิเคราะห์...', 70);
+    if (text.replace(/\s+/g,'').length < 200) {
+      setStatus('ไม่พบข้อความใน PDF', 100);
+      document.getElementById('ocrNotice').classList.add('visible');
+      return;
+    }
+    setStatus('อ่านสัญญาเสร็จแล้ว ✅', 100);
+    processText(text);
+  } catch (err) {
+    setStatus('❌ เกิดข้อผิดพลาด: ' + err.message, 0);
+    console.error(err);
+  }
+}
+
+function renderResult() {
+  const { rates, prtrCats, nCols, company } = appState;
+  // Sync dropdown
+  const sel = document.getElementById('nColsSelect');
+  if (sel) sel.value = String(nCols);
+  const colLabel = nCols===4 ? '4 Conditions (J/K/L/M)' : nCols===3 ? '3 Conditions (J/K/L)' : nCols===2 ? '2 Conditions (J, K)' : '1 Condition (J)';
+  document.getElementById('metaRow').innerHTML = `
+    <div class="meta-chip">🏢 <strong>${company}</strong></div>
+    <div class="meta-chip">📊 ${colLabel}</div>
+  `;
+  if (prtrCats.size > 0) {
+    const names = [...prtrCats].map(c => CAT_LABELS[c] || c).join(', ');
+    document.getElementById('prtrBanner').innerHTML =
+      `<div class="prtr-banner">📌 รายการที่ PRTR รับผิดชอบ (จะใส่ "PRTR"): <strong>${names}</strong></div>`;
+  } else {
+    document.getElementById('prtrBanner').innerHTML = '';
+  }
+  ['th_K','th_L','th_M'].forEach((id,i) => {
+    document.getElementById(id).style.display = (i+1) < nCols ? '' : 'none';
+  });
+  const ORDER = ['fixed','variable','sso','pvd','health_ins','health_check','uniform','expense','compensation'];
+  let html = '';
+  for (const cat of ORDER) {
+    const label = CAT_LABELS[cat] || cat;
+    const isPRTR = prtrCats.has(cat);
+    const r = pad4(rates[cat] || [0]);
+    html += `<tr><td class="cat-label">${label}</td>`;
+    for (let i = 0; i < 4; i++) {
+      const show = i < nCols ? '' : ' style="display:none"';
+      if (cat === 'sso') {
+        html += `<td${show}><input class="rate-input" type="number" id="r_${cat}_${i}" value="0" min="0" max="100" step="0.5"><span class="pct-label">%</span></td>`;
+      } else if (isPRTR) {
+        html += `<td${show}><span class="prtr-badge">PRTR</span></td>`;
+      } else {
+        html += `<td${show}><input class="rate-input" type="number" id="r_${cat}_${i}" value="${(r[i]*100).toFixed(1)}" min="0" max="100" step="0.5"><span class="pct-label">%</span></td>`;
+      }
+    }
+    html += '</tr>';
+  }
+  document.getElementById('rateBody').innerHTML = html;
+  document.getElementById('resultCard').classList.add('visible');
+  document.getElementById('resultCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+async function generateExcel() {
+  const btn = document.getElementById('generateBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ กำลังสร้างไฟล์...';
+  try {
+    const { prtrCats, nCols, company } = appState;
+    const rates = {};
+    const ORDER = ['fixed','variable','sso','pvd','health_ins','health_check','uniform','expense','compensation'];
+    for (const cat of ORDER) {
+      if (prtrCats.has(cat)) continue;
+      const vals = [];
+      for (let i = 0; i < 4; i++) {
+        const el = document.getElementById(`r_${cat}_${i}`);
+        vals.push(el ? parseFloat(el.value) / 100 || 0 : (appState.rates[cat] || [0])[i] || 0);
+      }
+      rates[cat] = vals;
+    }
+    rates.sso = [0,0,0,0];
+
+    const buf = await appState.xlsxFile.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array', cellStyles: true });
+    const WS_NAME = '3. Form Fee tabel 22.05.26';
+    const ws = wb.Sheets[WS_NAME];
+    if (!ws) throw new Error(`ไม่พบ sheet "${WS_NAME}" ใน Excel`);
+    const range = XLSX.utils.decode_range(ws['!ref']);
+
+    for (let row = 3; row <= range.e.r; row++) {
+      const costCell = ws[XLSX.utils.encode_cell({ r: row, c: 8 })];
+      const cost = costCell ? String(costCell.v).trim() : '';
+      if (cost === 'PRTR') {
+        for (const c of [9,10,11,12]) ws[XLSX.utils.encode_cell({ r:row, c })] = { v: 'PRTR', t: 's' };
+        continue;
+      }
+      if (cost !== 'CLNT') continue;
+      const acctCell = ws[XLSX.utils.encode_cell({ r: row, c: 4 })];
+      const acct = acctCell ? String(acctCell.v).trim() : '';
+      const payCell = ws[XLSX.utils.encode_cell({ r: row, c: 6 })];
+      const pay = payCell ? String(payCell.v).trim() : '';
+      const hdrCell = ws[XLSX.utils.encode_cell({ r: row, c: 3 })];
+      const hdr = hdrCell ? String(hdrCell.v).trim() : '';
+      let cat;
+      if (pay === '1 M NOTICE' || /Severance/i.test(hdr)) cat = 'compensation';
+      else cat = ACCOUNT_MAP[acct];
+      if (!cat) continue;
+      const isPRTR = prtrCats.has(cat);
+      const r = pad4(rates[cat] || [0,0,0,0]);
+      [9,10,11,12].forEach((c, i) => {
+        const addr = XLSX.utils.encode_cell({ r: row, c });
+        if (i < nCols) {
+          if (isPRTR) {
+            ws[addr] = { v: 'PRTR', t: 's' };
+          } else {
+            ws[addr] = { ...(ws[addr]||{}), v: r[i], t: 'n', z: '0.0%' };
+          }
+        } else {
+          delete ws[addr];
+        }
+      });
+    }
+
+    XLSX.writeFile(wb, `Master - Fee tebla_${company}.xlsx`);
+    btn.textContent = '✅ ดาวน์โหลดเสร็จแล้ว!';
+    setTimeout(() => { btn.disabled = false; btn.textContent = '🚀 Generate Fee Table'; }, 3000);
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = '❌ เกิดข้อผิดพลาด';
+    alert('Error: ' + err.message);
+    console.error(err);
+  }
+}
+
+document.getElementById('pdfInput').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  pdfFile = f;
+  document.getElementById('pdfBox').classList.add('done');
+  document.getElementById('pdfHint').textContent = f.name;
+  if (xlsxFile) processFiles();
+});
+
+document.getElementById('xlsxInput').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  xlsxFile = f; appState.xlsxFile = f;
+  document.getElementById('xlsxBox').classList.add('done');
+  document.getElementById('xlsxHint').textContent = f.name;
+  if (pdfFile) processFiles();
+  if (document.getElementById('resultCard').classList.contains('visible')) appState.xlsxFile = f;
+});
+
+['pdfBox','xlsxBox'].forEach(boxId => {
+  const box = document.getElementById(boxId);
+  box.addEventListener('dragover', e => { e.preventDefault(); box.classList.add('drag-over'); });
+  box.addEventListener('dragleave', () => box.classList.remove('drag-over'));
+  box.addEventListener('drop', e => {
+    e.preventDefault(); box.classList.remove('drag-over');
+    const f = e.dataTransfer.files[0]; if (!f) return;
+    if (boxId === 'pdfBox') {
+      pdfFile = f;
+      document.getElementById('pdfBox').classList.add('done');
+      document.getElementById('pdfHint').textContent = f.name;
+    } else {
+      xlsxFile = f; appState.xlsxFile = f;
+      document.getElementById('xlsxBox').classList.add('done');
+      document.getElementById('xlsxHint').textContent = f.name;
+    }
+    if (pdfFile && xlsxFile) processFiles();
+  });
+});
+</script>
+</body>
+</html>

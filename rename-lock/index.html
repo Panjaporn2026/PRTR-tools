@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PRTR File Rename & Lock</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://unpkg.com/xlsx-populate/browser/xlsx-populate.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f172a; color: #e2e8f0;
+      min-height: 100vh; padding: 24px 16px;
+    }
+    a { color: #94a3b8; text-decoration: none; }
+    a:hover { color: #e2e8f0; }
+    .wrap { max-width: 760px; margin: 0 auto; }
+    .back { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 20px; font-size: 14px; }
+    h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+    .subtitle { font-size: 14px; color: #64748b; margin-bottom: 24px; }
+
+    /* Drop zone */
+    .dropzone {
+      border: 2px dashed #334155; border-radius: 10px;
+      padding: 28px 20px; text-align: center; cursor: pointer;
+      transition: all .2s; margin-bottom: 20px;
+    }
+    .dropzone:hover, .dropzone.dragover { border-color: #6366f1; background: rgba(99,102,241,.06); }
+    .dropzone .dz-icon { font-size: 28px; margin-bottom: 6px; }
+    .dropzone .dz-title { font-size: 14px; font-weight: 500; }
+    .dropzone .dz-hint { font-size: 12px; color: #64748b; margin-top: 3px; }
+    #fileInput { display: none; }
+
+    /* Global password bar */
+    .global-bar {
+      background: #1e293b; border: 1px solid #334155; border-radius: 10px;
+      padding: 14px 16px; margin-bottom: 20px; display: none;
+    }
+    .global-bar.show { display: block; }
+    .global-bar-top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .global-bar-top label { font-size: 13px; font-weight: 500; color: #94a3b8; flex-shrink: 0; }
+    .toggle-sw { position: relative; display: inline-block; width: 36px; height: 20px; }
+    .toggle-sw input { display: none; }
+    .toggle-sw .slider {
+      position: absolute; inset: 0; background: #334155;
+      border-radius: 20px; cursor: pointer; transition: .2s;
+    }
+    .toggle-sw .slider::after {
+      content: ''; position: absolute; left: 3px; top: 3px;
+      width: 14px; height: 14px; border-radius: 50%;
+      background: #64748b; transition: .2s;
+    }
+    .toggle-sw input:checked + .slider { background: #6366f1; }
+    .toggle-sw input:checked + .slider::after { transform: translateX(16px); background: #fff; }
+    .global-pw-row { display: flex; gap: 8px; align-items: center; }
+    .global-pw-row input {
+      flex: 1; background: #0f172a; border: 1px solid #334155;
+      border-radius: 8px; color: #e2e8f0; font-size: 14px;
+      padding: 9px 12px; outline: none; transition: border-color .2s;
+    }
+    .global-pw-row input:focus { border-color: #6366f1; }
+    .btn-apply {
+      background: #6366f1; border: none; border-radius: 8px;
+      color: #fff; cursor: pointer; font-size: 13px; font-weight: 600;
+      padding: 9px 14px; white-space: nowrap; transition: background .2s;
+    }
+    .btn-apply:hover { background: #4f46e5; }
+
+    /* File list */
+    .file-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+
+    .file-row {
+      background: #1e293b; border: 1px solid #334155;
+      border-radius: 10px; padding: 14px 16px;
+      transition: border-color .2s;
+    }
+    .file-row.done  { border-color: #166534; }
+    .file-row.error { border-color: #7f1d1d; }
+    .file-row.processing { border-color: #3730a3; }
+
+    .row-top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .row-icon { font-size: 20px; flex-shrink: 0; }
+    .row-orig { font-size: 13px; color: #64748b; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .row-remove { background: none; border: none; color: #475569; cursor: pointer; font-size: 16px; line-height: 1; padding: 2px; }
+    .row-remove:hover { color: #f87171; }
+
+    .row-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    @media (max-width: 500px) { .row-fields { grid-template-columns: 1fr; } }
+
+    .field-wrap { display: flex; }
+    .field-wrap input {
+      flex: 1; min-width: 0; background: #0f172a; border: 1px solid #2d3748;
+      border-radius: 8px 0 0 8px; color: #e2e8f0; font-size: 13px;
+      padding: 8px 10px; outline: none; transition: border-color .2s;
+    }
+    .field-wrap input:focus { border-color: #6366f1; }
+    .field-ext {
+      background: #0f172a; border: 1px solid #2d3748; border-left: none;
+      border-radius: 0 8px 8px 0; padding: 8px 10px; font-size: 13px;
+      color: #475569; white-space: nowrap; flex-shrink: 0;
+    }
+    .pw-field { position: relative; }
+    .pw-field input { border-radius: 8px; padding-right: 36px; }
+    .pw-eye {
+      position: absolute; right: 9px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; color: #475569; cursor: pointer; font-size: 14px;
+    }
+    .pw-eye:hover { color: #94a3b8; }
+
+    .row-status { margin-top: 10px; display: none; font-size: 13px; }
+    .row-status.show { display: flex; align-items: center; gap: 8px; }
+    .status-ok { color: #4ade80; }
+    .status-err { color: #f87171; }
+    .status-proc { color: #818cf8; }
+    .btn-dl-row {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: #166534; border: none; border-radius: 6px;
+      color: #fff; cursor: pointer; font-size: 12px; font-weight: 600;
+      padding: 5px 12px; text-decoration: none; margin-left: auto;
+      transition: background .2s; white-space: nowrap;
+    }
+    .btn-dl-row:hover { background: #15803d; color: #fff; }
+
+    /* Action row */
+    .action-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn-main {
+      flex: 1; min-width: 160px; background: #6366f1; border: none; border-radius: 8px;
+      color: #fff; cursor: pointer; font-size: 14px; font-weight: 600;
+      padding: 12px; transition: background .2s;
+    }
+    .btn-main:hover:not(:disabled) { background: #4f46e5; }
+    .btn-main:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+    .btn-zip {
+      background: #0f172a; border: 1px solid #334155; border-radius: 8px;
+      color: #94a3b8; cursor: pointer; font-size: 14px; font-weight: 600;
+      padding: 12px 20px; transition: all .2s; display: none;
+    }
+    .btn-zip.show { display: inline-flex; align-items: center; gap: 6px; }
+    .btn-zip:hover { border-color: #6366f1; color: #e2e8f0; }
+
+    /* Overall progress */
+    .overall-progress { margin-top: 14px; display: none; }
+    .overall-progress.show { display: block; }
+    .prog-bar { height: 4px; background: #1e293b; border-radius: 2px; overflow: hidden; }
+    .prog-fill { height: 100%; width: 0%; background: #6366f1; border-radius: 2px; transition: width .3s; }
+    .prog-label { font-size: 12px; color: #64748b; margin-top: 5px; }
+
+    .divider { border: none; border-top: 1px solid #1e293b; margin: 20px 0; }
+    .info-row { font-size: 12px; color: #475569; display: flex; gap: 7px; align-items: flex-start; }
+
+    .empty-hint { text-align: center; color: #475569; font-size: 13px; padding: 8px; display: none; }
+    .empty-hint.show { display: block; }
+
+    /* Mapping section */
+    .mapping-section {
+      background: #1e293b; border: 1px solid #334155; border-radius: 10px;
+      padding: 14px 16px; margin-bottom: 20px;
+    }
+    .mapping-header {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 10px; margin-bottom: 12px; flex-wrap: wrap;
+    }
+    .mapping-header-left { display: flex; align-items: center; gap: 8px; }
+    .mapping-title { font-size: 13px; font-weight: 600; color: #e2e8f0; }
+    .mapping-desc { font-size: 12px; color: #64748b; margin-top: 2px; }
+    .btn-tpl {
+      background: #0f172a; border: 1px solid #334155; border-radius: 7px;
+      color: #94a3b8; cursor: pointer; font-size: 12px; font-weight: 500;
+      padding: 6px 12px; transition: all .2s; white-space: nowrap; flex-shrink: 0;
+    }
+    .btn-tpl:hover { border-color: #6366f1; color: #a5b4fc; }
+    .mapping-upload-row { display: flex; align-items: center; gap: 10px; }
+    .mapping-drop {
+      flex: 1; border: 1.5px dashed #334155; border-radius: 8px;
+      padding: 10px 14px; text-align: center; cursor: pointer;
+      font-size: 13px; color: #64748b; transition: all .2s;
+    }
+    .mapping-drop:hover, .mapping-drop.dragover { border-color: #6366f1; color: #a5b4fc; background: rgba(99,102,241,.05); }
+    .mapping-status {
+      margin-top: 10px; font-size: 13px; display: none;
+      align-items: center; gap: 8px; padding: 8px 10px;
+      background: #0f172a; border-radius: 7px;
+    }
+    .mapping-status.show { display: flex; }
+    .ms-ok  { color: #4ade80; }
+    .ms-warn { color: #fbbf24; }
+    .ms-err  { color: #f87171; }
+    .btn-clear-map {
+      margin-left: auto; background: none; border: none;
+      color: #475569; cursor: pointer; font-size: 12px;
+    }
+    .btn-clear-map:hover { color: #f87171; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../" class="back">← กลับหน้าหลัก</a>
+  <h1>🔒 File Rename & Lock</h1>
+  <p class="subtitle">ตั้งชื่อไฟล์ใหม่ และ/หรือ ล็อกรหัสผ่านสำหรับเปิด — รองรับ .xlsx และ .pdf — แก้ไขได้หลายไฟล์พร้อมกัน</p>
+
+  <!-- Mapping section -->
+  <div class="mapping-section">
+    <div class="mapping-header">
+      <div class="mapping-header-left">
+        <div>
+          <div class="mapping-title">📋 นำเข้าชื่อไฟล์จาก Excel</div>
+          <div class="mapping-desc">อัปโหลด Excel ที่มี mapping ชื่อเก่า → ชื่อใหม่ แล้วระบบจะ auto-fill ให้</div>
+        </div>
+      </div>
+      <button class="btn-tpl" onclick="downloadTemplate()">⬇ ดาวน์โหลด Template</button>
+    </div>
+    <div class="mapping-upload-row">
+      <div class="mapping-drop" id="mappingDrop" onclick="document.getElementById('mappingInput').click()">
+        📂 คลิกหรือลาก Excel mapping มาวาง
+      </div>
+    </div>
+    <input type="file" id="mappingInput" accept=".xlsx" style="display:none">
+    <div class="mapping-status" id="mappingStatus"></div>
+  </div>
+
+  <!-- Drop zone (always visible) -->
+  <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+    <div class="dz-icon">📎</div>
+    <div class="dz-title">คลิกหรือลากไฟล์มาวาง</div>
+    <div class="dz-hint">รองรับ .xlsx และ .pdf · เลือกได้หลายไฟล์พร้อมกัน</div>
+  </div>
+  <input type="file" id="fileInput" accept=".xlsx,.pdf" multiple>
+
+  <!-- Global password -->
+  <div class="global-bar" id="globalBar">
+    <div class="global-bar-top">
+      <label>ใส่รหัสผ่านเดียวกันทุกไฟล์</label>
+      <label class="toggle-sw"><input type="checkbox" id="globalToggle" onchange="toggleGlobal()"><span class="slider"></span></label>
+    </div>
+    <div class="global-pw-row" id="globalPwRow" style="display:none">
+      <input type="password" id="globalPw" placeholder="รหัสผ่านสำหรับทุกไฟล์">
+      <button class="btn-apply" onclick="applyGlobalPw()">ใช้กับทุกไฟล์</button>
+    </div>
+  </div>
+
+  <!-- File list -->
+  <div class="file-list" id="fileList"></div>
+  <div class="empty-hint" id="emptyHint">ยังไม่มีไฟล์ — ลากหรือคลิกเพื่อเพิ่ม</div>
+
+  <!-- Actions -->
+  <div class="action-row" id="actionRow" style="display:none">
+    <button class="btn-main" id="btnProcess" onclick="processAll()">⚙️ ประมวลผลทั้งหมด</button>
+    <button class="btn-zip" id="btnZip" onclick="downloadZip()">📦 Download ทั้งหมด (ZIP)</button>
+  </div>
+
+  <div class="overall-progress" id="overallProgress">
+    <div class="prog-bar"><div class="prog-fill" id="progFill"></div></div>
+    <div class="prog-label" id="progLabel">กำลังประมวลผล...</div>
+  </div>
+
+  <hr class="divider">
+  <div class="info-row">
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#475569" stroke-width="1.5"/><path d="M8 7v5M8 5v.5" stroke="#475569" stroke-width="1.5" stroke-linecap="round"/></svg>
+    ทำงานในเบราว์เซอร์ทั้งหมด — ไฟล์และรหัสผ่านไม่ถูกส่งออกไปยังเซิร์ฟเวอร์ใดๆ
+  </div>
+</div>
+
+<script>
+// ===================== STATE =====================
+let fileEntries = []; // { id, file, newName, password, status, resultBlob, resultName }
+let nextId = 0;
+let currentMapping = {}; // { 'old_filename.xlsx': 'new_name_no_ext', ... }
+
+// ===================== DROP ZONE =====================
+const dropzone = document.getElementById('dropzone');
+dropzone.addEventListener('dragover',  e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault(); dropzone.classList.remove('dragover');
+  addFiles(e.dataTransfer.files);
+});
+document.getElementById('fileInput').addEventListener('change', e => {
+  addFiles(e.target.files);
+  e.target.value = '';
+});
+
+function addFiles(fileList) {
+  let added = 0;
+  for (const f of fileList) {
+    const ext = f.name.split('.').pop().toLowerCase();
+    if (ext !== 'xlsx' && ext !== 'pdf') continue;
+    fileEntries.push({ id: nextId++, file: f, newName: '', password: '', status: 'pending', resultBlob: null, resultName: '' });
+    added++;
+  }
+  if (!added) { alert('รองรับเฉพาะไฟล์ .xlsx และ .pdf'); return; }
+  // Auto-apply mapping if loaded
+  if (Object.keys(currentMapping).length) applyMapping();
+  else renderList();
+}
+
+// ===================== RENDER =====================
+function renderList() {
+  const list = document.getElementById('fileList');
+  const bar  = document.getElementById('globalBar');
+  const row  = document.getElementById('actionRow');
+  const hint = document.getElementById('emptyHint');
+
+  list.innerHTML = '';
+  if (fileEntries.length === 0) {
+    bar.classList.remove('show'); row.style.display = 'none'; hint.classList.add('show'); return;
+  }
+  hint.classList.remove('show');
+  bar.classList.add('show'); row.style.display = 'flex';
+
+  for (const entry of fileEntries) {
+    const ext  = entry.file.name.split('.').pop().toLowerCase();
+    const icon = ext === 'pdf' ? '📕' : '📗';
+    const el   = document.createElement('div');
+    el.className = 'file-row' + (entry.status === 'done' ? ' done' : entry.status === 'error' ? ' error' : entry.status === 'processing' ? ' processing' : '');
+    el.dataset.id = entry.id;
+
+    let statusHtml = '';
+    if (entry.status === 'processing') {
+      statusHtml = `<div class="row-status show"><span class="status-proc">⏳ กำลังประมวลผล...</span></div>`;
+    } else if (entry.status === 'done') {
+      statusHtml = `<div class="row-status show">
+        <span class="status-ok">✅ เสร็จสิ้น</span>
+        <a class="btn-dl-row" href="${URL.createObjectURL(entry.resultBlob)}" download="${entry.resultName}">⬇ ดาวน์โหลด</a>
+      </div>`;
+    } else if (entry.status === 'error') {
+      statusHtml = `<div class="row-status show"><span class="status-err">❌ ${entry.errorMsg || 'เกิดข้อผิดพลาด'}</span></div>`;
+    }
+
+    el.innerHTML = `
+      <div class="row-top">
+        <span class="row-icon">${icon}</span>
+        <span class="row-orig" title="${entry.file.name}">${entry.file.name}</span>
+        <button class="row-remove" onclick="removeEntry(${entry.id})" title="ลบ">✕</button>
+      </div>
+      <div class="row-fields">
+        <div class="field-wrap">
+          <input type="text" placeholder="ชื่อไฟล์ใหม่ (ไม่ต้องใส่นามสกุล)"
+            value="${entry.newName}"
+            onchange="updateEntry(${entry.id},'newName',this.value)"
+            oninput="updateEntry(${entry.id},'newName',this.value)">
+          <span class="field-ext">.${ext}</span>
+        </div>
+        <div class="pw-field">
+          <input type="password" placeholder="รหัสผ่าน (ถ้าต้องการล็อก)"
+            value="${entry.password}"
+            onchange="updateEntry(${entry.id},'password',this.value)"
+            oninput="updateEntry(${entry.id},'password',this.value)"
+            id="pw-${entry.id}">
+          <button class="pw-eye" onclick="togglePwEntry(${entry.id})" tabindex="-1">👁</button>
+        </div>
+      </div>
+      ${statusHtml}`;
+    list.appendChild(el);
+  }
+
+  // Show/hide ZIP button
+  const doneCount = fileEntries.filter(e => e.status === 'done').length;
+  const btn = document.getElementById('btnZip');
+  doneCount >= 2 ? btn.classList.add('show') : btn.classList.remove('show');
+}
+
+function removeEntry(id) {
+  fileEntries = fileEntries.filter(e => e.id !== id);
+  renderList();
+}
+function updateEntry(id, key, val) {
+  const e = fileEntries.find(e => e.id === id);
+  if (e) e[key] = val;
+}
+function togglePwEntry(id) {
+  const inp = document.getElementById('pw-' + id);
+  if (inp) inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+// ===================== GLOBAL PASSWORD =====================
+function toggleGlobal() {
+  const on = document.getElementById('globalToggle').checked;
+  document.getElementById('globalPwRow').style.display = on ? 'flex' : 'none';
+}
+function applyGlobalPw() {
+  const pw = document.getElementById('globalPw').value;
+  for (const e of fileEntries) e.password = pw;
+  renderList();
+}
+
+// ===================== PROCESS =====================
+async function processAll() {
+  if (!fileEntries.length) return;
+  const btn = document.getElementById('btnProcess');
+  btn.disabled = true;
+
+  const prog = document.getElementById('overallProgress');
+  const fill = document.getElementById('progFill');
+  const label= document.getElementById('progLabel');
+  prog.classList.add('show');
+
+  const total = fileEntries.length;
+  let done = 0;
+
+  for (const entry of fileEntries) {
+    if (entry.status === 'done') { done++; continue; } // skip already done
+    entry.status = 'processing';
+    renderList();
+
+    const ext = entry.file.name.split('.').pop().toLowerCase();
+    const baseName = (entry.newName.trim() || entry.file.name.replace(/\.[^.]+$/, ''));
+    const outName  = baseName + '.' + ext;
+
+    try {
+      label.textContent = `ประมวลผล: ${entry.file.name}`;
+      fill.style.width = (done / total * 100) + '%';
+
+      const buffer = await entry.file.arrayBuffer();
+      let resultBytes;
+      if (ext === 'xlsx') {
+        resultBytes = await processExcel(buffer, entry.password);
+      } else {
+        resultBytes = await processPdf(buffer, entry.password);
+      }
+      const mime = ext === 'pdf'
+        ? 'application/pdf'
+        : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      entry.resultBlob = new Blob([resultBytes], { type: mime });
+      entry.resultName = outName;
+      entry.status = 'done';
+    } catch (err) {
+      entry.status = 'error';
+      entry.errorMsg = err.message;
+    }
+
+    done++;
+    fill.style.width = (done / total * 100) + '%';
+    renderList();
+  }
+
+  label.textContent = `เสร็จสิ้น ${fileEntries.filter(e=>e.status==='done').length}/${total} ไฟล์`;
+  btn.disabled = false;
+}
+
+// ===================== DOWNLOAD ZIP =====================
+async function downloadZip() {
+  const doneEntries = fileEntries.filter(e => e.status === 'done' && e.resultBlob);
+  if (!doneEntries.length) return;
+  const zip = new JSZip();
+  for (const e of doneEntries) {
+    const ab = await e.resultBlob.arrayBuffer();
+    zip.file(e.resultName, ab);
+  }
+  const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 1 } });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'PRTR_files.zip'; a.click();
+}
+
+// ===================== EXCEL =====================
+async function processExcel(buffer, password) {
+  if (!password) return new Uint8Array(buffer);
+  return encryptXlsxAgile(new Uint8Array(buffer), password);
+}
+
+// --- ECMA-376 Agile Encryption (AES-256-CBC / SHA-512) ---
+// Algorithm matches xlsx-populate Encryptor.js exactly
+async function encryptXlsxAgile(xlsxBytes, password) {
+  const SPIN=100000, KB=32, BS=16; // AES-256, 32-byte content key
+  const BK_KEY=new Uint8Array([0x14,0x6e,0x0b,0xe7,0xab,0xac,0xd0,0xd6]);
+  const BK_VIN=new Uint8Array([0xfe,0xa7,0xd2,0x76,0x3b,0x4b,0x9e,0x79]);
+  const BK_VH =new Uint8Array([0xd7,0xaa,0x0f,0x6d,0x30,0x61,0x34,0x4e]);
+  const BK_HK =new Uint8Array([0x5f,0xb2,0xad,0x01,0x0c,0xb9,0xe1,0xf6]);
+  const BK_HV =new Uint8Array([0xa0,0x67,0x7f,0x02,0xb2,0x2c,0x84,0x33]);
+
+  const cat=(...a)=>{const n=a.reduce((s,x)=>s+x.length,0);const r=new Uint8Array(n);let o=0;for(const x of a){r.set(x,o);o+=x.length;}return r;};
+  const u32le=n=>{const b=new Uint8Array(4);new DataView(b.buffer).setUint32(0,n,true);return b;};
+  const u64le=n=>{const b=new Uint8Array(8);const dv=new DataView(b.buffer);dv.setUint32(0,n>>>0,true);dv.setUint32(4,Math.floor(n/0x100000000)>>>0,true);return b;};
+  const b64=u8=>{let s='';for(const b of u8)s+=String.fromCharCode(b);return btoa(s);};
+
+  // SHA-512 via WebCrypto
+  async function sha512(...parts){
+    return new Uint8Array(await crypto.subtle.digest('SHA-512', cat(...parts)));
+  }
+
+  // AES-256-CBC: zero-pad data, encrypt, strip the PKCS7 block WebCrypto appends
+  async function aesEnc(key,iv,data){
+    const padLen=data.length%16===0?0:16-data.length%16;
+    const padded=new Uint8Array(data.length+padLen); padded.set(data); // zero-padded
+    const k=await crypto.subtle.importKey('raw',key,'AES-CBC',false,['encrypt']);
+    const enc=new Uint8Array(await crypto.subtle.encrypt({name:'AES-CBC',iv},k,padded));
+    return enc.slice(0,padded.length); // strip PKCS7 block
+  }
+
+  // Password → UTF-16LE
+  const pw=new Uint8Array(password.length*2);
+  for(let i=0;i<password.length;i++){pw[i*2]=password.charCodeAt(i)&0xff;pw[i*2+1]=(password.charCodeAt(i)>>8)&0xff;}
+
+  const dataSalt=crypto.getRandomValues(new Uint8Array(16));
+  const keySalt =crypto.getRandomValues(new Uint8Array(16));
+  const packageKey=crypto.getRandomValues(new Uint8Array(KB)); // random AES-256 content key
+  const verifier =crypto.getRandomValues(new Uint8Array(16));
+
+  // Key derivation (matches xlsx-populate):
+  // H0 = SHA512(keySalt, password)
+  let H=await sha512(keySalt, pw);
+  // H_{i+1} = SHA512(i_le32, H_i)  ← iterator FIRST
+  for(let i=0;i<SPIN;i++) H=await sha512(u32le(i),H);
+  // subKey(bk) = SHA512(H, bk)[0:32]
+  const subKey=async bk=>(await sha512(H,bk)).slice(0,KB);
+
+  // Encrypt key material (IV = keySalt directly)
+  const Kkey=await subKey(BK_KEY), Kvin=await subKey(BK_VIN), Kvh=await subKey(BK_VH);
+  const encKeyValue=await aesEnc(Kkey,keySalt,packageKey);
+  const encVerIn   =await aesEnc(Kvin,keySalt,verifier);
+  const encVerHash =await aesEnc(Kvh, keySalt, await sha512(verifier));
+
+  // Package encryption: IV = SHA512(dataSalt, segIndex_le32)[0:16]
+  const encSegs=[];
+  for(let seg=0,off=0;off<xlsxBytes.length;seg++,off+=4096){
+    const chunk=xlsxBytes.slice(off,Math.min(off+4096,xlsxBytes.length));
+    const iv=(await sha512(dataSalt,u32le(seg))).slice(0,BS);
+    encSegs.push(await aesEnc(packageKey,iv,chunk));
+  }
+  const encPack=cat(u64le(xlsxBytes.length),...encSegs);
+
+  // HMAC-SHA512: key = random 64 bytes, encrypted with packageKey
+  const hmacKeyRaw=crypto.getRandomValues(new Uint8Array(64));
+  const hmacKeyIV=(await sha512(dataSalt,BK_HK)).slice(0,BS);
+  const encHmacKey=await aesEnc(packageKey,hmacKeyIV,hmacKeyRaw);
+  const hmacCK=await crypto.subtle.importKey('raw',hmacKeyRaw,{name:'HMAC',hash:'SHA-512'},false,['sign']);
+  const hmacVal=new Uint8Array(await crypto.subtle.sign('HMAC',hmacCK,encPack));
+  const hmacValIV=(await sha512(dataSalt,BK_HV)).slice(0,BS);
+  const encHmacVal=await aesEnc(packageKey,hmacValIV,hmacVal);
+
+  // EncryptionInfo = 8-byte header (version 4.4 + reserved 0x40) + XML
+  const xml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><encryption xmlns="http://schemas.microsoft.com/office/2006/encryption" xmlns:p="http://schemas.microsoft.com/office/2006/keyEncryptor/password" xmlns:c="http://schemas.microsoft.com/office/2006/keyEncryptor/certificate"><keyData saltSize="16" blockSize="${BS}" keyBits="${KB*8}" hashSize="64" cipherAlgorithm="AES" cipherChaining="ChainingModeCBC" hashAlgorithm="SHA512" saltValue="${b64(dataSalt)}"/><dataIntegrity encryptedHmacKey="${b64(encHmacKey)}" encryptedHmacValue="${b64(encHmacVal)}"/><keyEncryptors><keyEncryptor uri="http://schemas.microsoft.com/office/2006/keyEncryptor/password"><p:encryptedKey spinCount="${SPIN}" saltSize="16" blockSize="${BS}" keyBits="${KB*8}" hashSize="64" cipherAlgorithm="AES" cipherChaining="ChainingModeCBC" hashAlgorithm="SHA512" saltValue="${b64(keySalt)}" encryptedVerifierHashInput="${b64(encVerIn)}" encryptedVerifierHash="${b64(encVerHash)}" encryptedKeyValue="${b64(encKeyValue)}"/></keyEncryptor></keyEncryptors></encryption>`;
+  const xmlBytes=new TextEncoder().encode(xml);
+  const encInfo=new Uint8Array(8+xmlBytes.length);
+  const encInfoDv=new DataView(encInfo.buffer);
+  encInfoDv.setUint16(0,4,true); encInfoDv.setUint16(2,4,true); encInfoDv.setUint32(4,0x40,true);
+  encInfo.set(xmlBytes,8);
+
+  const cfb=XLSX.CFB.utils.cfb_new();
+  XLSX.CFB.utils.cfb_add(cfb,'EncryptionInfo',encInfo);
+  XLSX.CFB.utils.cfb_add(cfb,'EncryptedPackage',encPack);
+  return new Uint8Array(XLSX.CFB.write(cfb,{type:'array'}));
+}
+
+// ===================== PDF =====================
+// Implements PDF Standard Security Rev 4, AES-128
+
+// --- MD5 ---
+function md5(data) {
+  function rotl(x,n){ return (x<<n)|(x>>>(32-n)); }
+  function cmn(q,a,b,x,s,t){ return (rotl((a+q+x+t)|0,s)+b)|0; }
+  function ff(a,b,c,d,x,s,t){ return cmn((b&c)|(~b&d),a,b,x,s,t); }
+  function gg(a,b,c,d,x,s,t){ return cmn((b&d)|(c&~d),a,b,x,s,t); }
+  function hh(a,b,c,d,x,s,t){ return cmn(b^c^d,a,b,x,s,t); }
+  function ii(a,b,c,d,x,s,t){ return cmn(c^(b|~d),a,b,x,s,t); }
+  const len=data.length, padLen=(len%64<56)?56-len%64:120-len%64;
+  const buf=new Uint8Array(len+padLen+8); buf.set(data); buf[len]=0x80;
+  const dv=new DataView(buf.buffer);
+  dv.setUint32(len+padLen,(len*8)>>>0,true);
+  dv.setUint32(len+padLen+4,Math.floor(len/0x20000000),true);
+  let a=0x67452301,b=0xefcdab89,c=0x98badcfe,d=0x10325476;
+  for(let i=0;i<buf.length;i+=64){
+    const X=[]; for(let j=0;j<16;j++) X[j]=dv.getUint32(i+j*4,true);
+    const [pa,pb,pc,pd]=[a,b,c,d];
+    a=ff(a,b,c,d,X[0],7,-680876936);d=ff(d,a,b,c,X[1],12,-389564586);c=ff(c,d,a,b,X[2],17,606105819);b=ff(b,c,d,a,X[3],22,-1044525330);
+    a=ff(a,b,c,d,X[4],7,-176418897);d=ff(d,a,b,c,X[5],12,1200080426);c=ff(c,d,a,b,X[6],17,-1473231341);b=ff(b,c,d,a,X[7],22,-45705983);
+    a=ff(a,b,c,d,X[8],7,1770035416);d=ff(d,a,b,c,X[9],12,-1958414417);c=ff(c,d,a,b,X[10],17,-42063);b=ff(b,c,d,a,X[11],22,-1990404162);
+    a=ff(a,b,c,d,X[12],7,1804603682);d=ff(d,a,b,c,X[13],12,-40341101);c=ff(c,d,a,b,X[14],17,-1502002290);b=ff(b,c,d,a,X[15],22,1236535329);
+    a=gg(a,b,c,d,X[1],5,-165796510);d=gg(d,a,b,c,X[6],9,-1069501632);c=gg(c,d,a,b,X[11],14,643717713);b=gg(b,c,d,a,X[0],20,-373897302);
+    a=gg(a,b,c,d,X[5],5,-701558691);d=gg(d,a,b,c,X[10],9,38016083);c=gg(c,d,a,b,X[15],14,-660478335);b=gg(b,c,d,a,X[4],20,-405537848);
+    a=gg(a,b,c,d,X[9],5,568446438);d=gg(d,a,b,c,X[14],9,-1019803690);c=gg(c,d,a,b,X[3],14,-187363961);b=gg(b,c,d,a,X[8],20,1163531501);
+    a=gg(a,b,c,d,X[13],5,-1444681467);d=gg(d,a,b,c,X[2],9,-51403784);c=gg(c,d,a,b,X[7],14,1735328473);b=gg(b,c,d,a,X[12],20,-1926607734);
+    a=hh(a,b,c,d,X[5],4,-378558);d=hh(d,a,b,c,X[8],11,-2022574463);c=hh(c,d,a,b,X[11],16,1839030562);b=hh(b,c,d,a,X[14],23,-35309556);
+    a=hh(a,b,c,d,X[1],4,-1530992060);d=hh(d,a,b,c,X[4],11,1272893353);c=hh(c,d,a,b,X[7],16,-155497632);b=hh(b,c,d,a,X[10],23,-1094730640);
+    a=hh(a,b,c,d,X[13],4,681279174);d=hh(d,a,b,c,X[0],11,-358537222);c=hh(c,d,a,b,X[3],16,-722521979);b=hh(b,c,d,a,X[6],23,76029189);
+    a=hh(a,b,c,d,X[9],4,-640364487);d=hh(d,a,b,c,X[12],11,-421815835);c=hh(c,d,a,b,X[15],16,530742520);b=hh(b,c,d,a,X[2],23,-995338651);
+    a=ii(a,b,c,d,X[0],6,-198630844);d=ii(d,a,b,c,X[7],10,1126891415);c=ii(c,d,a,b,X[14],15,-1416354905);b=ii(b,c,d,a,X[5],21,-57434055);
+    a=ii(a,b,c,d,X[12],6,1700485571);d=ii(d,a,b,c,X[3],10,-1894986606);c=ii(c,d,a,b,X[10],15,-1051523);b=ii(b,c,d,a,X[1],21,-2054922799);
+    a=ii(a,b,c,d,X[8],6,1873313359);d=ii(d,a,b,c,X[15],10,-30611744);c=ii(c,d,a,b,X[6],15,-1560198380);b=ii(b,c,d,a,X[13],21,1309151649);
+    a=ii(a,b,c,d,X[4],6,-145523070);d=ii(d,a,b,c,X[11],10,-1120210379);c=ii(c,d,a,b,X[2],15,718787259);b=ii(b,c,d,a,X[9],21,-343485551);
+    a=(a+pa)|0; b=(b+pb)|0; c=(c+pc)|0; d=(d+pd)|0;
+  }
+  const r=new Uint8Array(16), rv=new DataView(r.buffer);
+  rv.setUint32(0,a,true); rv.setUint32(4,b,true); rv.setUint32(8,c,true); rv.setUint32(12,d,true);
+  return r;
+}
+
+// --- RC4 ---
+function rc4(key, data) {
+  const s=new Uint8Array(256); for(let i=0;i<256;i++) s[i]=i;
+  let j=0; for(let i=0;i<256;i++){ j=(j+s[i]+key[i%key.length])&0xff; [s[i],s[j]]=[s[j],s[i]]; }
+  const out=new Uint8Array(data.length); let i=0; j=0;
+  for(let k=0;k<data.length;k++){
+    i=(i+1)&0xff; j=(j+s[i])&0xff; [s[i],s[j]]=[s[j],s[i]];
+    out[k]=data[k]^s[(s[i]+s[j])&0xff];
+  }
+  return out;
+}
+
+function concat(...arrays) {
+  const len=arrays.reduce((s,a)=>s+a.length,0);
+  const out=new Uint8Array(len); let off=0;
+  for(const a of arrays){ out.set(a,off); off+=a.length; }
+  return out;
+}
+function hexToBytes(h) { const b=new Uint8Array(h.length/2); for(let i=0;i<b.length;i++) b[i]=parseInt(h.substr(i*2,2),16); return b; }
+function bytesToHex(b) { return Array.from(b).map(x=>x.toString(16).padStart(2,'0')).join(''); }
+
+const PDF_PAD = new Uint8Array([0x28,0xBF,0x4E,0x5E,0x4E,0x75,0x8A,0x41,0x64,0x00,0x4E,0x56,0xFF,0xFA,0x01,0x08,0x2E,0x2E,0x00,0xB6,0xD0,0x68,0x3E,0x80,0x2F,0x0C,0xA9,0xFE,0x64,0x53,0x69,0x7A]);
+
+function padPw(pw) {
+  const enc=new TextEncoder().encode(pw||'');
+  const r=new Uint8Array(32);
+  for(let i=0;i<32;i++) r[i]=i<enc.length?enc[i]:PDF_PAD[i-enc.length];
+  return r;
+}
+
+async function computePdfSecurity(userPw, ownerPw, permissions, fileIdBytes, keyLen=16) {
+  const paddedO=padPw(ownerPw||userPw);
+  let oKey=md5(paddedO); for(let i=0;i<50;i++) oKey=md5(oKey.slice(0,keyLen)); oKey=oKey.slice(0,keyLen);
+  const paddedU=padPw(userPw);
+  let O=rc4(oKey,paddedU); for(let i=1;i<20;i++) O=rc4(oKey.map(b=>b^i),O);
+  const P=new Uint8Array(4); new DataView(P.buffer).setInt32(0,permissions,true);
+  let encKey=md5(concat(paddedU,O,P,fileIdBytes));
+  for(let i=0;i<50;i++) encKey=md5(encKey.slice(0,keyLen)); encKey=encKey.slice(0,keyLen);
+  let U=rc4(encKey,md5(concat(PDF_PAD,fileIdBytes)));
+  for(let i=1;i<20;i++) U=rc4(encKey.map(b=>b^i),U);
+  const U32=new Uint8Array(32); U32.set(U);
+  return { encKey, O, U: U32 };
+}
+
+async function aesEncryptStream(content, encKey, objNum, genNum) {
+  const suffix=new Uint8Array([0x73,0x41,0x6C,0x54]);
+  const objBytes=new Uint8Array([objNum&0xff,(objNum>>8)&0xff,(objNum>>16)&0xff,genNum&0xff,(genNum>>8)&0xff]);
+  const streamKey=md5(concat(encKey,objBytes,suffix)).slice(0,16);
+  const iv=crypto.getRandomValues(new Uint8Array(16));
+  const padLen=16-(content.length%16);
+  const padded=new Uint8Array(content.length+padLen); padded.set(content); padded.fill(padLen,content.length);
+  const ck=await crypto.subtle.importKey('raw',streamKey,'AES-CBC',false,['encrypt']);
+  const enc=new Uint8Array(await crypto.subtle.encrypt({name:'AES-CBC',iv},ck,padded));
+  return concat(iv,enc);
+}
+
+async function processPdf(buffer, password) {
+  if (!password) return new Uint8Array(buffer);
+  const bytes=new Uint8Array(buffer);
+  const latin1=new TextDecoder('latin1');
+  const text=latin1.decode(bytes);
+  if(/\/Encrypt\s/.test(text)) throw new Error('PDF นี้มีรหัสผ่านอยู่แล้ว กรุณาถอดรหัสก่อน');
+  let fileIdHex;
+  const idM=text.match(/\/ID\s*\[[\s]*<([0-9A-Fa-f]+)>/);
+  fileIdHex=idM?idM[1]:bytesToHex(crypto.getRandomValues(new Uint8Array(16)));
+  const fileIdBytes=hexToBytes(fileIdHex);
+  const permissions=-3904;
+  const {encKey,O,U}=await computePdfSecurity(password,password,permissions,fileIdBytes);
+  const objRe=/\b(\d+)\s+(\d+)\s+obj\b/g;
+  const objects=[]; let match;
+  while((match=objRe.exec(text))!==null) objects.push({num:parseInt(match[1]),gen:parseInt(match[2]),start:match.index});
+  const enc=new TextEncoder(); const parts=[]; const offsets={};
+  const header=text.match(/^%PDF-\S+/);
+  parts.push(enc.encode((header?header[0]:'%PDF-1.6')+'\n%\xE2\xE3\xCF\xD3\n'));
+  const maxObj=objects.length?Math.max(...objects.map(o=>o.num)):0;
+  const encObjNum=maxObj+1;
+  for(let idx=0;idx<objects.length;idx++){
+    const obj=objects[idx];
+    const nextStart=idx+1<objects.length?objects[idx+1].start:text.length;
+    const chunk=text.slice(obj.start,nextStart);
+    const endObj=chunk.lastIndexOf('endobj');
+    const objContent=endObj>=0?chunk.slice(0,endObj+6):chunk;
+    const streamStart=objContent.indexOf('stream');
+    const streamEnd=objContent.lastIndexOf('endstream');
+    offsets[obj.num]=parts.reduce((s,p)=>s+p.length,0);
+    if(streamStart>=0&&streamEnd>streamStart){
+      const dictPart=objContent.slice(0,streamStart);
+      const isXrefStream=/\/Type\s*\/XRef/.test(dictPart);
+      if(isXrefStream){
+        const raw=new Uint8Array(objContent.length);
+        for(let i=0;i<objContent.length;i++) raw[i]=objContent.charCodeAt(i);
+        parts.push(raw);
+      } else {
+        const afterStream=streamStart+'stream'.length;
+        let dataStart=afterStream;
+        if(objContent.charCodeAt(dataStart)===13&&objContent.charCodeAt(dataStart+1)===10) dataStart+=2;
+        else if(objContent.charCodeAt(dataStart)===10) dataStart+=1;
+        let dataEnd=streamEnd;
+        while(dataEnd>dataStart&&(objContent.charCodeAt(dataEnd-1)===10||objContent.charCodeAt(dataEnd-1)===13)) dataEnd--;
+        const rawStream=new Uint8Array(dataEnd-dataStart);
+        for(let i=dataStart;i<dataEnd;i++) rawStream[i-dataStart]=objContent.charCodeAt(i);
+        const encrypted=await aesEncryptStream(rawStream,encKey,obj.num,obj.gen);
+        let newDict=dictPart.replace(/\/Length\s+\d+(\s+\d+\s+R)?/,`/Length ${encrypted.length}`);
+        parts.push(enc.encode(newDict+'stream\n'));
+        parts.push(encrypted);
+        parts.push(enc.encode('\nendstream\nendobj\n'));
+      }
+    } else {
+      const raw=new Uint8Array(objContent.length);
+      for(let i=0;i<objContent.length;i++) raw[i]=objContent.charCodeAt(i);
+      parts.push(raw); parts.push(enc.encode('\n'));
+    }
+  }
+  const Ohex=bytesToHex(O), Uhex=bytesToHex(U);
+  offsets[encObjNum]=parts.reduce((s,p)=>s+p.length,0);
+  parts.push(enc.encode(
+    `${encObjNum} 0 obj\n<< /Filter /Standard /V 4 /R 4 /Length 128\n`+
+    `/CF << /StdCF << /AuthEvent /DocOpen /CFM /AESV2 /Length 16 >> >>\n`+
+    `/StmF /StdCF /StrF /StdCF\n/O <${Ohex}>\n/U <${Uhex}>\n/P ${permissions} >>\nendobj\n`
+  ));
+  const xrefOffset=parts.reduce((s,p)=>s+p.length,0);
+  const allNums=[...Object.keys(offsets).map(Number)].sort((a,b)=>a-b);
+  let xref='xref\n0 1\n0000000000 65535 f \n';
+  for(const n of allNums) xref+=`${n} 1\n${offsets[n].toString().padStart(10,'0')} 00000 n \n`;
+  parts.push(enc.encode(xref));
+  const trailerM=text.match(/trailer\s*<<([\s\S]*?)>>/);
+  let td=trailerM?trailerM[1]:'';
+  td=td.replace(/\/Encrypt\s+\d+\s+\d+\s+R/,'').replace(/\/ID\s*\[[\s\S]*?\]/,'');
+  td=td.replace(/\/Size\s+\d+/,`/Size ${encObjNum+1}`);
+  if(!/\/Size/.test(td)) td+=` /Size ${encObjNum+1}`;
+  const fid2=bytesToHex(fileIdBytes);
+  parts.push(enc.encode(`trailer\n<<${td}\n/Encrypt ${encObjNum} 0 R\n/ID [<${fid2}><${fid2}>]\n>>\nstartxref\n${xrefOffset}\n%%EOF\n`));
+  const totalLen=parts.reduce((s,p)=>s+p.length,0);
+  const out=new Uint8Array(totalLen); let off=0;
+  for(const p of parts){ out.set(p,off); off+=p.length; }
+  return out;
+}
+
+// ===================== MAPPING EXCEL =====================
+// Drag & drop for mapping file
+const mappingDrop = document.getElementById('mappingDrop');
+mappingDrop.addEventListener('dragover',  e => { e.preventDefault(); mappingDrop.classList.add('dragover'); });
+mappingDrop.addEventListener('dragleave', () => mappingDrop.classList.remove('dragover'));
+mappingDrop.addEventListener('drop', e => {
+  e.preventDefault(); mappingDrop.classList.remove('dragover');
+  const f = e.dataTransfer.files[0];
+  if (f) loadMappingFile(f);
+});
+document.getElementById('mappingInput').addEventListener('change', e => {
+  if (e.target.files[0]) loadMappingFile(e.target.files[0]);
+  e.target.value = '';
+});
+
+async function loadMappingFile(file) {
+  const statusEl = document.getElementById('mappingStatus');
+  statusEl.className = 'mapping-status show';
+  statusEl.innerHTML = '<span style="color:#818cf8">⏳ กำลังอ่าน Excel...</span>';
+  try {
+    const buffer = await file.arrayBuffer();
+    const wb = await XlsxPopulate.fromDataAsync(buffer);
+    const sheet = wb.sheet(0);
+    const mapping = {};
+    let row = 2; // skip header
+    while (true) {
+      const oldVal = sheet.cell(row, 1).value();
+      if (oldVal === null || oldVal === undefined || oldVal === '') break;
+      const newVal = sheet.cell(row, 2).value();
+      if (newVal !== null && newVal !== undefined && newVal !== '') {
+        // Key by base name without extension (strips extension if present, case-insensitive)
+        const key = String(oldVal).trim().replace(/\.[^.]+$/, '').toLowerCase();
+        mapping[key] = String(newVal).trim();
+      }
+      row++;
+      if (row > 10000) break; // safety limit
+    }
+    const count = Object.keys(mapping).length;
+    if (count === 0) throw new Error('ไม่พบข้อมูล mapping ในไฟล์');
+    currentMapping = mapping;
+    // Apply to existing file entries
+    const matched = applyMapping();
+    statusEl.innerHTML =
+      `<span class="ms-ok">✅ โหลด mapping ${count} รายการ — ตรงกับไฟล์ที่อัปโหลด ${matched} ไฟล์</span>` +
+      `<button class="btn-clear-map" onclick="clearMapping()">✕ ล้าง</button>`;
+  } catch(err) {
+    statusEl.innerHTML = `<span class="ms-err">❌ ${err.message}</span>`;
+  }
+}
+
+function applyMapping() {
+  let matched = 0;
+  for (const entry of fileEntries) {
+    // Match by base name without extension, case-insensitive
+    const baseName = entry.file.name.replace(/\.[^.]+$/, '').toLowerCase();
+    if (currentMapping[baseName] !== undefined) {
+      entry.newName = currentMapping[baseName];
+      matched++;
+    }
+  }
+  if (fileEntries.length) renderList();
+  return matched;
+}
+
+function clearMapping() {
+  currentMapping = {};
+  const statusEl = document.getElementById('mappingStatus');
+  statusEl.className = 'mapping-status';
+}
+
+// ===================== TEMPLATE DOWNLOAD =====================
+async function downloadTemplate() {
+  const wb = await XlsxPopulate.fromBlankAsync();
+  const sheet = wb.sheet(0);
+  sheet.name('Rename List');
+  // Headers
+  sheet.cell('A1').value('ชื่อไฟล์เดิม (พร้อมนามสกุล)').style({ bold: true });
+  sheet.cell('B1').value('ชื่อไฟล์ใหม่ (ไม่ต้องใส่นามสกุล)').style({ bold: true });
+  // Example rows
+  sheet.cell('A2').value('report_jan_2024.xlsx');
+  sheet.cell('B2').value('รายงานประจำเดือน_มกราคม_2567');
+  sheet.cell('A3').value('invoice_001.pdf');
+  sheet.cell('B3').value('ใบแจ้งหนี้_001_บริษัทABC');
+  sheet.cell('A4').value('summary_q1.xlsx');
+  sheet.cell('B4').value('สรุปผลไตรมาส1_2567');
+  // Column widths
+  sheet.column('A').width(42);
+  sheet.column('B').width(42);
+  const blob = new Blob([await wb.outputAsync()], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'template_rename_list.xlsx'; a.click();
+}
+
+// Hook: after files are added, re-apply mapping if any
+const _origAddFiles = addFiles;
+
+// init
+renderList();
+</script>
+</body>
+</html>
