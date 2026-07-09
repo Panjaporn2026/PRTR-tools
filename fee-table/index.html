@@ -375,16 +375,20 @@ function extractRatesFromText(text) {
   const fp = fm ? extractPcts(fm[0]) : fixedLinePcts;
   const vp = vm ? extractPcts(vm[0]) : varLinePcts;
 
+  // Fewer than 4 values found is the telltale sign of a 4-tier table that OCR partially dropped a
+  // row from (seen in practice: a tier's digit misread away entirely). A lone single value is only
+  // trustworthy as "this contract genuinely has one flat rate" if the Fixed/Variable sibling block
+  // *also* resolved to 0-1 values — if the sibling clearly found several tiers, this one's lone
+  // value is more likely a partially-dropped 4-tier table too. Still use whatever was found rather
+  // than discard it, but flag anything short of a clean match so it gets a manual check.
   if (fp.length >= 4) rates.fixed = fp.slice(0,4);
-  else if (fp.length === 3) rates.fixed = fp.slice(0,3);
-  else if (fp.length >= 2) rates.fixed = fp.slice(0,2);
-  else if (fp.length === 1) rates.fixed = pad4(fp);
+  else if (fp.length === 1 && vp.length <= 1) rates.fixed = pad4(fp);
+  else if (fp.length > 0) { rates.fixed = pad4(fp); guessedCats.add('fixed'); }
   else guessedCats.add('fixed');
 
   if (vp.length >= 4) rates.variable = vp.slice(0,4);
-  else if (vp.length === 3) rates.variable = vp.slice(0,3);
-  else if (vp.length >= 2) rates.variable = vp.slice(0,2);
-  else if (vp.length === 1) rates.variable = pad4(vp);
+  else if (vp.length === 1 && fp.length <= 1) rates.variable = pad4(vp);
+  else if (vp.length > 0) { rates.variable = pad4(vp); guessedCats.add('variable'); }
   else guessedCats.add('variable');
 
   // Some contracts don't split Fixed/Variable at all — one flat "Contract employee's income"
