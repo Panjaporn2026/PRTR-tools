@@ -220,6 +220,20 @@
     <div class="mapping-status" id="mappingStatus"></div>
   </div>
 
+  <!-- Auto-name from Detail of Invoice content -->
+  <div class="mapping-section">
+    <div class="mapping-header">
+      <div class="mapping-header-left">
+        <div>
+          <div class="mapping-title">🪄 ตั้งชื่ออัตโนมัติจาก Detail of Invoice</div>
+          <div class="mapping-desc">อ่าน COMPANY NAME / เดือนที่จ่าย / Line Manager จากในไฟล์ .xlsx แล้วตั้งชื่อเป็น "ชื่อโปรเจค_Detail of invoice_MMYY_LineManager"</div>
+        </div>
+      </div>
+      <button class="btn-tpl" onclick="autoNameAll()">🪄 ตั้งชื่ออัตโนมัติ</button>
+    </div>
+    <div class="mapping-status" id="autoNameStatus"></div>
+  </div>
+
   <!-- Drop zone (always visible) -->
   <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
     <div class="dz-icon">📎</div>
@@ -400,7 +414,11 @@ async function processAll() {
   let done = 0;
 
   for (const entry of fileEntries) {
-    if (entry.status === 'done') { done++; continue; } // skip already done
+    // Only skip if it's already done with the SAME password/name it has right now — if either was
+    // edited after a previous run (e.g. password typed in after an earlier no-password run), the
+    // stale "done" status must not hide the fact that the file was never actually re-locked/renamed.
+    const runKey = entry.newName + ' ' + entry.password;
+    if (entry.status === 'done' && entry.processedWith === runKey) { done++; continue; }
     entry.status = 'processing';
     renderList();
 
@@ -425,6 +443,7 @@ async function processAll() {
       entry.resultBlob = new Blob([resultBytes], { type: mime });
       entry.resultName = outName;
       entry.status = 'done';
+      entry.processedWith = runKey;
     } catch (err) {
       entry.status = 'error';
       entry.errorMsg = err.message;
@@ -723,6 +742,92 @@ async function processPdf(buffer, password) {
   const out=new Uint8Array(totalLen); let off=0;
   for(const p of parts){ out.set(p,off); off+=p.length; }
   return out;
+}
+
+// ===================== AUTO-NAME FROM DETAIL OF INVOICE =====================
+const MONTH_NAMES = {
+  jan:'01',january:'01', feb:'02',february:'02', mar:'03',march:'03', apr:'04',april:'04',
+  may:'05', jun:'06',june:'06', jul:'07',july:'07', aug:'08',august:'08',
+  sep:'09',sept:'09',september:'09', oct:'10',october:'10', nov:'11',november:'11', dec:'12',december:'12'
+};
+function monthYearToMMYY(s) {
+  const m = String(s||'').match(/([A-Za-z]+)[\s\-\/]+(\d{4}|\d{2})/);
+  if (!m) return null;
+  const mm = MONTH_NAMES[m[1].toLowerCase()];
+  if (!mm) return null;
+  const yy = m[2].length === 4 ? m[2].slice(-2) : m[2];
+  return mm + yy;
+}
+function sanitizeNamePart(s) {
+  return String(s||'').trim().replace(/[\\/:*?"<>|]/g,'').replace(/\s+/g,' ').trim();
+}
+
+// Reads a Detail of Invoice .xlsx: scans the first ~20 rows for "COMPANY NAME :" and
+// "...PAYROLL FOR THE MONTH OF :" labels, then finds the "Line Manager" column in the header
+// row and reads its value from the first data row below. Returns null if the file doesn't
+// follow this layout at all (a different client's template) rather than guessing.
+async function readDetailOfInvoiceMeta(file) {
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, { type: 'array' });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  if (!ws['!ref']) return null;
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  let company = null, period = null;
+  const scanRowEnd = Math.min(range.e.r, range.s.r + 20);
+  const scanColEnd = Math.min(range.e.c, range.s.c + 4);
+  let headerRow = -1, lmCol = -1;
+  for (let r = range.s.r; r <= range.e.r; r++) {
+    if (r <= scanRowEnd) {
+      for (let c = range.s.c; c <= scanColEnd; c++) {
+        const cell = ws[XLSX.utils.encode_cell({ r, c })];
+        if (!cell || cell.v === undefined || cell.v === null) continue;
+        const v = String(cell.v);
+        if (!company) { const m = v.match(/COMPANY\s*NAME\s*:\s*(.+)/i); if (m && m[1].trim()) company = m[1].trim(); }
+        if (!period) { const m = v.match(/PAYROLL\s*FOR\s*THE\s*MONTH\s*OF\s*:\s*(.+)/i); if (m && m[1].trim()) period = m[1].trim(); }
+      }
+    }
+    if (headerRow < 0) {
+      for (let c = range.s.c; c <= range.e.c; c++) {
+        const cell = ws[XLSX.utils.encode_cell({ r, c })];
+        if (cell && String(cell.v||'').trim().toLowerCase() === 'line manager') { headerRow = r; lmCol = c; break; }
+      }
+    }
+    if (company && period && headerRow >= 0) break;
+  }
+  if (!company || !period) return null;
+  let lineManager = null;
+  if (headerRow >= 0) {
+    for (let r = headerRow + 1; r <= range.e.r; r++) {
+      const cell = ws[XLSX.utils.encode_cell({ r, c: lmCol })];
+      if (cell && String(cell.v||'').trim()) { lineManager = String(cell.v).trim(); break; }
+    }
+  }
+  const mmyy = monthYearToMMYY(period);
+  if (!mmyy) return null;
+  return { company: sanitizeNamePart(company), mmyy, lineManager: lineManager ? sanitizeNamePart(lineManager) : null };
+}
+
+async function autoNameAll() {
+  const statusEl = document.getElementById('autoNameStatus');
+  statusEl.className = 'mapping-status show';
+  statusEl.innerHTML = '<span style="color:#818cf8">⏳ กำลังอ่านไฟล์...</span>';
+  let named = 0, skipped = 0;
+  for (const entry of fileEntries) {
+    const ext = entry.file.name.split('.').pop().toLowerCase();
+    if (ext !== 'xlsx') continue;
+    try {
+      const meta = await readDetailOfInvoiceMeta(entry.file);
+      if (!meta) { skipped++; continue; }
+      entry.newName = meta.lineManager
+        ? `${meta.company}_Detail of invoice_${meta.mmyy}_${meta.lineManager}`
+        : `${meta.company}_Detail of invoice_${meta.mmyy}`;
+      named++;
+    } catch (err) { skipped++; }
+  }
+  renderList();
+  statusEl.innerHTML = skipped === 0
+    ? `<span class="ms-ok">✅ ตั้งชื่อสำเร็จ ${named} ไฟล์</span>`
+    : `<span class="ms-ok">✅ ตั้งชื่อสำเร็จ ${named} ไฟล์</span> <span class="ms-warn">⚠️ ${skipped} ไฟล์ไม่ตรงรูปแบบ Detail of Invoice ที่รู้จัก — ไม่ได้เปลี่ยนชื่อ กรุณาตั้งชื่อเอง</span>`;
 }
 
 // ===================== MAPPING EXCEL =====================
