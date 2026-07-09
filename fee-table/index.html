@@ -293,7 +293,10 @@ function extractPcts(text) {
   let m;
   while ((m = re.exec(cleaned)) !== null) {
     const v = parseFloat(m[1]);
-    if (v > 0 && v <= 100) out.push(v / 100);
+    // 0% is a real, explicit rate (e.g. "Health Insurance ... Client 0%") — must not be treated
+    // as "no percentage on this line", or the PRTR-proximity scan below mistakes it for blank
+    // and attributes it to a PRTR marker on a nearby line instead.
+    if (v >= 0 && v <= 100) out.push(v / 100);
   }
   return out;
 }
@@ -315,6 +318,10 @@ function detectCat(t) {
   if (/ตรวจสขุ|ตรวจสุข|Health\s*Check|annual.*health/i.test(t)) return 'health_check';
   if (/เครื่องแบบ|Uniform/i.test(t)) return 'uniform';
   if (/รายจ่าย|ค่าใช.{0,8}ประสาน|Reimbursement|Expense/i.test(t)) return 'expense';
+  // "Workmen's Compensation Fund" is an unrelated statutory item (always PRTR, no % to read) —
+  // must not be lumped into the termination-Compensation/Severance category below, or its
+  // PRTR marker silently overwrites the real (Client, usually "actual + 3%") severance rate.
+  if (/Workmen|เงินทดแทน/i.test(t)) return null;
   if (/เงินชดเชย|ค่าชดเชย|Compensation|Severance/i.test(t)) return 'compensation';
   return null;
 }
@@ -334,8 +341,13 @@ function extractRatesFromText(text) {
     if (pcts.length > 0) continue;
     const cat = detectCat(line);
     if (cat && cat !== 'fixed' && cat !== 'variable') prtrCats.add(cat);
+    // Only the immediately adjacent line — a ±3 window reaches into unrelated neighboring table
+    // rows once OCR/text-extraction flattens a table into loose lines (e.g. an unrelated
+    // "Expense..." row two lines away from a "...Fund PRTR N/A" row got wrongly tagged PRTR).
+    // ±1 still covers a category label and its "PRTR" marker landing on two wrapped lines of the
+    // *same* cell, which is the real-world case this loop exists for.
     const idx = lines.indexOf(line);
-    for (let d = -3; d <= 3; d++) {
+    for (let d = -1; d <= 1; d++) {
       if (d === 0) continue;
       const nearby = lines[idx + d];
       if (!nearby) continue;
@@ -375,11 +387,37 @@ function extractRatesFromText(text) {
   else if (vp.length === 1) rates.variable = pad4(vp);
   else guessedCats.add('variable');
 
+  // Some contracts don't split Fixed/Variable at all — one flat "Contract employee's income"
+  // rate covers both. Only kicks in when the dedicated Fixed/Variable blocks above found nothing.
+  if (guessedCats.has('fixed') && guessedCats.has('variable')) {
+    const cm = text.match(/Contract\s*employee.?s?\s*income[\s\S]{0,200}?(\d+(?:\.\d+)?)\s*%/i);
+    if (cm) {
+      const v = parseFloat(cm[1]) / 100;
+      if (v >= 0 && v <= 1) {
+        rates.fixed = pad4([v]); rates.variable = pad4([v]);
+        guessedCats.delete('fixed'); guessedCats.delete('variable');
+      }
+    }
+  }
+
   function findRate(patterns, def, catKey) {
     for (const pat of patterns) {
-      const re = new RegExp(pat + '[\\s\\S]{0,200}?(\\d+(?:\\.\\d+)?)\\s*%', 'i');
-      const m = text.match(re);
-      if (m) { const v = parseFloat(m[1]); if (v > 0 && v <= 100) return v / 100; }
+      // A keyword can legitimately appear more than once (a formal category row, PLUS an
+      // incidental mention elsewhere, e.g. "...or Provident fund, or etc." inside an unrelated
+      // "any subsequent amendment to the Labor Law" row). Check every occurrence's nearby %,
+      // not just the first: if they all agree, that's confident; if they disagree, we can't tell
+      // which one is the real rate from text alone — fall through to a flagged default instead
+      // of confidently reporting a possibly-wrong value.
+      const re = new RegExp(pat, 'gi');
+      const found = [];
+      let km;
+      while ((km = re.exec(text)) !== null) {
+        const windowText = text.slice(km.index + km[0].length, km.index + km[0].length + 200);
+        const m = windowText.match(/(\d+(?:\.\d+)?)\s*%/);
+        if (m) { const v = parseFloat(m[1]); if (v >= 0 && v <= 100) found.push(v / 100); }
+      }
+      const uniq = [...new Set(found)];
+      if (uniq.length === 1) return uniq[0];
     }
     guessedCats.add(catKey);
     return def;
@@ -389,7 +427,9 @@ function extractRatesFromText(text) {
   if (!prtrCats.has('health_ins')) rates.health_ins  = pad4([findRate(['Health Ins','ประกนั\\s*สขุ','ประกันสุข'], 0.05, 'health_ins')]);
   if (!prtrCats.has('health_check')) rates.health_check = pad4([findRate(['Health Check','ตรวจสขุ','ตรวจสุข'], 0.05, 'health_check')]);
   if (!prtrCats.has('uniform'))    rates.uniform     = pad4([findRate(['Uniform','เครื่องแบบ'], 0.05, 'uniform')]);
-  if (!prtrCats.has('expense'))    rates.expense     = pad4([findRate(['Reimbursement','Expense','รายจ่าย','ค่าใช.{0,8}ประสาน'], 0.10, 'expense')]);
+  // "Expense" alone is too generic — it shows up incidentally in unrelated clauses (e.g. a
+  // severance clause billing "such expense from the Client"). Require the fuller category phrase.
+  if (!prtrCats.has('expense'))    rates.expense     = pad4([findRate(['Reimbursement','Expense\\s+(?:requested|for\\s+contact)','รายจ่าย','ค่าใช.{0,8}ประสาน'], 0.10, 'expense')]);
   if (!prtrCats.has('compensation')) {
     const cm = text.match(/(?:compensation|ชดเชย)[\s\S]{0,200}?(?:plus|บวก)\s+(\d+(?:\.\d+)?)\s*%/i);
     if (cm) rates.compensation = pad4([parseFloat(cm[1])/100]);
@@ -433,12 +473,15 @@ function extractCompany(text, filename) {
 
 async function extractText(pdf) {
   let text = '';
+  const pageLens = [];
   for (let p = 1; p <= pdf.numPages; p++) {
     const page = await pdf.getPage(p);
     const content = await page.getTextContent();
-    text += content.items.map(i => i.str).join(' ') + '\n';
+    const pageText = content.items.map(i => i.str).join(' ');
+    pageLens.push(pageText.replace(/\s+/g,'').length);
+    text += pageText + '\n';
   }
-  return text;
+  return { text, pageLens };
 }
 
 async function runOCR() {
@@ -473,13 +516,12 @@ function processText(text, viaOCR) {
   renderResult();
 }
 
-// A real fee-table addendum always contains several "%" values. If none show up in the
-// extracted text, the addendum page(s) almost certainly didn't have a usable text layer
-// (e.g. scanned/signed-and-rescanned pages mixed into an otherwise text-based contract) —
-// checking overall document length isn't enough since earlier pages can pad it out.
-function countPcts(text) {
-  return (text.match(/\d{1,3}(?:\.\d+)?\s*%/g) || []).length;
-}
+// A page with a real (non-scanned) text layer from a legal contract always yields well over
+// 20 characters, even on a mostly-blank page (header/footer/page-number text alone clears that).
+// A page that's actually a scanned/rasterized image returns ~0. Checking per-page — not just
+// overall document length — catches contracts where only SOME pages (e.g. a signed-and-rescanned
+// Addendum) lack a text layer while the rest of the contract reads fine.
+const BLANK_PAGE_CHARS = 20;
 
 async function processFiles() {
   document.getElementById('resultCard').classList.remove('visible');
@@ -489,10 +531,11 @@ async function processFiles() {
     const buf = await pdfFile.arrayBuffer();
     pdfDoc = await pdfjsLib.getDocument({ data: buf }).promise;
     setStatus('กำลังอ่านข้อความ...', 30);
-    const text = await extractText(pdfDoc);
+    const { text, pageLens } = await extractText(pdfDoc);
     setStatus('วิเคราะห์...', 70);
-    if (text.replace(/\s+/g,'').length < 200 || countPcts(text) === 0) {
-      setStatus('อ่านตาราง fee ไม่เจอ — กำลังลอง OCR อัตโนมัติ...', 100);
+    const hasBlankPage = pageLens.some(len => len < BLANK_PAGE_CHARS);
+    if (text.replace(/\s+/g,'').length < 200 || hasBlankPage) {
+      setStatus('เจอหน้าที่อ่านข้อความไม่ได้ (อาจเป็นภาพสแกน) — กำลังลอง OCR อัตโนมัติ...', 100);
       await runOCR();
       return;
     }
