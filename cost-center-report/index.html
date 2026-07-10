@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MAKRO PICKER — Cost Center Report Generator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<style>
+  :root{
+    --bg:#f6f7f9;--card:#fff;--ink:#1f2933;--muted:#6b7280;--line:#e5e7eb;
+    --brand:#0f5aa6;--brand2:#0a3f77;--brand-soft:#e8f1fb;--ok:#0a7d55;--ok-soft:#e6f4ee;
+    --warn:#b45309;--warn-soft:#fffbeb;--err:#b91c1c;--err-soft:#fef2f2;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Segoe UI","Sarabun","Noto Sans Thai",Tahoma,Arial,sans-serif;line-height:1.6;}
+  .wrap{max-width:820px;margin:0 auto;padding:28px 18px 60px;}
+  header.hero{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;
+    border-radius:16px;padding:26px 30px;margin-bottom:22px;box-shadow:0 8px 24px rgba(15,90,166,.18);}
+  header.hero h1{margin:0 0 6px;font-size:23px;}
+  header.hero p{margin:0;opacity:.92;font-size:14px;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:22px 24px;margin:16px 0;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+  #drop{border:2px dashed #b9c6d6;border-radius:14px;padding:34px 20px;text-align:center;
+    background:#fbfdff;transition:.15s;cursor:pointer;}
+  #drop.hover{border-color:var(--brand);background:var(--brand-soft);}
+  #drop .big{font-size:16px;font-weight:600;color:var(--brand);}
+  #drop .sub{font-size:13px;color:var(--muted);margin-top:6px;}
+  input[type=file]{display:none;}
+  .btn{display:inline-block;background:var(--brand);color:#fff;border:none;border-radius:9px;
+    padding:11px 22px;font-size:15px;font-weight:600;cursor:pointer;margin-top:6px;}
+  .btn:disabled{background:#9db4cc;cursor:default;}
+  .btn.ok{background:var(--ok);}
+  .filechip{display:inline-flex;align-items:center;gap:8px;background:var(--brand-soft);
+    color:var(--brand);padding:6px 12px;border-radius:999px;font-size:13px;font-weight:600;margin-top:12px;}
+  h2{font-size:17px;margin:2px 0 12px;color:var(--brand);display:flex;align-items:center;gap:9px;}
+  h2 .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);}
+  table{width:100%;border-collapse:collapse;margin:8px 0;font-size:13.5px;
+    border:1px solid var(--line);border-radius:10px;overflow:hidden;}
+  thead th{background:var(--brand-soft);color:var(--brand);text-align:left;padding:8px 11px;font-weight:600;}
+  td{padding:7px 11px;border-top:1px solid var(--line);}
+  td.num{text-align:right;font-variant-numeric:tabular-nums;}
+  tbody tr:nth-child(even){background:#fafbfc;}
+  .log{font-family:Consolas,"Courier New",monospace;font-size:12.5px;white-space:pre-wrap;
+    background:#0f172a;color:#e2e8f0;border-radius:10px;padding:14px 16px;max-height:240px;overflow:auto;}
+  .msg{padding:10px 14px;border-radius:9px;font-size:14px;margin-top:10px;}
+  .msg.ok{background:var(--ok-soft);color:var(--ok);}
+  .msg.warn{background:var(--warn-soft);color:var(--warn);border:1px solid #fde68a;}
+  .msg.err{background:var(--err-soft);color:var(--err);border:1px solid #fecaca;}
+  .hidden{display:none;}
+  .muted{color:var(--muted);font-size:13px;}
+  footer{color:var(--muted);font-size:12px;text-align:center;margin-top:24px;}
+  code{background:#f3f4f6;padding:1px 6px;border-radius:5px;font-size:12.5px;color:#b02a5b;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../" style="display:inline-block;margin-bottom:14px;color:var(--muted);text-decoration:none;font-size:14px;">← กลับหน้าหลัก</a>
+  <header class="hero">
+    <h1>MAKRO PICKER — Cost Center Report Generator</h1>
+    <p>ลากไฟล์ <em>Detail of Invoice</em> เข้ามา แล้วดาวน์โหลดรายงาน Cost Center ได้ทันที · ทำงานในเบราว์เซอร์ล้วน ไม่ต้องผ่าน Claude</p>
+  </header>
+
+  <div class="card">
+    <label id="drop" for="file">
+      <div class="big">📄 ลากไฟล์มาวาง หรือคลิกเพื่อเลือกไฟล์</div>
+      <div class="sub">ไฟล์ <code>MAKRO PICKER_Details Of Invoice_*.xlsx</code> (ต้องมีชีต “Detail of Invoice”)</div>
+    </label>
+    <input type="file" id="file" accept=".xlsx">
+    <div id="fileinfo"></div>
+    <div style="margin-top:14px;">
+      <button class="btn" id="run" disabled>สร้างรายงาน</button>
+      <button class="btn ok hidden" id="download">⬇ ดาวน์โหลดรายงาน</button>
+    </div>
+    <div id="status"></div>
+  </div>
+
+  <div class="card hidden" id="summaryCard">
+    <h2><span class="dot"></span>สรุปผล</h2>
+    <div id="summary"></div>
+  </div>
+
+  <div class="card hidden" id="logCard">
+    <h2><span class="dot"></span>บันทึกการทำงาน</h2>
+    <div class="log" id="log"></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="dot"></span>สูตรการคำนวณ (อิงชื่อคอลัมน์)</h2>
+    <table>
+      <thead><tr><th>คอลัมน์รายงาน</th><th>สูตรจากชีต Detail of Invoice</th></tr></thead>
+      <tbody>
+        <tr><td>ค่าแรงรายเดือน/วัน/ชั่วโมง</td><td>SALARY + Salary Adjust − Leave Without Pay − Late, Absence and Early Deduct</td></tr>
+        <tr><td>โบนัส</td><td>Bonus</td></tr>
+        <tr><td>ค่ากะ</td><td>Allowance Non-Fix (TAX) + Shift (Fixed) − Allowance Non-Fix (N-TAX) DD</td></tr>
+        <tr><td>ค่าล่วงเวลา</td><td>Total.OT + OT Adjust (Amount) − Overtime Deduct</td></tr>
+        <tr><td>รวมรายได้อื่นๆ</td><td>Incentive − Diligent Deduct + Awards + Welfare</td></tr>
+        <tr><td>รวมรายได้</td><td>Gross Income</td></tr>
+        <tr><td>ประกันสังคม ส่วนของนายจ้าง</td><td>SSF Employer / SSO Employer</td></tr>
+        <tr><td>ค่าบริการ</td><td>Service Fee</td></tr>
+        <tr><td>รวมวางบิล</td><td>Total Invoice Before Vat</td></tr>
+      </tbody>
+    </table>
+    <p class="muted">รหัสพนักงานที่ซ้ำในกลุ่ม Cost Center/สาขาเดียวกัน จะถูกบวกรวมเป็นบรรทัดเดียว</p>
+  </div>
+
+  <footer>ทำงานออฟไลน์ในเบราว์เซอร์ · ใช้ ExcelJS · ข้อมูลไม่ถูกส่งออกนอกเครื่อง</footer>
+</div>
+
+<script>
+const THAI_MONTHS={January:'มกราคม',February:'กุมภาพันธ์',March:'มีนาคม',April:'เมษายน',May:'พฤษภาคม',
+June:'มิถุนายน',July:'กรกฎาคม',August:'สิงหาคม',September:'กันยายน',October:'ตุลาคม',November:'พฤศจิกายน',
+December:'ธันวาคม',Jan:'มกราคม',Feb:'กุมภาพันธ์',Mar:'มีนาคม',Apr:'เมษายน',Jun:'มิถุนายน',Jul:'กรกฎาคม',
+Aug:'สิงหาคม',Sep:'กันยายน',Sept:'กันยายน',Oct:'ตุลาคม',Nov:'พฤศจิกายน',Dec:'ธันวาคม'};
+
+const STRUCT={emp_id:['Emp ID'],emp_name:['NAME (THAI)'],cc:['Cost Center'],cc2:['Cost Center 2'],cc3:['Cost Center 3']};
+const FORMULAS={
+  wage:[['SALARY',1],['Salary Adjust',1],['Leave Without Pay',-1],['Late, Absence and Early Deduct',-1]],
+  bonus:[['Bonus',1]],
+  shift:[['Allowance Non-Fix (TAX)',1],['Shift (Fixed)',1],['Allowance Non-Fix (N-TAX) DD',-1]],
+  ot:[['Total.OT',1],['OT Adjust (Amount)',1],['Overtime Deduct',-1]],
+  other:[['Incentive',1],['Diligent Deduct',-1],['Awards',1],['Welfare',1]],
+  gross:[['Gross Income',1]],
+  ssf:[['SSF Employer',1],['SSO Employer',1]],
+  fee:[['Service Fee',1]],
+  inv:[['Total Invoice Before Vat',1]]
+};
+const ACC='_-* #,##0.00_-;-* #,##0.00_-;_-* "-"??_-;_-@_-';
+const OUTCOLS=['ลำดับ','Cost Center','รหัสพนักงาน','ชื่อพนักงาน','ค่าแรง\nรายเดือน\n/วัน/ชั่วโมง','โบนัส','ค่ากะ',
+'ค่าล่วงเวลา','รวมรายได้อื่นๆ','รวมรายได้','ประกันสังคม ส่วนของนายจ้าง','ค่าบริการ','รวมวางบิล','Cost Center 3'];
+const FIELDS=['base_salary','bonus','shift_allow','overtime','other_income','total_earning','ssf_employer','service_fee','total_invoice'];
+
+const norm=v=>v==null?'':String(rawText(v)).trim().toLowerCase();
+function rawText(v){
+  if(v==null)return '';
+  if(typeof v==='object'){
+    if('result'in v)return rawText(v.result);
+    if('richText'in v)return v.richText.map(t=>t.text).join('');
+    if('text'in v)return v.text;
+    return String(v);
+  }
+  return String(v);
+}
+function toNum(v){
+  if(v==null)return 0;
+  if(typeof v==='number')return v;
+  if(typeof v==='object'){ if('result'in v)return toNum(v.result); return 0; }
+  const n=parseFloat(String(v).replace(/,/g,''));
+  return isNaN(n)?0:n;
+}
+
+let LOGS=[],OUTBUF=null,OUTNAME='';
+function log(s){LOGS.push(s);document.getElementById('log').textContent=LOGS.join('\n');}
+function setStatus(html,cls){const el=document.getElementById('status');el.innerHTML=html?`<div class="msg ${cls}">${html}</div>`:'';}
+
+const drop=document.getElementById('drop'),fileInput=document.getElementById('file');
+let currentFile=null;
+['dragenter','dragover'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('hover');}));
+['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('hover');}));
+drop.addEventListener('drop',ev=>{const f=ev.dataTransfer.files[0];if(f)pickFile(f);});
+fileInput.addEventListener('change',()=>{if(fileInput.files[0])pickFile(fileInput.files[0]);});
+function pickFile(f){
+  currentFile=f;
+  document.getElementById('fileinfo').innerHTML=`<span class="filechip">✓ ${f.name}</span>`;
+  document.getElementById('run').disabled=false;
+  document.getElementById('download').classList.add('hidden');
+  setStatus('','');
+}
+document.getElementById('run').addEventListener('click',()=>{if(currentFile)processFile(currentFile);});
+
+function findHeaderRow(ws){
+  const maxR=Math.min(ws.rowCount,25);
+  for(let r=1;r<=maxR;r++){
+    const row=ws.getRow(r);
+    for(let c=1;c<=ws.columnCount;c++){
+      if(norm(row.getCell(c).value)==='emp id')return r;
+    }
+  }
+  throw new Error("ไม่พบแถวหัวตาราง (ไม่มีคอลัมน์ 'Emp ID')");
+}
+function buildNameMap(ws,hr){
+  let cutoff=ws.columnCount;
+  const hrow=ws.getRow(hr);
+  for(let c=1;c<=ws.columnCount;c++){
+    if(norm(hrow.getCell(c).value)==='total invoice before vat'){cutoff=c;break;}
+  }
+  const map={};
+  for(let c=1;c<=cutoff;c++){
+    const k=norm(hrow.getCell(c).value);
+    if(k&&!(k in map))map[k]=c;
+  }
+  return map;
+}
+
+async function processFile(file){
+  try{
+    LOGS=[];document.getElementById('logCard').classList.remove('hidden');
+    document.getElementById('summaryCard').classList.add('hidden');
+    document.getElementById('download').classList.add('hidden');
+    document.getElementById('run').disabled=true;
+    setStatus('⏳ กำลังประมวลผล...','warn');
+    log('อ่านไฟล์: '+file.name);
+
+    const buf=await file.arrayBuffer();
+    const wb=new ExcelJS.Workbook();
+    await wb.xlsx.load(buf);
+    let ws=wb.getWorksheet('Detail of Invoice')||wb.worksheets[0];
+    log('ใช้ชีต: '+ws.name+'  (rows='+ws.rowCount+', cols='+ws.columnCount+')');
+
+    const hr=findHeaderRow(ws);
+    const nameMap=buildNameMap(ws,hr);
+    log('แถวหัวตาราง = '+hr);
+
+    // structural columns
+    const struct={};
+    for(const f in STRUCT){
+      let col=null;
+      for(const n of STRUCT[f]){if(norm(n) in nameMap){col=nameMap[norm(n)];break;}}
+      if(!col)throw new Error("ไม่พบคอลัมน์ที่จำเป็น: "+STRUCT[f].join('/'));
+      struct[f]=col;
+    }
+    // formula components
+    const resolved={};
+    for(const f in FORMULAS){
+      const terms=[];
+      for(const [n,sign] of FORMULAS[f]){ if(norm(n) in nameMap) terms.push([nameMap[norm(n)],sign]); }
+      resolved[f]=terms;
+      if(f!=='ssf'){
+        for(const [n] of FORMULAS[f]){ if(!(norm(n) in nameMap)) log("⚠ WARNING: ["+f+"] ไม่พบคอลัมน์ '"+n+"' (นับเป็น 0)"); }
+      }
+      if(terms.length===0) log("⚠ WARNING: ["+f+"] ไม่พบคอลัมน์ต้นทางเลย");
+    }
+    log('SSF/SSO: ใช้คอลัมน์ '+(resolved.ssf.length?('#'+resolved.ssf.map(t=>t[0]).join(',')):'ไม่พบ'));
+
+    // period
+    let thaiPeriod='';
+    for(let r=1;r<hr&&!thaiPeriod;r++){
+      for(let c=1;c<=5;c++){
+        const t=rawText(ws.getRow(r).getCell(c).value);
+        const m=/([A-Za-z]{3,9})-(\d{4})/.exec(t);
+        if(m){const mn=m[1],ya=parseInt(m[2],10);thaiPeriod='ประจำเดือน'+(THAI_MONTHS[mn]||mn)+' '+(ya+543);break;}
+      }
+    }
+    log('งวด: '+(thaiPeriod||'(ไม่พบ)'));
+
+    const sval=(r,col)=>toNum(ws.getRow(r).getCell(col).value);
+    const calc=(r,f)=>resolved[f].reduce((s,[col,sign])=>s+sign*sval(r,col),0);
+
+    // collect + merge by emp id within CC/CC2
+    const grouped=new Map(); const cc2info=new Map();
+    let srcRows=0; const idset=new Set();
+    for(let r=hr+1;r<=ws.rowCount;r++){
+      const emp_id=rawText(ws.getRow(r).getCell(struct.emp_id).value).trim();
+      const emp_name=rawText(ws.getRow(r).getCell(struct.emp_name).value).trim();
+      let cc=rawText(ws.getRow(r).getCell(struct.cc).value).trim();
+      let cc2=rawText(ws.getRow(r).getCell(struct.cc2).value).trim();
+      let cc3=rawText(ws.getRow(r).getCell(struct.cc3).value).trim();
+      if(!(emp_id&&emp_name&&cc&&cc2))continue;
+      srcRows++; idset.add(emp_id);
+      const vals={base_salary:calc(r,'wage'),bonus:calc(r,'bonus'),shift_allow:calc(r,'shift'),
+        overtime:calc(r,'ot'),other_income:calc(r,'other'),total_earning:calc(r,'gross'),
+        ssf_employer:calc(r,'ssf'),service_fee:calc(r,'fee'),total_invoice:calc(r,'inv')};
+      if(!grouped.has(cc))grouped.set(cc,new Map());
+      const g=grouped.get(cc);
+      if(!g.has(cc2))g.set(cc2,new Map());
+      const bucket=g.get(cc2);
+      if(bucket.has(emp_id)){
+        const e=bucket.get(emp_id); FIELDS.forEach(k=>e[k]+=vals[k]);
+      }else{
+        bucket.set(emp_id,Object.assign({emp_id,emp_name,cost_center_3:cc3},vals));
+      }
+      if(!cc2info.has(cc+'||'+cc2))cc2info.set(cc+'||'+cc2,{cc2,cc3});
+    }
+    log('อ่านข้อมูล '+srcRows+' แถว, รหัสไม่ซ้ำ '+idset.size+' คน');
+
+    // build output workbook
+    const out=new ExcelJS.Workbook();
+    const nf=n=>({name:'Calibri',size:11,bold:!!(n&&n.b),underline:!!(n&&n.u)});
+    const subFill={type:'pattern',pattern:'solid',fgColor:{argb:'FFE8E8E8'}};
+    const totFill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD0D0D0'}};
+    const ccKeys=[...grouped.keys()].sort();
+    const grandTotals={}; FIELDS.forEach(k=>grandTotals[k]=0);
+    let totalEmpRows=0;
+
+    for(const cc of ccKeys){
+      const ws2=out.addWorksheet('Cost center '+cc,{views:[{showGridLines:false}]});
+      ws2.mergeCells('A1:N1'); ws2.getCell('A1').value='สรุปรายได้พนักงาน บริษัท พีอาร์ทีอาร์ กรุ๊ป จำกัด (มหาชน)';
+      ws2.getCell('A1').font={name:'Calibri',size:11,bold:true}; ws2.getCell('A1').alignment={horizontal:'center',vertical:'middle'};
+      ws2.mergeCells('A2:N2'); ws2.getCell('A2').value='ปฎิบัติงาน ณ สยามแม็คโคร ';
+      ws2.getCell('A2').font=nf(); ws2.getCell('A2').alignment={horizontal:'center',vertical:'middle'};
+      ws2.mergeCells('A3:N3'); ws2.getCell('A3').value=thaiPeriod;
+      ws2.getCell('A3').font=nf(); ws2.getCell('A3').alignment={horizontal:'center',vertical:'middle'};
+
+      const hrow=ws2.getRow(5); hrow.height=40;
+      OUTCOLS.forEach((h,i)=>{const cell=hrow.getCell(i+1);cell.value=h;cell.font=nf({b:1,u:1});
+        cell.alignment={wrapText:true,vertical:'middle',horizontal:'center'};});
+
+      let cur=6; const subRows=[];
+      const cc2Keys=[...grouped.get(cc).keys()].sort();
+      for(const cc2 of cc2Keys){
+        const bucket=grouped.get(cc).get(cc2);
+        const emps=[...bucket.values()];
+        const start=cur; let n=1;
+        for(const e of emps){
+          const vals=[n,cc,e.emp_id,e.emp_name,e.base_salary,e.bonus,e.shift_allow,e.overtime,
+            e.other_income,e.total_earning,e.ssf_employer,e.service_fee,e.total_invoice,e.cost_center_3];
+          const row=ws2.getRow(cur);
+          vals.forEach((v,ci)=>{const cell=row.getCell(ci+1);cell.value=v;cell.font=nf();
+            if(ci+1>=5&&ci+1<=13){cell.numFmt=ACC;cell.alignment={horizontal:'right'};}});
+          FIELDS.forEach((k,idx)=>grandTotals[k]+=[e.base_salary,e.bonus,e.shift_allow,e.overtime,e.other_income,e.total_earning,e.ssf_employer,e.service_fee,e.total_invoice][idx]);
+          totalEmpRows++; cur++; n++;
+        }
+        const info=cc2info.get(cc+'||'+cc2)||{}; const cc3n=info.cc3||''; const cc2n=info.cc2||'';
+        const disp=(cc3n+' '+cc2n).trim(); const sr=cur; subRows.push(sr);
+        const srow=ws2.getRow(sr);
+        srow.getCell(3).value=disp; srow.getCell(4).value='รวม '+emps.length+' คน'; srow.getCell(14).value=cc3n;
+        for(let col=5;col<=13;col++){const L=String.fromCharCode(64+col);srow.getCell(col).value={formula:`SUM(${L}${start}:${L}${sr-1})`};}
+        for(let col=1;col<=14;col++){const cell=srow.getCell(col);cell.fill=subFill;cell.font=nf({b:1});
+          if(col>=5&&col<=13){cell.numFmt=ACC;cell.alignment={horizontal:'right'};}}
+        cur++;
+      }
+      const tr=cur; const totEmp=cc2Keys.reduce((s,k)=>s+grouped.get(cc).get(k).size,0);
+      const trow=ws2.getRow(tr);
+      trow.getCell(3).value='รวมทั้งสิ้น Cost Center '+cc; trow.getCell(4).value='รวม '+totEmp+' คน';
+      for(let col=5;col<=13;col++){const L=String.fromCharCode(64+col);trow.getCell(col).value={formula:subRows.map(r=>`${L}${r}`).join('+')};}
+      for(let col=1;col<=14;col++){const cell=trow.getCell(col);cell.fill=totFill;cell.font=nf({b:1});
+        if(col>=5&&col<=13){cell.numFmt=ACC;cell.alignment={horizontal:'right'};}}
+
+      ws2.getColumn(1).width=8;ws2.getColumn(2).width=12;ws2.getColumn(3).width=20;ws2.getColumn(4).width=25;ws2.getColumn(14).width=15;
+      [5,6,7,8,9,10,11,12,13].forEach(c=>ws2.getColumn(c).width=14);
+      ws2.pageSetup={paperSize:9,orientation:'portrait',margins:{left:.5,right:.5,top:.5,bottom:.5,header:.3,footer:.3},
+        printArea:`A1:N${tr}`,printTitlesRow:'1:5'};
+      log('ชีต Cost center '+cc+': '+totEmp+' คน, '+cc2Keys.length+' สาขา');
+    }
+
+    OUTBUF=await out.xlsx.writeBuffer();
+    OUTNAME=(file.name.replace(/\.xlsx$/i,'').replace(/Detail.*Invoice.*/i,'').replace(/[_ ]+$/,'')||'MAKRO PICKER')
+      +'_Cost Center Reports.xlsx';
+    if(!/MAKRO/i.test(OUTNAME))OUTNAME='MAKRO PICKER_Cost Center Reports.xlsx';
+
+    // summary
+    const labels={base_salary:'ค่าแรง',bonus:'โบนัส',shift_allow:'ค่ากะ',overtime:'ค่าล่วงเวลา',
+      other_income:'รวมรายได้อื่นๆ',total_earning:'รวมรายได้',ssf_employer:'ประกันสังคมนายจ้าง',
+      service_fee:'ค่าบริการ',total_invoice:'รวมวางบิล'};
+    let rows='';
+    FIELDS.forEach(k=>{rows+=`<tr><td>${labels[k]}</td><td class="num">${grandTotals[k].toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</td></tr>`;});
+    document.getElementById('summary').innerHTML=
+      `<p class="muted">แถวต้นทาง ${srcRows} → รวมรหัสซ้ำเหลือ <b>${totalEmpRows}</b> บรรทัด · ${ccKeys.length} ชีต (${ccKeys.map(c=>'CC '+c).join(', ')})</p>`+
+      `<table><thead><tr><th>คอลัมน์</th><th style="text-align:right">ยอดรวมทั้งหมด</th></tr></thead><tbody>${rows}</tbody></table>`;
+    document.getElementById('summaryCard').classList.remove('hidden');
+
+    setStatus('✅ สร้างรายงานสำเร็จ! กดปุ่มดาวน์โหลด','ok');
+    const dl=document.getElementById('download');
+    dl.classList.remove('hidden');
+    dl.onclick=()=>{
+      const blob=new Blob([OUTBUF],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+      const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=OUTNAME;a.click();
+      setTimeout(()=>URL.revokeObjectURL(url),2000);
+    };
+    log('พร้อมดาวน์โหลด: '+OUTNAME);
+  }catch(err){
+    console.error(err);
+    setStatus('❌ เกิดข้อผิดพลาด: '+err.message,'err');
+    log('ERROR: '+err.message);
+  }finally{
+    document.getElementById('run').disabled=false;
+  }
+}
+</script>
+</body>
+</html>
