@@ -68,29 +68,19 @@ tfoot tr{background:#e8eaf6;font-weight:700;}tfoot td{padding:5px 7px;border-top
   <div class="subtitle">ทำงานได้โดยไม่ต้องโหลด library จากอินเทอร์เน็ต — ใช้ browser API ล้วนๆ</div>
 </div>
 <div class="card">
-  <div class="notice">ℹ️ อัปโหลดทั้ง 2 ไฟล์ แล้วกด Download เพื่อรับไฟล์ Accrue Income ที่กรอกข้อมูลแล้ว</div>
+  <div class="notice">ℹ️ อัปโหลดไฟล์ Detail of Invoice แล้วกด Download เพื่อรับไฟล์ Accrue Income ที่กรอกข้อมูลแล้ว — ใช้ Template Accrue Income มาตรฐานในตัว ไม่ต้องแนบเอง</div>
   <h2>📂 อัปโหลดไฟล์</h2>
-  <div class="two-col">
-    <div>
-      <div style="font-size:11.5px;font-weight:700;color:#1a237e;margin-bottom:6px;">1. Detail of Invoice <span style="color:#607d8b;font-weight:400;">(เลือกได้หลายไฟล์)</span></div>
-      <div class="ubox" id="bInv">
-        <label><span class="uico">📄</span><span class="utitle">คลิกหรือลากไฟล์มาวาง</span><span class="udesc">Detail of Invoice .xlsx</span>
-          <input type="file" id="fiInv" multiple accept=".xlsx,.xls" onchange="onInvChange(this)">
-        </label>
-      </div>
-      <div class="chips" id="invChips"></div>
+  <div>
+    <div style="font-size:11.5px;font-weight:700;color:#1a237e;margin-bottom:6px;">Detail of Invoice <span style="color:#607d8b;font-weight:400;">(เลือกได้หลายไฟล์)</span></div>
+    <div class="ubox" id="bInv">
+      <label><span class="uico">📄</span><span class="utitle">คลิกหรือลากไฟล์มาวาง</span><span class="udesc">Detail of Invoice .xlsx</span>
+        <input type="file" id="fiInv" multiple accept=".xlsx,.xls" onchange="onInvChange(this)">
+      </label>
     </div>
-    <div>
-      <div style="font-size:11.5px;font-weight:700;color:#1a237e;margin-bottom:6px;">2. Template Accrue Income <span style="color:#607d8b;font-weight:400;">(ไฟล์ ★LOW...)</span></div>
-      <div class="ubox" id="bTpl">
-        <label><span class="uico">📋</span><span class="utitle">คลิกหรือลากไฟล์มาวาง</span><span class="udesc">★LOW Accrued Income EXP .xlsx</span>
-          <span class="ufname" id="tplName"></span>
-          <input type="file" id="fiTpl" accept=".xlsx,.xls" onchange="onTplChange(this)">
-        </label>
-      </div>
-    </div>
+    <div class="chips" id="invChips"></div>
   </div>
   <div class="msg err" id="errBox"></div>
+  <div class="msg" id="tplBox" style="background:#e3f2fd;color:#1565c0;display:none;">⏳ กำลังโหลด Template Accrue Income ในตัว...</div>
   <div class="msg ok" id="okBox"></div>
   <div class="dbg" id="dbgBox"></div>
 </div>
@@ -339,14 +329,46 @@ async function buildOutputXlsx(templateBuf, selectedRows) {
   function mmyy(p){var m={jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};var mt=(p||'').match(/([a-z]+)[\-\s]+(\d{4})/i);if(!mt)return'';return(m[mt[1].toLowerCase().slice(0,3)]||'00')+mt[2].slice(-2);}
   function monthPayStr(p){var m={jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};var n=parseFloat(p);if(!isNaN(n)&&n>40000&&n<60000){var dd=new Date((n-25569)*86400*1000);var mo=('0'+(dd.getUTCMonth()+1)).slice(-2);return '01/'+mo+'/'+String(dd.getUTCFullYear());}var mt=String(p||'').match(/([a-z]+)[\-\s]+(\d{4}|\d{2})/i);if(!mt)return p||'';var yr=mt[2].length===2?'20'+mt[2]:mt[2];return'01/'+(m[mt[1].toLowerCase().slice(0,3)]||'??')+'/'+yr;}
 
-  // Build new data row strings (E through AA all filled; unknown cols = 0)
   var DS=5, MAXR=29;
-  // All numeric cols E(5)..AA(27) in order
   var EtoAA=['E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','AA'];
-  var newRows=[], sums={};
-  // columns to sum for total row
-  var sumCols=EtoAA.concat(['AE','AF','AG','AH','AI','AK']);
-  sumCols.forEach(function(c){sums[c]=0;});
+
+  // ── Locate the sheetData region up front (needed before we can read row 5's own XML) ──
+  var sdStart=sheetXml.indexOf('<sheetData');
+  var sdEnd=sheetXml.indexOf('</sheetData>');
+  var sdTagEnd=sheetXml.indexOf('>',sdStart)+1;
+  var sdOpenTag=sheetXml.slice(sdStart,sdTagEnd);
+  var sdBody=sdEnd>=0?sheetXml.slice(sdTagEnd,sdEnd):'';
+  var pre=sheetXml.slice(0,sdStart);
+  var post=sdEnd>=0?sheetXml.slice(sdEnd+'</sheetData>'.length):'';
+
+  // ── Row 5 in the template already carries the intended look for every data row: a style
+  // index per column, plus live formulas for the derived columns (AE/AF/AG/AH/AI/AJ/AK — all
+  // pure same-row arithmetic off E:AD). Reuse both instead of emitting bare unstyled values,
+  // so generated rows actually look and behave like the template instead of plain numbers.
+  var row5Match=/<row\b[^>]*\br="5"[^>]*>([\s\S]*?)<\/row>/.exec(sdBody);
+  var row5Tpl={};
+  if(row5Match){
+    var cellRe=/<c\s+r="([A-Z]+)5"([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g, cm;
+    while((cm=cellRe.exec(row5Match[1]))!==null){
+      var sMatch=/\bs="(\d+)"/.exec(cm[2]);
+      var fMatch=cm[3]&&/<f[^>]*>([\s\S]*?)<\/f>/.exec(cm[3]);
+      row5Tpl[cm[1]]={style:sMatch?sMatch[1]:null, formula:fMatch?fMatch[1]:null};
+    }
+  }
+  dbg('row5 template columns captured: '+Object.keys(row5Tpl).length);
+
+  function styleAttr(col){var t=row5Tpl[col];return t&&t.style?' s="'+t.style+'"':'';}
+  function ncS(col,v,ri){var n=parseFloat((+v||0).toFixed(2));return '<c r="'+col+ri+'"'+styleAttr(col)+'><v>'+n+'</v></c>';}
+  function scS(col,v,ri){return '<c r="'+col+ri+'"'+styleAttr(col)+' t="inlineStr"><is><t>'+esc(v)+'</t></is></c>';}
+  function blankS(col,ri){return '<c r="'+col+ri+'"'+styleAttr(col)+'/>';}
+  // Re-anchor row 5's own formula (e.g. "SUM(E5:AD5)") onto row `ri` — every reference in these
+  // formulas is same-row, so retargeting every "<col>5" reference is sufficient and safe.
+  function formulaS(col,v,ri){
+    var t=row5Tpl[col], n=parseFloat((+v||0).toFixed(2));
+    if(!t||!t.formula) return ncS(col,v,ri);
+    var f=t.formula.replace(/([A-Z]{1,3})5\b/g,'$1'+ri);
+    return '<c r="'+col+ri+'"'+styleAttr(col)+'><f>'+esc(f)+'</f><v>'+n+'</v></c>';
+  }
 
   // GL Income account code per template column (row 4 of ★LOW Accrued Income template)
   var GL_COL={E:'41120102',F:'41120102A',G:'41120103',H:'41120104',I:'41120105',J:'41120106',K:'41120107',L:'41120108',M:'41120109',N:'41120110',O:'41120111',P:'41120112',Q:'41120113',R:'41120114',S:'41120115',T:'41120116',U:'41120117',V:'41120118',W:'41120119',X:'41120120',Y:'41120121',Z:'41120122',AA:'41120101'};
@@ -354,6 +376,7 @@ async function buildOutputXlsx(templateBuf, selectedRows) {
   // Logical field → GL Income code (per GL - update.xlsx Income/Cost crosswalk)
   var FIELD_GL={sal:'41120102',ssf:'41120103',pvf:'41120104',hlth:'41120105',sev:'41120106',alwF:'41120107',oInc:'41120108',ot:'41120109',comm:'41120110',bon:'41120111',rimb:'41120112',inc:'41120113',chk:'41120114',tmp:'41120115',awd:'41120116',uni:'41120117',trvF:'41120118',trn:'41120119',evt:'41120120',alwNF:'41120121',oex:'41120122',fee:'41120101'};
 
+  var newRows=[];
   selectedRows.forEach(function(r,idx){
     if(idx>=MAXR)return;
     var ri=DS+idx;
@@ -369,53 +392,39 @@ async function buildOutputXlsx(templateBuf, selectedRows) {
     var totAcc=accInc+fee+ssf+pvf+hlth;
     var totInc=accInc+ssf+pvf+hlth+fee;
     var my=mmyy(r.period);
-    function nc(col,v){var n=parseFloat((+v||0).toFixed(2));return '<c r="'+col+ri+'"><v>'+n+'</v></c>';}
-    function sc(col,v){return '<c r="'+col+ri+'" t="inlineStr"><is><t>'+esc(v)+'</t></is></c>';}
     // Resolve each logical field's column via its GL Income code — not a hardcoded letter,
     // so it can't silently drift out of sync with the template's row-4 GL codes again.
     var fieldVals={sal:sal,ssf:ssf,pvf:pvf,hlth:hlth,sev:sev,alwF:alwF,oInc:oInc,ot:ot,comm:comm,bon:bon,rimb:rimb,inc:inc,chk:chk,tmp:tmp,awd:awd,uni:uni,trvF:trvF,trn:trn,evt:evt,alwNF:alwNF,oex:oex,fee:fee};
     var cv={};
     Object.keys(FIELD_GL).forEach(function(fld){var col=COL_BY_GL[FIELD_GL[fld]];if(col)cv[col]=(cv[col]||0)+fieldVals[fld];});
-    var numCells=EtoAA.map(function(c){return nc(c,cv[c]||0);}).join('');
-    // Accumulate sums
-    EtoAA.forEach(function(c){sums[c]+=(cv[c]||0);});
-    sums['AE']+=totInc; sums['AF']+=accInc; sums['AG']+=fee;
-    sums['AH']+=ssf; sums['AI']+=hlth; sums['AK']+=totAcc;
+    var numCells=EtoAA.map(function(c){return ncS(c,cv[c]||0,ri);}).join('');
+    // AB/AC/AD (Unearned Reim/Purchase/Payroll) aren't computed by this tool — left blank, same
+    // as an unfilled template row — but still styled so they don't stand out as unformatted.
+    var unearnedBlank=['AB','AC','AD'].map(function(c){return blankS(c,ri);}).join('');
     newRows.push('<row r="'+ri+'">'+
-      sc('A',monthPayStr(r.period))+sc('B',r.project)+sc('C',r.company)+sc('D',r.detail)+
-      numCells+
-      nc('AE',totInc)+nc('AF',accInc)+nc('AG',fee)+nc('AH',ssf)+nc('AI',hlth)+nc('AK',totAcc)+
-      sc('AL','Accrued Income')+sc('AM','Normal cycle')+sc('AN',r.period)+sc('AO','Naam')+
-      sc('AS','Accrued Income_'+my)+sc('AT',' / Please approve accrue income '+my)+
+      scS('A',monthPayStr(r.period),ri)+scS('B',r.project,ri)+scS('C',r.company,ri)+scS('D',r.detail,ri)+
+      numCells+unearnedBlank+
+      formulaS('AE',totInc,ri)+formulaS('AF',accInc,ri)+formulaS('AG',fee,ri)+formulaS('AH',ssf,ri)+
+      formulaS('AI',hlth,ri)+formulaS('AJ',0,ri)+formulaS('AK',totAcc,ri)+
+      scS('AL','Accrued Income',ri)+scS('AM','Normal cycle',ri)+scS('AN',r.period,ri)+scS('AO','Naam',ri)+
+      scS('AS','Accrued Income_'+my,ri)+scS('AT',' / Please approve accrue income '+my,ri)+
     '</row>');
   });
+  dbg('built '+newRows.length+' data rows (styled + formulas from template row 5)');
 
-  // SUM row at row 34
-  var sumRi=DS+MAXR; // =34
-  function ncS(col,v){var n=parseFloat((+v||0).toFixed(2));return '<c r="'+col+sumRi+'"><v>'+n+'</v></c>';}
-  var sumCells=sumCols.map(function(c){return ncS(c,sums[c]);}).join('');
-  newRows.push('<row r="'+sumRi+'">'+sumCells+'</row>');
-  dbg('built '+newRows.length+' rows (inc. SUM at row '+sumRi+')');
-
-  // Splice sheetData: keep header rows (r<5 or r>34), replace rows 5-34
-  var sdStart=sheetXml.indexOf('<sheetData');
-  var sdEnd=sheetXml.indexOf('</sheetData>');
-  var sdTagEnd=sheetXml.indexOf('>',sdStart)+1;
-  var sdOpenTag=sheetXml.slice(sdStart,sdTagEnd);
-  var sdBody=sdEnd>=0?sheetXml.slice(sdTagEnd,sdEnd):'';
-  var pre=sheetXml.slice(0,sdStart);
-  var post=sdEnd>=0?sheetXml.slice(sdEnd+'</sheetData>'.length):'';
-
-  // Keep non-data rows (header rows 1-4, total row kept as structural, replaced by data)
-  var kept=[];
+  // Row 34 (grand total) is a fixed SUBTOTAL over E5:E33 etc. in the template — it already
+  // computes correctly no matter how many of rows 5-33 are filled, so it's kept byte-for-byte
+  // from the template instead of being regenerated.
+  var keptBefore=[], keptFrom34=[];
   var rowRe=/(<row\b[^>]*>[\s\S]*?<\/row>)/g, rm;
   while((rm=rowRe.exec(sdBody))!==null){
     var rn=parseInt((rm[1].match(/\br="(\d+)"/)||[0,0])[1]);
-    if(rn<5||rn>34) kept.push(rm[1]);
+    if(rn<5) keptBefore.push(rm[1]);
+    else if(rn>=34) keptFrom34.push(rm[1]);
   }
-  dbg('kept '+kept.length+' header/footer rows');
+  dbg('kept '+keptBefore.length+' header rows before, '+keptFrom34.length+' rows from the total row onward');
 
-  var newSheetXml=pre+sdOpenTag+kept.join('')+newRows.join('')+'</sheetData>'+post;
+  var newSheetXml=pre+sdOpenTag+keptBefore.join('')+newRows.join('')+keptFrom34.join('')+'</sheetData>'+post;
   dbg('newSheetXml: '+newSheetXml.length+' chars, row5 present:'+(newSheetXml.indexOf('<row r="5"')>=0));
 
   // Rebuild ZIP
@@ -449,7 +458,7 @@ function showErr(m){var b=document.getElementById('errBox');b.textContent=m;b.st
 function showOk(m){var b=document.getElementById('okBox');b.textContent=m;b.style.display='block';setTimeout(function(){b.style.display='none';},5000);}
 
 // Drag & Drop
-['bInv','bTpl'].forEach(function(id){
+['bInv'].forEach(function(id){
   var box=document.getElementById(id);
   box.addEventListener('dragover',function(e){e.preventDefault();box.classList.add('drag');});
   box.addEventListener('dragleave',function(){box.classList.remove('drag');});
@@ -457,8 +466,7 @@ function showOk(m){var b=document.getElementById('okBox');b.textContent=m;b.styl
     e.preventDefault();box.classList.remove('drag');
     var fl=e.dataTransfer&&e.dataTransfer.files;
     if(!fl||!fl.length)return;
-    if(id==='bInv') processInvFiles(fl);
-    else { var inp={files:fl}; onTplChange(inp); }
+    processInvFiles(fl);
   });
 });
 
@@ -491,22 +499,27 @@ function processInvFiles(fileList) {
   if(pending===0)render();
 }
 
-function onTplChange(inp) {
-  dbg('onTplChange');
-  if(!inp.files||!inp.files[0])return;
-  var f=inp.files[0];
-  var reader=new FileReader();
-  reader.onload=function(ev){
-    templateBuf=ev.target.result;
-    document.getElementById('tplName').textContent='✅ '+f.name;
-    document.getElementById('bTpl').classList.add('has-file');
-    dbg('template OK: '+f.name+' ('+f.size+' bytes)');
-    showOk('✅ Template โหลดสำเร็จ');
+// Template Accrue Income is bundled with the tool (template.xlsx, same folder) instead of
+// requiring a manual upload — removes the whole class of "used the wrong/stale template" bugs.
+async function loadEmbeddedTemplate() {
+  var box=document.getElementById('tplBox');
+  box.style.display='block';
+  try {
+    var resp=await fetch('template.xlsx');
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    templateBuf=await resp.arrayBuffer();
+    dbg('embedded template loaded: '+templateBuf.byteLength+' bytes');
+    box.style.background='#e8f5e9'; box.style.color='#2e7d32';
+    box.textContent='✅ โหลด Template Accrue Income ในตัวสำเร็จ';
+    setTimeout(function(){box.style.display='none';},4000);
     renderDl();
-  };
-  reader.onerror=function(){showErr('โหลด template ไม่ได้');};
-  reader.readAsArrayBuffer(f);
+  } catch(err) {
+    box.style.background='#ffebee'; box.style.color='#c62828';
+    box.textContent='❌ โหลด Template ในตัวไม่สำเร็จ: '+err.message;
+    dbg('embedded template ERROR: '+err.message);
+  }
 }
+loadEmbeddedTemplate();
 
 // ── Parse Detail of Invoice (from AoA) ──────
 function norm(v){return v?String(v).replace(/[\r\n]+/g,' ').toLowerCase().trim().replace(/\s+/g,' '):''}
