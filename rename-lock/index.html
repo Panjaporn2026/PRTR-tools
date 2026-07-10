@@ -255,6 +255,10 @@
       </div>
       <button class="btn-apply" onclick="applyGlobalPw()">ใช้กับทุกไฟล์</button>
     </div>
+    <div class="global-bar-top" style="margin-top:10px;padding-top:10px;border-top:1px solid #334155;">
+      <label>ซ่อนคอลัมน์ที่ subtotal (SUBTOTAL) = 0 — เฉพาะไฟล์ Excel</label>
+      <label class="toggle-sw"><input type="checkbox" id="hideZeroSubtotalToggle"><span class="slider"></span></label>
+    </div>
   </div>
 
   <!-- File list -->
@@ -424,11 +428,14 @@ async function processAll() {
   const total = fileEntries.length;
   let done = 0;
 
+  const hideZeroSubtotal = document.getElementById('hideZeroSubtotalToggle').checked;
+
   for (const entry of fileEntries) {
-    // Only skip if it's already done with the SAME password/name it has right now — if either was
-    // edited after a previous run (e.g. password typed in after an earlier no-password run), the
-    // stale "done" status must not hide the fact that the file was never actually re-locked/renamed.
-    const runKey = entry.doRename + ' ' + entry.newName + ' ' + entry.password;
+    // Only skip if it's already done with the SAME password/name/hide-columns setting it has
+    // right now — if any of these was edited after a previous run (e.g. password typed in after
+    // an earlier no-password run, or the hide-columns toggle flipped), the stale "done" status
+    // must not hide the fact that the file was never actually re-processed with the current settings.
+    const runKey = entry.doRename + ' ' + entry.newName + ' ' + entry.password + ' ' + hideZeroSubtotal;
     if (entry.status === 'done' && entry.processedWith === runKey) { done++; continue; }
     entry.status = 'processing';
     renderList();
@@ -446,7 +453,7 @@ async function processAll() {
       const buffer = await entry.file.arrayBuffer();
       let resultBytes;
       if (ext === 'xlsx') {
-        resultBytes = await processExcel(buffer, entry.password);
+        resultBytes = await processExcel(buffer, entry.password, hideZeroSubtotal);
       } else {
         resultBytes = await processPdf(buffer, entry.password);
       }
@@ -486,15 +493,145 @@ async function downloadZip() {
   a.href = url; a.download = 'PRTR_files.zip'; a.click();
 }
 
+// ===================== HIDE ZERO-SUBTOTAL COLUMNS =====================
+// Hides (never deletes/alters) columns whose Excel "Subtotal" (Data > Subtotal, i.e. SUBTOTAL()
+// formula) values are all zero across the whole sheet. Implemented as a surgical raw-ZIP/XML edit
+// via JSZip (already a dependency here for the "Download ZIP" button) rather than round-tripping
+// through XlsxPopulate/SheetJS: those libraries fully re-parse and rewrite the entire workbook,
+// which risks silently mangling formulas, styles, or other structures in files this tool didn't
+// create -- unacceptable given the explicit requirement that a file's data/formatting must not
+// otherwise change. This only ever adds a hidden="1" attribute to the relevant <col> entries in
+// each worksheet's raw XML; every other byte in the zip (including untouched worksheets) is
+// reused as-is by JSZip, since only files actually passed to zip.file() get recompressed.
+
+function colLettersToIndex(letters) {
+  var col = 0;
+  for (var i = 0; i < letters.length; i++) col = col * 26 + (letters.charCodeAt(i) - 64);
+  return col - 1; // 0-based
+}
+
+// Shared formulas (a Subtotal row filled across many columns via the fill handle is commonly
+// stored this way): a master cell carries the real formula text plus a `ref` range, and every
+// other cell in that range stores only `<f t="shared" si="N"/>` with no text of its own.
+function buildSharedFormulaTextMap(sheetXml) {
+  var map = {};
+  var re = /<f\s+t="shared"[^>]*\bsi="(\d+)"[^>]*>([\s\S]*?)<\/f>/g, m;
+  while ((m = re.exec(sheetXml)) !== null) {
+    if (!(m[1] in map)) map[m[1]] = m[2];
+  }
+  return map;
+}
+
+// Scan every cell in the sheet for a SUBTOTAL(...) formula (resolving shared-formula slaves via
+// the master text above) and group each column's cached <v> values. Returns the 0-based column
+// indices where EVERY SUBTOTAL value found for that column is zero -- a column with even one
+// nonzero subtotal anywhere in the sheet (e.g. a per-group subtotal further down) stays visible.
+function findZeroSubtotalColumns(sheetXml) {
+  var sharedMap = buildSharedFormulaTextMap(sheetXml);
+  var colValues = {};
+  var cellRe = /<c\s+r="([A-Z]+)\d+"([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g, m;
+  while ((m = cellRe.exec(sheetXml)) !== null) {
+    var colLetters = m[1], inner = m[3] || '';
+    var fFull = /<f\b[^>]*>([\s\S]*?)<\/f>/.exec(inner);
+    var fShared = /<f\s+t="shared"[^>]*\bsi="(\d+)"[^>]*\/>/.exec(inner);
+    var formulaText = null;
+    if (fFull) formulaText = fFull[1];
+    else if (fShared && sharedMap[fShared[1]] !== undefined) formulaText = sharedMap[fShared[1]];
+    if (!formulaText || !/SUBTOTAL\s*\(/i.test(formulaText)) continue;
+    var vMatch = /<v>([\s\S]*?)<\/v>/.exec(inner);
+    var val = vMatch ? parseFloat(vMatch[1]) : NaN;
+    if (isNaN(val)) continue;
+    var idx = colLettersToIndex(colLetters);
+    (colValues[idx] || (colValues[idx] = [])).push(val);
+  }
+  var toHide = [];
+  Object.keys(colValues).forEach(function (idx) {
+    if (colValues[idx].every(function (v) { return Math.abs(v) < 1e-9; })) toHide.push(parseInt(idx, 10));
+  });
+  return toHide;
+}
+
+function parseColsEntries(colsInnerXml) {
+  var entries = [];
+  var re = /<col\b([^>]*?)\/>/g, m;
+  while ((m = re.exec(colsInnerXml)) !== null) {
+    var attrsStr = m[1];
+    var minM = /\bmin="(\d+)"/.exec(attrsStr);
+    var maxM = /\bmax="(\d+)"/.exec(attrsStr);
+    if (!minM || !maxM) continue;
+    var rest = attrsStr.replace(/\bmin="\d+"\s*/, '').replace(/\bmax="\d+"\s*/, '').trim();
+    entries.push({ min: parseInt(minM[1], 10), max: parseInt(maxM[1], 10), rest: rest });
+  }
+  return entries;
+}
+
+// Mark one 1-based column index as hidden, splitting any existing <col> range that spans other
+// columns too so only the target column is affected -- everything else in that range (width,
+// style, etc.) is carried over unchanged onto the split pieces.
+function markColumnHidden(entries, oneBasedCol) {
+  var out = [], handled = false;
+  entries.forEach(function (e) {
+    if (oneBasedCol < e.min || oneBasedCol > e.max) { out.push(e); return; }
+    handled = true;
+    var rest = /hidden="1"/.test(e.rest) ? e.rest : (e.rest ? e.rest + ' hidden="1"' : 'hidden="1"');
+    if (e.min < oneBasedCol) out.push({ min: e.min, max: oneBasedCol - 1, rest: e.rest });
+    out.push({ min: oneBasedCol, max: oneBasedCol, rest: rest });
+    if (e.max > oneBasedCol) out.push({ min: oneBasedCol + 1, max: e.max, rest: e.rest });
+  });
+  if (!handled) out.push({ min: oneBasedCol, max: oneBasedCol, rest: 'hidden="1"' }); // no width to preserve -- there wasn't an explicit one before either
+  return out;
+}
+
+function serializeColsEntries(entries) {
+  entries.sort(function (a, b) { return a.min - b.min; });
+  return entries.map(function (e) {
+    return '<col min="' + e.min + '" max="' + e.max + '"' + (e.rest ? ' ' + e.rest : '') + '/>';
+  }).join('');
+}
+
+function hideColumnsInSheetXml(sheetXml, zeroBasedColsToHide) {
+  if (!zeroBasedColsToHide.length) return sheetXml;
+  var colsMatch = /<cols>([\s\S]*?)<\/cols>/.exec(sheetXml);
+  var entries = colsMatch ? parseColsEntries(colsMatch[1]) : [];
+  zeroBasedColsToHide.forEach(function (idx) { entries = markColumnHidden(entries, idx + 1); });
+  var newColsBlock = '<cols>' + serializeColsEntries(entries) + '</cols>';
+  if (colsMatch) {
+    return sheetXml.slice(0, colsMatch.index) + newColsBlock + sheetXml.slice(colsMatch.index + colsMatch[0].length);
+  }
+  // No <cols> block existed -- insert right before <sheetData, per OOXML schema element order
+  // (sheetPr?, dimension?, sheetViews?, sheetFormatPr?, cols?, sheetData).
+  var sdIdx = sheetXml.indexOf('<sheetData');
+  return sheetXml.slice(0, sdIdx) + newColsBlock + sheetXml.slice(sdIdx);
+}
+
+async function hideZeroSubtotalColumns(buffer) {
+  const zip = await JSZip.loadAsync(buffer);
+  const sheetPaths = Object.keys(zip.files).filter(function (name) {
+    return /^xl\/worksheets\/sheet\d+\.xml$/.test(name);
+  });
+  for (const path of sheetPaths) {
+    const xml = await zip.file(path).async('string');
+    const toHide = findZeroSubtotalColumns(xml);
+    if (toHide.length) zip.file(path, hideColumnsInSheetXml(xml, toHide));
+  }
+  return await zip.generateAsync({ type: 'uint8array' });
+}
+
 // ===================== EXCEL =====================
 // Delegate encryption to xlsx-populate's own native password support (it implements the same
 // ECMA-376 Agile Encryption spec internally) instead of a hand-rolled CFB writer — a previous
 // custom implementation here produced files that decrypted fine under library tools but real
 // Microsoft Excel reported as corrupt, pointing to a subtle incompatibility in a from-scratch
 // Compound File Binary writer rather than in the crypto math itself.
-async function processExcel(buffer, password) {
-  if (!password) return new Uint8Array(buffer);
-  const wb = await XlsxPopulate.fromDataAsync(buffer);
+//
+// hideZeroSubtotal is applied BEFORE any password step (not after): once a workbook is password-
+// encrypted it's wrapped in a Compound File Binary container, no longer a plain zip/xlsx that the
+// column-hide surgical edit could operate on.
+async function processExcel(buffer, password, hideZeroSubtotal) {
+  let working = buffer;
+  if (hideZeroSubtotal) working = await hideZeroSubtotalColumns(working);
+  if (!password) return new Uint8Array(working);
+  const wb = await XlsxPopulate.fromDataAsync(working);
   const blob = await wb.outputAsync({ password });
   return new Uint8Array(await blob.arrayBuffer());
 }
