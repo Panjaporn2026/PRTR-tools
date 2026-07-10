@@ -32,6 +32,26 @@ function findHeaderCandidates(aoa, headerRowIdx, mustContain) {
   return out;
 }
 
+// Tiered search for the bundled health-insurance column's header, strictest first. Confirmed
+// real-world phrasings vary by client: KOHLER_PC uses "HEALTH INSURANCE EMPLOYER TOTAL" (matches
+// the strict tier), KARCHER uses plain "Health Insurance Employer" with no "Total" at all (falls
+// through to the loosest tier). Returns the FIRST tier that has at least one match, so a client
+// whose exact phrasing matches the strict tier isn't made ambiguous by looser tiers also matching
+// unrelated columns.
+function findBundledHealthCandidatesTiered(aoa, headerRowIdx) {
+  var tiers = [
+    ['INSURANCE', 'TOTAL', 'EMPLOYER'],
+    ['INSURANCE', 'TOTAL'],
+    ['INSURANCE'], // loosest -- may also catch unrelated text columns (e.g. "Insurance Plan");
+                   // that's fine, the ambiguous-candidate picker below makes the user choose.
+  ];
+  for (var i = 0; i < tiers.length; i++) {
+    var candidates = findHeaderCandidates(aoa, headerRowIdx, tiers[i]);
+    if (candidates.length) return candidates;
+  }
+  return [];
+}
+
 // Locate the "Detail of Invoice" sheet's real header row by scanning every row (not a fixed row
 // number) for a cell containing "Alternate ID". Different client projects use a different-height
 // title/cutoff-date band above the header (KOHLER_PC's real header row happens to be row 25 --
@@ -42,11 +62,21 @@ function findHeaderCandidates(aoa, headerRowIdx, mustContain) {
 // SECOND, unrelated "Alternate ID" column in a completely different payroll-detail table earlier
 // in the same sheet (row 8, a wide salary/OT/deduction export), well before the actual invoice
 // summary at row 25. Taking the first match blindly picks the wrong table. Disambiguate using
-// what the tool actually needs: the real header row is the one where "Alternate ID" AND the
-// bundled Health Insurance Total column appear together -- if exactly one row has both, use it
-// silently; if there's only one "Alternate ID" row at all (no ambiguity to resolve), use it even
-// without the insurance hint; otherwise (zero matches, or more than one row plausibly qualifies)
-// return -1 and let the caller surface this rather than guess.
+// what the tool actually needs: the real header row is the one where "Alternate ID" AND a bundled
+// health-insurance column appear together -- if exactly one row has both, use it silently; if
+// there's only one "Alternate ID" row at all (no ambiguity to resolve), use it even without the
+// insurance hint; otherwise (zero matches, or more than one row plausibly qualifies) return -1
+// and let the caller surface this rather than guess.
+//
+// Deliberately conservative here -- requires TWO strong keywords together (INSURANCE+TOTAL or
+// INSURANCE+EMPLOYER), NOT the column-picker's loosest single-keyword ("INSURANCE" alone) tier.
+// Confirmed the real KOHLER_PC row-8 payroll dump has several stray "insurance"-mentioning columns
+// of its own ("Insurance Plan", "Car Insurance (Fixed)", "Fidelity Guarantee Insurance", "Health
+// Insurance By EMP Deduct") -- using the loosest tier here made BOTH row 8 and row 25 qualify,
+// breaking this row-disambiguation itself. A wide payroll table can easily mention "insurance"
+// somewhere among 100+ columns without being the real invoice-summary table; the single-keyword
+// tier is only safe once we already know which row we're picking a column from (see
+// findBundledHealthColumn), not for deciding which row that is.
 function findInvoiceHeaderRow(aoa) {
   var altIdRows = [];
   for (var r = 0; r < aoa.length; r++) {
@@ -54,7 +84,8 @@ function findInvoiceHeaderRow(aoa) {
   }
   if (altIdRows.length === 1) return altIdRows[0];
   var withBundledHint = altIdRows.filter(function (r) {
-    return findHeaderCandidates(aoa, r, ['INSURANCE', 'TOTAL']).length > 0;
+    return findHeaderCandidates(aoa, r, ['INSURANCE', 'TOTAL']).length > 0
+      || findHeaderCandidates(aoa, r, ['INSURANCE', 'EMPLOYER']).length > 0;
   });
   return withBundledHint.length === 1 ? withBundledHint[0] : -1;
 }
@@ -64,13 +95,13 @@ function findAlternateIdColumn(aoa, headerRowIdx) {
   return candidates.length ? candidates[0].col : -1;
 }
 
-// Locate the "HEALTH INSURANCE EMPLOYER TOTAL"-style bundled column. Returns:
+// Locate the bundled health-insurance column (see findBundledHealthCandidatesTiered for the
+// tiered phrasing it matches). Returns:
 //  { status: 'ok', col, header, sum, sampleValues }
 //  { status: 'ambiguous'|'not_found', candidates: [...] } -- caller MUST surface this for a
 //  manual pick rather than silently guessing.
 function findBundledHealthColumn(aoa, headerRowIdx, altIdCol) {
-  var strict = findHeaderCandidates(aoa, headerRowIdx, ['INSURANCE', 'TOTAL', 'EMPLOYER']);
-  var candidates = strict.length ? strict : findHeaderCandidates(aoa, headerRowIdx, ['INSURANCE', 'TOTAL']);
+  var candidates = findBundledHealthCandidatesTiered(aoa, headerRowIdx);
   if (candidates.length !== 1) {
     // Attach sample data + a running sum for each candidate so a manual picker has context.
     var withSamples = candidates.map(function (c) {
