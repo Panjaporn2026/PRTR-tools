@@ -420,6 +420,17 @@ function cellXmlFor(col, rowNum, spec) {
   return '<c r="' + col + rowNum + '"' + sAttr + '/>';
 }
 
+// Read an existing cell's style index (if any) so an overwrite can keep it -- without this, a
+// freshly-built "<c><v>...</v></c>" cell carries no style reference at all, silently discarding
+// whatever number format/font/color the original template cell had (confirmed real symptom: an
+// existing employee's CR:CW Invoice cells lost their formatting once filled in).
+function getCellStyleAttr(rowInnerXml, addr) {
+  var m = new RegExp('<c\\s+r="' + addr + '"([^>]*)(?:\\/>|>[\\s\\S]*?<\\/c>)').exec(rowInnerXml);
+  if (!m) return '';
+  var sMatch = /\bs="(\d+)"/.exec(m[1]);
+  return sMatch ? ' s="' + sMatch[1] + '"' : '';
+}
+
 // Replace (or insert, in correct column order) one cell within a row's raw inner XML.
 function setCellInRowXml(rowInnerXml, col, rowNum, newCellXml) {
   var addr = col + rowNum;
@@ -458,8 +469,10 @@ async function generateOutput() {
       var inner = m[2];
       byRow[rowNum].forEach(function (w) {
         var col = colIndexToLetters(w.col);
-        inner = setCellInRowXml(inner, col, rowNum, '<c r="' + col + rowNum + '"><v>' + w.amount + '</v></c>');
-        verifyWritesList.push({ addr: col + rowNum, expected: w.amount });
+        var addr = col + rowNum;
+        var sAttr = getCellStyleAttr(inner, addr);
+        inner = setCellInRowXml(inner, col, rowNum, '<c r="' + addr + '"' + sAttr + '><v>' + w.amount + '</v></c>');
+        verifyWritesList.push({ addr: addr, expected: w.amount });
       });
       sdBody = sdBody.slice(0, m.index) + m[1] + inner + m[3] + sdBody.slice(m.index + m[0].length);
     });
