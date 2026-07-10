@@ -249,7 +249,10 @@
       <label class="toggle-sw"><input type="checkbox" id="globalToggle" onchange="toggleGlobal()"><span class="slider"></span></label>
     </div>
     <div class="global-pw-row" id="globalPwRow" style="display:none">
-      <input type="password" id="globalPw" placeholder="รหัสผ่านสำหรับทุกไฟล์">
+      <div class="pw-field" style="flex:1">
+        <input type="password" id="globalPw" placeholder="รหัสผ่านสำหรับทุกไฟล์">
+        <button class="pw-eye" onclick="toggleGlobalPw()" tabindex="-1">👁</button>
+      </div>
       <button class="btn-apply" onclick="applyGlobalPw()">ใช้กับทุกไฟล์</button>
     </div>
   </div>
@@ -389,6 +392,10 @@ function updateEntry(id, key, val) {
 }
 function togglePwEntry(id) {
   const inp = document.getElementById('pw-' + id);
+  if (inp) inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+function toggleGlobalPw() {
+  const inp = document.getElementById('globalPw');
   if (inp) inp.type = inp.type === 'password' ? 'text' : 'password';
 }
 
