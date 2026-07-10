@@ -116,14 +116,35 @@ async function loadInvoiceFile(file) {
   }
 }
 
-// Invoice month: look for a date value in the first ~16 rows / first 8 cols (confirmed pattern:
-// row 13 holds the invoice month date in the real files) rather than trusting the filename alone.
+// Invoice month: look for a date value in the first ~16 rows / first 8 cols, using two strategies
+// since real client files vary in how they store it:
+//  1. A bare numeric date serial in its own cell (confirmed pattern for KOHLER_PC -- row 13 holds
+//     the invoice month as a real Excel date value).
+//  2. A DD/MM/YYYY-style date embedded inside a text label (confirmed pattern for KARCHER --
+//     "CUT-OFF: 01/08/2025 - 31/08/2025" and "PAY DATE: 29/08/2025" are plain text strings, not
+//     numeric cells, so strategy 1 finds nothing there). Without this fallback, the month silently
+//     fell back to the raw filename, which then never matches the reconcile sheet's real
+//     "YYYY-MM" month columns -- producing an empty write plan (nothing filled in) with no error
+//     at all, since the mismatch is a silent no-op, not an exception.
+// Never trust the filename alone as the primary source -- it's a last resort only.
 function detectInvoiceMonth(aoa) {
   for (var r = 0; r < Math.min(16, aoa.length); r++) {
     var row = aoa[r] || [];
     for (var c = 0; c < Math.min(8, row.length); c++) {
       var v = row[c];
       if (typeof v === 'number' && v > 40000 && v < 60000) return excelSerialToMonthKey(v);
+    }
+  }
+  for (var r2 = 0; r2 < Math.min(16, aoa.length); r2++) {
+    var row2 = aoa[r2] || [];
+    for (var c2 = 0; c2 < Math.min(8, row2.length); c2++) {
+      var v2 = row2[c2];
+      if (typeof v2 !== 'string') continue;
+      var m = /(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(v2); // DD/MM/YYYY, matching the Thai convention
+      if (m) {
+        var month = parseInt(m[2], 10), year = parseInt(m[3], 10);
+        if (month >= 1 && month <= 12) return year + '-' + String(month).padStart(2, '0');
+      }
     }
   }
   return null;
