@@ -192,18 +192,6 @@
       color: #475569; cursor: pointer; font-size: 12px;
     }
     .btn-clear-map:hover { color: #f87171; }
-
-    .extra-cols-section { margin-top: 10px; padding-top: 10px; border-top: 1px solid #334155; }
-    .extra-cols-top { display: flex; align-items: center; gap: 10px; }
-    .extra-cols-top label { font-size: 13px; font-weight: 500; color: #94a3b8; flex: 1; }
-    .extra-cols-list { display: none; flex-wrap: wrap; gap: 6px 10px; margin-top: 10px; }
-    .extra-cols-list.show { display: flex; }
-    .extra-col-item {
-      display: flex; align-items: center; gap: 5px; font-size: 12px; color: #94a3b8;
-      cursor: pointer; background: #0f172a; border: 1px solid #2d3748; border-radius: 6px;
-      padding: 4px 8px; white-space: nowrap;
-    }
-    .extra-col-item input { cursor: pointer; }
   </style>
 </head>
 <body>
@@ -267,21 +255,6 @@
       </div>
       <button class="btn-apply" onclick="applyGlobalPw()">ใช้กับทุกไฟล์</button>
     </div>
-    <div class="global-bar-top" style="margin-top:10px;padding-top:10px;border-top:1px solid #334155;">
-      <label>ซ่อนคอลัมน์ที่ subtotal (SUBTOTAL) = 0 — เฉพาะไฟล์ Excel</label>
-      <label class="toggle-sw"><input type="checkbox" id="hideZeroSubtotalToggle"><span class="slider"></span></label>
-    </div>
-    <div class="global-bar-top" style="margin-top:10px;padding-top:10px;border-top:1px solid #334155;">
-      <label>ซ่อนคอลัมน์หลัง "Memo" (หรือหลัง "Total Invoice Before Vat" ถ้าไม่มี Memo) — เฉพาะไฟล์ Excel</label>
-      <label class="toggle-sw"><input type="checkbox" id="hideAfterMemoToggle"><span class="slider"></span></label>
-    </div>
-    <div class="extra-cols-section">
-      <div class="extra-cols-top">
-        <label>ซ่อนคอลัมน์เพิ่มเติม (เลือกจากไฟล์ Excel ไฟล์แรก)</label>
-        <button class="btn-tpl" onclick="detectColumnsForSelection()">🔍 ตรวจคอลัมน์</button>
-      </div>
-      <div class="extra-cols-list" id="extraColsList"></div>
-    </div>
   </div>
 
   <!-- File list -->
@@ -311,7 +284,6 @@
 let fileEntries = []; // { id, file, newName, password, status, resultBlob, resultName }
 let nextId = 0;
 let currentMapping = {}; // { 'old_filename.xlsx': 'new_name_no_ext', ... }
-let additionalHideColIndices = new Set(); // 0-based column indices, applied to every Excel file
 
 // ===================== DROP ZONE =====================
 const dropzone = document.getElementById('dropzone');
@@ -452,19 +424,16 @@ async function processAll() {
   const total = fileEntries.length;
   let done = 0;
 
-  const hideOpts = {
-    hideZeroSubtotal: document.getElementById('hideZeroSubtotalToggle').checked,
-    hideAfterMemo: document.getElementById('hideAfterMemoToggle').checked,
-    manualIndices: Array.from(additionalHideColIndices)
-  };
+  // Always applied, no user toggle: hide zero-subtotal columns and everything after
+  // Memo/Total Invoice Before Vat, for every Excel file processed.
+  const hideOpts = { hideZeroSubtotal: true, hideAfterMemo: true };
 
   for (const entry of fileEntries) {
-    // Only skip if it's already done with the SAME password/name/hide-columns setting it has
-    // right now — if any of these was edited after a previous run (e.g. password typed in after
-    // an earlier no-password run, or the hide-columns toggle flipped), the stale "done" status
-    // must not hide the fact that the file was never actually re-processed with the current settings.
-    const runKey = entry.doRename + ' ' + entry.newName + ' ' + entry.password + ' ' +
-      hideOpts.hideZeroSubtotal + ' ' + hideOpts.hideAfterMemo + ' ' + hideOpts.manualIndices.join(',');
+    // Only skip if it's already done with the SAME password/name it has right now — if either
+    // was edited after a previous run (e.g. password typed in after an earlier no-password run),
+    // the stale "done" status must not hide the fact that the file was never actually
+    // re-processed with the current settings.
+    const runKey = entry.doRename + ' ' + entry.newName + ' ' + entry.password;
     if (entry.status === 'done' && entry.processedWith === runKey) { done++; continue; }
     entry.status = 'processing';
     renderList();
@@ -775,74 +744,19 @@ function findColsAfterMemoOrTotal(sheetXml, sharedStrings) {
 }
 
 async function applyColumnHiding(buffer, opts) {
-  const manualIndices = (opts && opts.manualIndices) || [];
   const zip = await JSZip.loadAsync(buffer);
-  const sharedStrings = opts && opts.hideAfterMemo ? await readSharedStrings(zip) : [];
+  const sharedStrings = opts.hideAfterMemo ? await readSharedStrings(zip) : [];
   const sheetPaths = Object.keys(zip.files).filter(function (name) {
     return /^xl\/worksheets\/sheet\d+\.xml$/.test(name);
   });
   for (const path of sheetPaths) {
     const xml = await zip.file(path).async('string');
-    let toHide = opts && opts.hideZeroSubtotal ? findZeroSubtotalColumns(xml) : [];
-    if (opts && opts.hideAfterMemo) toHide = toHide.concat(findColsAfterMemoOrTotal(xml, sharedStrings));
-    if (manualIndices.length) toHide = toHide.concat(manualIndices);
+    let toHide = opts.hideZeroSubtotal ? findZeroSubtotalColumns(xml) : [];
+    if (opts.hideAfterMemo) toHide = toHide.concat(findColsAfterMemoOrTotal(xml, sharedStrings));
     toHide = Array.from(new Set(toHide));
     if (toHide.length) zip.file(path, hideColumnsInSheetXml(xml, toHide));
   }
   return await zip.generateAsync({ type: 'uint8array' });
-}
-
-// Reads the header row of the first Excel file in the list (the row within the first 10 with
-// the most non-empty cells) and renders one checkbox per column so the user can pick extra
-// columns to hide beyond the automatic zero-subtotal ones — for files where SUBTOTAL detection
-// doesn't apply (e.g. columns that are always nonzero but still not meant for the client).
-async function detectColumnsForSelection() {
-  const container = document.getElementById('extraColsList');
-  const firstXlsx = fileEntries.find(e => e.file.name.split('.').pop().toLowerCase() === 'xlsx');
-  if (!firstXlsx) { alert('ยังไม่มีไฟล์ Excel ให้ตรวจสอบ — กรุณาเพิ่มไฟล์ก่อน'); return; }
-  container.classList.add('show');
-  container.innerHTML = '<span style="color:#818cf8">⏳ กำลังอ่านคอลัมน์...</span>';
-  try {
-    const buf = await firstXlsx.file.arrayBuffer();
-    const wb = XLSX.read(buf, { type: 'array' });
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    if (!ws['!ref']) throw new Error('ไม่พบข้อมูลในชีตแรก');
-    const range = XLSX.utils.decode_range(ws['!ref']);
-    // Count only text-typed cells (t === 's'/'str') rather than any non-empty cell -- a data row
-    // can otherwise outscore the real header row (e.g. one stray text note among many numeric
-    // amounts tips a same-size header row's count), since header labels are always text while
-    // data rows are mostly numbers.
-    let headerRow = range.s.r, bestCount = -1;
-    const scanEnd = Math.min(range.e.r, range.s.r + 29);
-    for (let r = range.s.r; r <= scanEnd; r++) {
-      let count = 0;
-      for (let c = range.s.c; c <= range.e.c; c++) {
-        const cell = ws[XLSX.utils.encode_cell({ r, c })];
-        if (cell && (cell.t === 's' || cell.t === 'str') && String(cell.v).trim() !== '') count++;
-      }
-      if (count > bestCount) { bestCount = count; headerRow = r; }
-    }
-    const cols = [];
-    for (let c = range.s.c; c <= range.e.c; c++) {
-      const cell = ws[XLSX.utils.encode_cell({ r: headerRow, c })];
-      const header = cell && cell.v !== undefined && cell.v !== null ? String(cell.v).trim() : '';
-      cols.push({ index: c, letter: colIndexToLetters(c), header });
-    }
-    if (!cols.length) throw new Error('ไม่พบคอลัมน์');
-    container.innerHTML = cols.map(col => `
-      <label class="extra-col-item">
-        <input type="checkbox" ${additionalHideColIndices.has(col.index) ? 'checked' : ''}
-          onchange="toggleExtraCol(${col.index}, this.checked)">
-        ${col.letter}${col.header ? ': ' + col.header.slice(0, 20) : ''}
-      </label>`).join('');
-  } catch (err) {
-    container.innerHTML = `<span class="ms-err">❌ ${err.message}</span>`;
-  }
-}
-
-function toggleExtraCol(index, checked) {
-  if (checked) additionalHideColIndices.add(index);
-  else additionalHideColIndices.delete(index);
 }
 
 // ===================== EXCEL =====================
@@ -856,9 +770,7 @@ function toggleExtraCol(index, checked) {
 // encrypted it's wrapped in a Compound File Binary container, no longer a plain zip/xlsx that the
 // column-hide surgical edit could operate on.
 async function processExcel(buffer, password, hideOpts) {
-  let working = buffer;
-  const hasHideWork = hideOpts && (hideOpts.hideZeroSubtotal || hideOpts.hideAfterMemo || (hideOpts.manualIndices && hideOpts.manualIndices.length));
-  if (hasHideWork) working = await applyColumnHiding(working, hideOpts);
+  const working = await applyColumnHiding(buffer, hideOpts);
   if (!password) return new Uint8Array(working);
   const wb = await XlsxPopulate.fromDataAsync(working);
   const blob = await wb.outputAsync({ password });
