@@ -100,17 +100,29 @@ async function loadWorkbook(buf) {
   var entries = parseZipEntries(buf);
   var wbXml = await decompressEntry(entries['xl/workbook.xml'], buf);
   var relsXml = entries['xl/_rels/workbook.xml.rels'] ? await decompressEntry(entries['xl/_rels/workbook.xml.rels'], buf) : '';
+  // Attribute order within a tag is not guaranteed by the OOXML spec -- genuine Excel saves
+  // happen to write Id before Target (and name before r:id on <sheet>), but files re-saved by
+  // other tools (LibreOffice, openpyxl, other accounting systems a different client project might
+  // export from) can write them in a different order. Parse each tag fully, then pull attributes
+  // out independently of position, instead of assuming a fixed order.
   var relMap = {};
-  var relRe = /<Relationship\s+Id="([^"]+)"[^>]*Target="([^"]+)"/g, rm;
-  while ((rm = relRe.exec(relsXml)) !== null) relMap[rm[1]] = rm[2];
+  var relTagRe = /<Relationship\b[^>]*\/>/g, relTagM;
+  while ((relTagM = relTagRe.exec(relsXml)) !== null) {
+    var idM = /\bId="([^"]+)"/.exec(relTagM[0]);
+    var targetM = /\bTarget="([^"]+)"/.exec(relTagM[0]);
+    if (idM && targetM) relMap[idM[1]] = targetM[1];
+  }
   var sheets = {};
-  var sheetRe = /<sheet\b[^>]*name="([^"]+)"[^>]*r:id="(rId\d+)"/g, sm;
-  while ((sm = sheetRe.exec(wbXml)) !== null) {
-    var target = relMap[sm[2]];
+  var sheetTagRe = /<sheet\b[^>]*\/>/g, sheetTagM;
+  while ((sheetTagM = sheetTagRe.exec(wbXml)) !== null) {
+    var nameM = /\bname="([^"]+)"/.exec(sheetTagM[0]);
+    var ridM = /\br:id="(rId\d+)"/.exec(sheetTagM[0]);
+    if (!nameM || !ridM) continue;
+    var target = relMap[ridM[1]];
     if (!target) continue;
     var path = target.indexOf('worksheets/') >= 0 ? 'xl/' + target.replace(/^\/?xl\//,'') : 'xl/' + target;
     if (path.indexOf('xl/xl/') === 0) path = path.slice(3);
-    sheets[sm[1]] = path;
+    sheets[nameM[1]] = path;
   }
   return { buf, entries, sheets, wbXml };
 }

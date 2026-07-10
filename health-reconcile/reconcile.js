@@ -1,11 +1,13 @@
 // ══════════════════════════════════════════════════════
-//  Steps 1-3: locate the bundled health-insurance total column in a monthly invoice file
-//  (column letter drifts every month -- confirmed GY in Sep'25 -> HE in Jan'26, a 149-column
-//  shift over 4 months -- so it must be found by header-text search on row 25 every time, never
-//  hardcoded), sum duplicate Alternate ID rows (signed), and match against the reconcile sheet.
+//  Steps 1-3: locate the header row and the bundled health-insurance total column in a monthly
+//  invoice file (both the row and the column letter vary by client/month -- confirmed the bundled
+//  column drifts GY in Sep'25 -> HE in Jan'26 within just KOHLER_PC's own files, a 149-column
+//  shift over 4 months, and different client projects use a different-height title/cutoff band
+//  above the header row entirely -- so both must be found by header-text search every time a
+//  file loads, never hardcoded), sum duplicate Alternate ID rows (signed), and match against the
+//  reconcile sheet.
 // ══════════════════════════════════════════════════════
 
-var INVOICE_HEADER_ROW = 25; // "Detail of Invoice" sheet's real working header row
 var ALT_ID_HEADER_TEXT = 'ALTERNATE ID';
 
 function normHeader(s) {
@@ -28,6 +30,33 @@ function findHeaderCandidates(aoa, headerRowIdx, mustContain) {
     if (ok) out.push({ col: c, header: row[c] });
   }
   return out;
+}
+
+// Locate the "Detail of Invoice" sheet's real header row by scanning every row (not a fixed row
+// number) for a cell containing "Alternate ID". Different client projects use a different-height
+// title/cutoff-date band above the header (KOHLER_PC's real header row happens to be row 25 --
+// that number is specific to that one client's template, not a safe assumption once this tool is
+// reused across other clients' invoice files).
+//
+// "Alternate ID" is not guaranteed to appear only once: the real KOHLER_PC file confirmed a
+// SECOND, unrelated "Alternate ID" column in a completely different payroll-detail table earlier
+// in the same sheet (row 8, a wide salary/OT/deduction export), well before the actual invoice
+// summary at row 25. Taking the first match blindly picks the wrong table. Disambiguate using
+// what the tool actually needs: the real header row is the one where "Alternate ID" AND the
+// bundled Health Insurance Total column appear together -- if exactly one row has both, use it
+// silently; if there's only one "Alternate ID" row at all (no ambiguity to resolve), use it even
+// without the insurance hint; otherwise (zero matches, or more than one row plausibly qualifies)
+// return -1 and let the caller surface this rather than guess.
+function findInvoiceHeaderRow(aoa) {
+  var altIdRows = [];
+  for (var r = 0; r < aoa.length; r++) {
+    if (findHeaderCandidates(aoa, r, ['ALTERNATE', 'ID']).length) altIdRows.push(r);
+  }
+  if (altIdRows.length === 1) return altIdRows[0];
+  var withBundledHint = altIdRows.filter(function (r) {
+    return findHeaderCandidates(aoa, r, ['INSURANCE', 'TOTAL']).length > 0;
+  });
+  return withBundledHint.length === 1 ? withBundledHint[0] : -1;
 }
 
 function findAlternateIdColumn(aoa, headerRowIdx) {

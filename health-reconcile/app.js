@@ -95,18 +95,19 @@ async function loadInvoiceFile(file) {
     var buf = await file.arrayBuffer();
     var wb = await loadWorkbook(buf);
     var grid = await readSheetGrid(wb, 'Detail of Invoice');
-    var altIdCol = findAlternateIdColumn(grid.aoa, INVOICE_HEADER_ROW - 1);
-    if (altIdCol < 0) throw new Error('ไม่พบคอลัมน์ Alternate ID ในแถวที่ ' + INVOICE_HEADER_ROW);
-    var bundled = findBundledHealthColumn(grid.aoa, INVOICE_HEADER_ROW - 1, altIdCol);
+    var headerRowIdx = findInvoiceHeaderRow(grid.aoa);
+    if (headerRowIdx < 0) throw new Error('ไม่พบคอลัมน์ "Alternate ID" ในไฟล์นี้เลย -- ตรวจสอบว่าไฟล์มีคอลัมน์นี้จริงหรือใช้ชื่ออื่น');
+    var altIdCol = findAlternateIdColumn(grid.aoa, headerRowIdx);
+    var bundled = findBundledHealthColumn(grid.aoa, headerRowIdx, altIdCol);
     var monthLabel = detectInvoiceMonth(grid.aoa) || file.name;
 
     var entry = {
-      file: file, wb: wb, grid: grid, altIdCol: altIdCol, monthLabel: monthLabel,
+      file: file, wb: wb, grid: grid, altIdCol: altIdCol, headerRowIdx: headerRowIdx, monthLabel: monthLabel,
       bundled: bundled, acknowledged: false, sums: null,
     };
     state.invoiceFiles.push(entry);
     if (state.monthsInScope[monthLabel] === undefined) state.monthsInScope[monthLabel] = true;
-    dbg('Invoice loaded: ' + file.name + ' -> month ' + monthLabel + ', bundled-col status: ' + bundled.status);
+    dbg('Invoice loaded: ' + file.name + ' -> month ' + monthLabel + ', header row ' + (headerRowIdx + 1) + ', bundled-col status: ' + bundled.status);
     setStatus('✅ โหลด ' + file.name + ' สำเร็จ', 'ok');
     render();
   } catch (err) {
@@ -131,7 +132,7 @@ function detectInvoiceMonth(aoa) {
 function pickBundledColumn(fileIdx, col) {
   var entry = state.invoiceFiles[fileIdx];
   var cand = entry.bundled.candidates.find(function (c) { return c.col === col; });
-  entry.bundled = useBundledColumn(entry.grid.aoa, INVOICE_HEADER_ROW - 1, entry.altIdCol, cand.col, cand.header);
+  entry.bundled = useBundledColumn(entry.grid.aoa, entry.headerRowIdx, entry.altIdCol, cand.col, cand.header);
   render();
 }
 function acknowledgeColumn(fileIdx) {
@@ -171,7 +172,7 @@ function renderInvoiceList() {
     }
     var dupWarn = '';
     if (b.status === 'ok') {
-      var s = sumAmountsByAltId(entry.grid.aoa, INVOICE_HEADER_ROW - 1, entry.altIdCol, b.col);
+      var s = sumAmountsByAltId(entry.grid.aoa, entry.headerRowIdx, entry.altIdCol, b.col);
       entry.sums = s;
       if (s.duplicates.length) {
         dupWarn = '<div class="dup-warn">⚠ พบรหัสพนักงานซ้ำ ' + s.duplicates.length + ' คนในเดือนนี้ (รวมยอดแบบมีเครื่องหมายบวก/ลบให้แล้ว): '
@@ -251,7 +252,7 @@ function mapMonthColumnsToLabels(aoa, monthCols) {
 
 function buildIdentitySnapshot(invoiceEntry) {
   var aoa = invoiceEntry.grid.aoa;
-  var header = aoa[INVOICE_HEADER_ROW - 1] || [];
+  var header = aoa[invoiceEntry.headerRowIdx] || [];
   function findCol(kw) {
     for (var c = 0; c < header.length; c++) {
       if (normHeader(header[c]).indexOf(kw) >= 0) return c;
@@ -263,7 +264,7 @@ function buildIdentitySnapshot(invoiceEntry) {
   var posCol = findCol('POSITION');
   var empIdCol = findCol('EMP ID') >= 0 ? findCol('EMP ID') : findCol('รหัสพนักงาน');
   var out = {};
-  for (var r = INVOICE_HEADER_ROW; r < aoa.length; r++) {
+  for (var r = invoiceEntry.headerRowIdx + 1; r < aoa.length; r++) {
     var row = aoa[r];
     if (!row) continue;
     var altId = normAltId(row[invoiceEntry.altIdCol]);
