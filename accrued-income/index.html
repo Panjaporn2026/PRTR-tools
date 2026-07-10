@@ -427,12 +427,44 @@ async function buildOutputXlsx(templateBuf, selectedRows) {
   var newSheetXml=pre+sdOpenTag+keptBefore.join('')+newRows.join('')+keptFrom34.join('')+'</sheetData>'+post;
   dbg('newSheetXml: '+newSheetXml.length+' chars, row5 present:'+(newSheetXml.indexOf('<row r="5"')>=0));
 
-  // Rebuild ZIP
+  // Rebuild ZIP. Drop xl/calcChain.xml (and its two references) rather than trying to keep it
+  // in sync: it's just a calculation-order cache Excel rebuilds on its own, but a STALE one that
+  // references rows we removed/regenerated is exactly what triggered Excel's "we found a problem
+  // with some content" repair prompt. Also force a full recalc on open (fullCalcOnLoad) so the
+  // preserved SUBTOTAL row (and every generated formula) shows live numbers immediately instead
+  // of the template's stale cached zeros.
   var zipFiles=[];
   var names=Object.keys(entries);
   for(var i=0;i<names.length;i++){
     var nm=names[i];
-    zipFiles.push({name:nm, data: nm===sheetKey ? enc.encode(newSheetXml) : await decompressEntryBytes(entries[nm],templateBuf)});
+    if(nm==='xl/calcChain.xml') continue;
+    var data;
+    if(nm===sheetKey){
+      data=enc.encode(newSheetXml);
+    } else if(nm==='[Content_Types].xml'){
+      var ct=await decompressEntry(entries[nm],templateBuf);
+      ct=ct.replace(/<Override[^>]*PartName="\/xl\/calcChain\.xml"[^>]*\/>/,'');
+      data=enc.encode(ct);
+    } else if(nm==='xl/_rels/workbook.xml.rels'){
+      var rels=await decompressEntry(entries[nm],templateBuf);
+      rels=rels.replace(/<Relationship[^>]*Target="calcChain\.xml"[^>]*\/>/,'');
+      data=enc.encode(rels);
+    } else if(nm==='xl/workbook.xml'){
+      var wbXml=await decompressEntry(entries[nm],templateBuf);
+      if(/<calcPr\b[^>]*\/>/.test(wbXml)){
+        wbXml=wbXml.replace(/<calcPr\b([^>]*)\/>/,function(_,attrs){
+          return /fullCalcOnLoad=/.test(attrs)
+            ? '<calcPr'+attrs.replace(/fullCalcOnLoad="[^"]*"/,'fullCalcOnLoad="1"')+'/>'
+            : '<calcPr'+attrs+' fullCalcOnLoad="1"/>';
+        });
+      } else {
+        wbXml=wbXml.replace('</workbook>','<calcPr fullCalcOnLoad="1"/></workbook>');
+      }
+      data=enc.encode(wbXml);
+    } else {
+      data=await decompressEntryBytes(entries[nm],templateBuf);
+    }
+    zipFiles.push({name:nm, data:data});
   }
   var result=buildZip(zipFiles);
   dbg('output ZIP: '+result.length+' bytes');
