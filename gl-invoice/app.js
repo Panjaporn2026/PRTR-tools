@@ -22,7 +22,18 @@ var FUNCTIONS = [
     desc: 'ลบแถวที่ 4 และ 5 ออก + เปลี่ยนชื่อ Column:\n• แถว Header เลื่อนขึ้น 2 แถว\n• Period → Calendar Group\n• Paycode Code → PIN Name' }
 ];
 
-var state = { fnId: FUNCTIONS[0].id, files: [], resultBytes: null, resultBaseName: null };
+var FN_META = {
+  sso750: { icon: '💰', title: 'สรุปผล SSO PRTR 750' },
+  ssoIntroduceBy: { icon: '💰', title: 'สรุปผล SSO Introduce by' },
+  duplicate: { icon: '➕', title: 'สรุปผล Duplicate — แถว EXPENSE' },
+  sso750PlusDuplicate: { icon: '💰➕', title: 'สรุปผล SSO PRTR 750 + Duplicate EXPENSE' },
+  ssoIntroduceByPlusDuplicate: { icon: '💰➕', title: 'สรุปผล SSO Introduce by + Duplicate EXPENSE' },
+  removeSso: { icon: '🗑️', title: 'สรุปผล Remove SSO — บรรทัดที่ถูกลบ' },
+  merge: { icon: '🔗', title: 'สรุปผล Merge — รวมไฟล์' },
+  changeHeader: { icon: '📝', title: 'สรุปผล Change Header' }
+};
+
+var state = { fnId: FUNCTIONS[0].id, files: [], resultBytes: null, resultBaseName: null, processedAt: null, sourceLabel: null };
 
 function dbg(msg) {
   var el = document.getElementById('dbgBox');
@@ -39,6 +50,7 @@ function setStatus(msg, cls) {
   el.style.display = msg ? 'block' : 'none';
 }
 function esc_(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function fmtAmt(v) { return (v == null || v === '') ? '-' : Number(v).toFixed(2); }
 
 function currentFn() { return FUNCTIONS.find(function (f) { return f.id === state.fnId; }); }
 
@@ -72,9 +84,19 @@ function renderFileList() {
 function resetOutputUI() {
   state.resultBytes = null;
   state.resultBaseName = null;
-  document.getElementById('summaryBox').style.display = 'none';
-  document.getElementById('btnDownload').style.display = 'none';
+  var box = document.getElementById('summaryBox');
+  box.style.display = 'none';
+  box.innerHTML = '';
   setStatus('', '');
+}
+
+function resetForNewFile() {
+  state.files = [];
+  resetOutputUI();
+  renderFileList();
+  document.getElementById('fileInput').value = '';
+  var dz = document.getElementById('dropzone');
+  if (dz) dz.style.display = '';
 }
 
 function selectFunction(id) {
@@ -128,19 +150,20 @@ async function runProcessing() {
   var fn = currentFn();
   try {
     setStatus('⏳ กำลังประมวลผล...', 'info');
-    document.getElementById('summaryBox').style.display = 'none';
-    document.getElementById('btnDownload').style.display = 'none';
+    resetOutputUI();
 
     var result;
     if (fn.multi) {
-      var bufs = [];
+      var bufs = [], names = state.files.map(function (f) { return f.name; });
       for (var i = 0; i < state.files.length; i++) bufs.push(await state.files[i].arrayBuffer());
-      result = await runMergeFunction(bufs);
+      result = await runMergeFunction(bufs, names);
       state.resultBaseName = state.files[0].name.replace(/\.[^.]+$/, '');
+      state.sourceLabel = state.files.map(function (f) { return f.name; }).join(', ');
     } else {
       var buf = await state.files[0].arrayBuffer();
       result = await runSingleFileFunction(fn.id, buf);
       state.resultBaseName = state.files[0].name.replace(/\.[^.]+$/, '');
+      state.sourceLabel = state.files[0].name;
     }
 
     if (!result.ok) {
@@ -150,8 +173,8 @@ async function runProcessing() {
     }
 
     state.resultBytes = result.outputBytes;
+    state.processedAt = new Date();
     renderSummary(fn, result.summary);
-    document.getElementById('btnDownload').style.display = 'inline-block';
     setStatus('✅ ประมวลผลสำเร็จ — ตรวจสอบสรุปผลด้านล่างแล้วดาวน์โหลดไฟล์', 'ok');
     dbg('Processed function=' + fn.id + ' summary=' + JSON.stringify(result.summary));
   } catch (err) {
@@ -167,41 +190,164 @@ function renderErrorSummary(summary) {
   box.innerHTML = lines.map(function (l) { return '<div class="err-line">⚠ ' + esc_(l) + '</div>'; }).join('');
 }
 
+// ── Result card building blocks ───────────────────────────────────────────
+function statCardHtml(s) {
+  return '<div class="stat-box"><div class="stat-num c-' + s.color + '">' + esc_(s.value) + '</div>' +
+    '<div class="stat-label">' + esc_(s.label) + '</div></div>';
+}
+function statRowHtml(stats) {
+  return '<div class="stat-row">' + stats.map(statCardHtml).join('') + '</div>';
+}
+function noteBadge(note) {
+  var cls = 'b-neutral';
+  if (/ลบ/.test(note)) cls = 'b-removed';
+  else if (/เพิ่ม/.test(note)) cls = 'b-added';
+  else if (/อัพเดท/.test(note)) cls = 'b-updated';
+  return '<span class="badge ' + cls + '">' + esc_(note) + '</span>';
+}
+function detailTableHtml(columns, rows) {
+  if (!rows || !rows.length) return '';
+  var thead = '<tr>' + columns.map(function (c) { return '<th>' + esc_(c.label) + '</th>'; }).join('') + '</tr>';
+  var tbody = rows.map(function (r) {
+    var rowClass = r._rowClass ? ' class="' + r._rowClass + '"' : '';
+    return '<tr' + rowClass + '>' + columns.map(function (c) { return '<td>' + c.render(r) + '</td>'; }).join('') + '</tr>';
+  }).join('');
+  return '<div class="detail-table-wrap"><table class="detail-table"><thead>' + thead + '</thead><tbody>' + tbody + '</tbody></table></div>';
+}
+
+var SSO_ADJUST_COLUMNS = [
+  { label: 'แถวที่ (เดิม)', render: function (r) { return esc_(r.row); } },
+  { label: 'Paycode', render: function (r) { return esc_(r.paycode); } },
+  { label: 'Paycode Name', render: function (r) { return esc_(r.paycodeName); } },
+  { label: 'Amount เดิม', render: function (r) { return esc_(fmtAmt(r.amountBefore)); } },
+  { label: 'Amount ใหม่', render: function (r) { return esc_(fmtAmt(r.amountAfter)); } },
+  { label: 'หมายเหตุ', render: function (r) { return noteBadge(r.note); } }
+];
+var SSO_INTRODUCE_COLUMNS = [
+  { label: 'แถวที่ (เดิม)', render: function (r) { return esc_(r.row); } },
+  { label: 'Paycode', render: function (r) { return esc_(r.paycode); } },
+  { label: 'Paycode Name', render: function (r) { return esc_(r.paycodeName); } },
+  { label: 'Introduce By', render: function (r) { return esc_(r.introduceBy); } },
+  { label: 'Amount เดิม', render: function (r) { return esc_(fmtAmt(r.amountBefore)); } },
+  { label: 'Amount ใหม่', render: function (r) { return esc_(fmtAmt(r.amountAfter)); } },
+  { label: 'หมายเหตุ', render: function (r) { return noteBadge(r.note); } }
+];
+var EXPENSE_COLUMNS = [
+  { label: 'แถวที่', render: function (r) { return esc_(r.row); } },
+  { label: 'ชื่อ', render: function (r) { return esc_(r.name); } },
+  { label: 'EMP ID', render: function (r) { return esc_(r.empId); } },
+  { label: 'การดำเนินการ', render: function (r) { return noteBadge(r.action); } }
+];
+var REMOVE_SSO_COLUMNS = [
+  { label: 'แถวที่ (เดิม)', render: function (r) { return esc_(r.row); } },
+  { label: 'Paycode', render: function (r) { return esc_(r.paycode); } },
+  { label: 'Paycode Name', render: function (r) { return esc_(r.paycodeName); } },
+  { label: 'Amount เดิม', render: function (r) { return esc_(fmtAmt(r.amount)); } },
+  { label: 'หมายเหตุ', render: function (r) { return noteBadge(r.note); } }
+];
+var MERGE_COLUMNS = [
+  { label: 'ไฟล์ที่', render: function (r) { return esc_(r.fileIndex); } },
+  { label: 'ชื่อไฟล์', render: function (r) { return esc_(r.fileName); } },
+  { label: 'จำนวนแถวที่เพิ่ม', render: function (r) { return esc_(r.rowsAppended); } },
+  { label: 'หมายเหตุ', render: function (r) { return noteBadge(r.note); } }
+];
+var CHANGE_HEADER_COLUMNS = [
+  { label: 'คอลัมน์', render: function (r) { return esc_(r.column); } },
+  { label: 'ชื่อเดิม', render: function (r) { return esc_(r.oldLabel); } },
+  { label: 'ชื่อใหม่', render: function (r) { return esc_(r.newLabel); } }
+];
+
+function buildResultBody(fn, summary) {
+  var html = '';
+  if (fn.id === 'sso750') {
+    html += statRowHtml([
+      { value: summary.matched, label: 'พบแถวที่ตรงเงื่อนไข', color: 'blue' },
+      { value: summary.reduced, label: 'ลด Amount (> 750)', color: 'green' },
+      { value: summary.zeroed, label: 'ปรับเป็น 0 (≤ 750)', color: 'orange' }
+    ]);
+    html += detailTableHtml(SSO_ADJUST_COLUMNS, summary.details);
+  } else if (fn.id === 'ssoIntroduceBy') {
+    html += statRowHtml([
+      { value: summary.matched, label: 'พบแถวที่ตรงเงื่อนไข', color: 'blue' },
+      { value: summary.zeroedPRTR, label: 'ปรับเป็น 0 (Introduce By = PRTR)', color: 'red' },
+      { value: summary.unchangedCLNT, label: 'ไม่เปลี่ยน (CLNT)', color: 'green' }
+    ]);
+    html += detailTableHtml(SSO_INTRODUCE_COLUMNS, summary.details);
+  } else if (fn.id === 'duplicate') {
+    html += statRowHtml([
+      { value: summary.added, label: 'เพิ่มแถวใหม่', color: 'green' },
+      { value: summary.updated, label: 'อัพเดทแถวเดิม', color: 'blue' }
+    ]);
+    html += detailTableHtml(EXPENSE_COLUMNS, summary.details);
+  } else if (fn.id === 'sso750PlusDuplicate' || fn.id === 'ssoIntroduceByPlusDuplicate') {
+    var isPrtr = fn.id === 'sso750PlusDuplicate';
+    html += statRowHtml(isPrtr ? [
+      { value: summary.matched, label: 'พบแถวที่ตรงเงื่อนไข SSO', color: 'blue' },
+      { value: summary.reduced, label: 'ลด Amount (> 750)', color: 'green' },
+      { value: summary.zeroed, label: 'ปรับเป็น 0 (≤ 750)', color: 'orange' }
+    ] : [
+      { value: summary.matched, label: 'พบแถวที่ตรงเงื่อนไข SSO', color: 'blue' },
+      { value: summary.zeroedPRTR, label: 'ปรับเป็น 0 (PRTR)', color: 'red' },
+      { value: summary.unchangedCLNT, label: 'ไม่เปลี่ยน (CLNT)', color: 'green' }
+    ]);
+    html += '<div class="result-sub">ผลปรับ SSO</div>';
+    html += detailTableHtml(isPrtr ? SSO_ADJUST_COLUMNS : SSO_INTRODUCE_COLUMNS, summary.ssoDetails);
+    html += statRowHtml([
+      { value: summary.added, label: 'เพิ่มแถว EXPENSE ใหม่', color: 'green' },
+      { value: summary.updated, label: 'อัพเดทแถว EXPENSE เดิม', color: 'blue' }
+    ]);
+    html += '<div class="result-sub">แถว EXPENSE</div>';
+    html += detailTableHtml(EXPENSE_COLUMNS, summary.expenseDetails);
+  } else if (fn.id === 'removeSso') {
+    html += statRowHtml([
+      { value: summary.removed, label: 'บรรทัดที่ลบออก', color: 'red' },
+      { value: summary.countT2A3, label: 'Paycode T2A3', color: 'green' },
+      { value: summary.countTZ74, label: 'Paycode TZ74', color: 'orange' }
+    ]);
+    html += detailTableHtml(REMOVE_SSO_COLUMNS, summary.details);
+  } else if (fn.id === 'merge') {
+    html += statRowHtml([
+      { value: summary.filesAppended, label: 'ไฟล์ที่รวมสำเร็จ', color: 'blue' },
+      { value: summary.rowsAppended, label: 'แถวที่เพิ่มเข้ามา', color: 'green' },
+      { value: (summary.rejected || []).length, label: 'ไฟล์ที่ถูกปฏิเสธ', color: 'red' }
+    ]);
+    html += detailTableHtml(MERGE_COLUMNS, summary.details);
+    if (summary.rejected && summary.rejected.length) {
+      html += summary.rejected.map(function (r) {
+        return '<div class="err-line">⚠ ไฟล์ที่ ' + esc_(r.fileIndex) + ': ' + esc_(r.reason) + '</div>';
+      }).join('');
+    }
+  } else if (fn.id === 'changeHeader') {
+    html += statRowHtml([
+      { value: summary.rowsDeleted, label: 'แถวที่ลบออก', color: 'red' },
+      { value: (summary.renamed || []).length, label: 'คอลัมน์ที่เปลี่ยนชื่อ', color: 'blue' }
+    ]);
+    html += detailTableHtml(CHANGE_HEADER_COLUMNS, summary.details);
+  }
+  return html;
+}
+
 function renderSummary(fn, summary) {
   var box = document.getElementById('summaryBox');
   box.style.display = 'block';
-  var lines = [];
-  if (fn.id === 'sso750') {
-    lines.push('พบแถวที่ตรงเงื่อนไข: ' + summary.matched + ' แถว');
-    lines.push('ลด Amount (Amount > 750): ' + summary.reduced + ' แถว');
-    lines.push('ปรับ Amount เป็น 0 (Amount ≤ 750): ' + summary.zeroed + ' แถว');
-  } else if (fn.id === 'ssoIntroduceBy') {
-    lines.push('พบแถวที่ตรงเงื่อนไข: ' + summary.matched + ' แถว');
-    lines.push('ปรับ Amount เป็น 0 (Introduce By = PRTR): ' + summary.zeroedPRTR + ' แถว');
-    lines.push('ไม่เปลี่ยน (Introduce By = CLNT): ' + summary.unchangedCLNT + ' แถว');
-  } else if (fn.id === 'duplicate') {
-    lines.push('เพิ่มแถว EXPENSE ใหม่: ' + summary.added + ' คน');
-    lines.push('อัพเดทแถว EXPENSE ที่มีอยู่แล้ว: ' + summary.updated + ' คน');
-  } else if (fn.id === 'sso750PlusDuplicate' || fn.id === 'ssoIntroduceByPlusDuplicate') {
-    lines.push('พบแถวที่ตรงเงื่อนไข SSO: ' + summary.matched + ' แถว');
-    lines.push('เพิ่มแถว EXPENSE ใหม่: ' + summary.added + ' คน');
-    lines.push('อัพเดทแถว EXPENSE ที่มีอยู่แล้ว: ' + summary.updated + ' คน');
-  } else if (fn.id === 'removeSso') {
-    lines.push('ลบแถวที่ตรงเงื่อนไข: ' + summary.removed + ' แถว');
-  } else if (fn.id === 'merge') {
-    lines.push('รวมไฟล์สำเร็จ: ' + summary.filesAppended + ' ไฟล์');
-    lines.push('จำนวนแถวที่เพิ่มเข้ามา: ' + summary.rowsAppended + ' แถว');
-    if (summary.rejected && summary.rejected.length) {
-      summary.rejected.forEach(function (r) { lines.push('⚠ ไฟล์ที่ ' + r.fileIndex + ': ' + r.reason); });
-    }
-  } else if (fn.id === 'changeHeader') {
-    lines.push('ลบแถว 4 และ 5 สำเร็จ — header ย้ายไปแถว ' + summary.newHeaderRow);
-    lines.push('เปลี่ยนชื่อคอลัมน์: ' + summary.renamed.join(', '));
-  }
-  box.innerHTML = lines.map(function (l) { return '<div>' + esc_(l) + '</div>'; }).join('');
+  var meta = FN_META[fn.id] || { icon: '📄', title: 'สรุปผล' };
+  var processedAtStr = state.processedAt ? state.processedAt.toLocaleString('th-TH') : '-';
+
+  var html = '<div class="result-title">' + meta.icon + ' ' + esc_(meta.title) + '</div>';
+  html += buildResultBody(fn, summary);
+  html += '<div class="result-footer">ไฟล์ต้นฉบับ: ' + esc_(state.sourceLabel) + ' | ประมวลผลเมื่อ: ' + esc_(processedAtStr) + '</div>';
+  html += '<div class="result-actions">' +
+    '<button class="btn-main" id="btnDownload">⬇️ ดาวน์โหลดไฟล์ที่ประมวลผลแล้ว</button>' +
+    '<button class="btn-outline" id="btnReprocess">🔄 ประมวลผลไฟล์ใหม่</button>' +
+    '</div>';
+
+  box.innerHTML = html;
+
+  document.getElementById('btnDownload').addEventListener('click', downloadResult);
+  document.getElementById('btnReprocess').addEventListener('click', resetForNewFile);
 }
 
-document.getElementById('btnDownload').addEventListener('click', function () {
+function downloadResult() {
   if (!state.resultBytes) return;
   var blob = new Blob([state.resultBytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   var url = URL.createObjectURL(blob);
@@ -209,7 +355,7 @@ document.getElementById('btnDownload').addEventListener('click', function () {
   a.href = url; a.download = (state.resultBaseName || 'GL_Invoice') + '_' + state.fnId + '.xlsx';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(function () { URL.revokeObjectURL(url); }, 3000);
-});
+}
 
 // init
 renderSidebar();

@@ -70,32 +70,58 @@ function writeAmount(row, cols, newAmount) {
   row.cellsByCol[cols.Amount] = buildLiteralNumberCell(addr, styleIdx, newAmount);
 }
 
+// Reads the identifying fields of a row that a summary detail table needs to display, BEFORE
+// any write touches it -- paycode/paycodeName never change in functions 1/2/6, so reading them
+// here is always safe regardless of write order.
+function rowDetailBase(row, ctx) {
+  return {
+    row: row.rowNum,
+    paycode: getCellValue(row.cellsByCol[ctx.cols.PaycodeCode], ctx.sst),
+    paycodeName: getCellValue(row.cellsByCol[ctx.cols.PaycodeName], ctx.sst)
+  };
+}
+
 // ── Function 1: SSO PRTR 750 ───────────────────────────────────────────────────────────────────
 function fn1_SsoPrtr750(ctx) {
-  var summary = { matched: 0, reduced: 0, zeroed: 0 };
+  var summary = { matched: 0, reduced: 0, zeroed: 0, countT2A3: 0, countTZ74: 0, details: [] };
   ctx.model.rows.forEach(function (row) {
     if (row.rowNum <= ctx.headerRow) return;
     if (!matchesSSOCondition(row, ctx.cols, ctx.sst)) return;
     summary.matched++;
+    var detail = rowDetailBase(row, ctx);
+    if (normTextUpper(detail.paycode) === 'T2A3') summary.countT2A3++; else summary.countTZ74++;
     var amt = getCellValue(row.cellsByCol[ctx.cols.Amount], ctx.sst);
     amt = typeof amt === 'number' ? amt : 0;
-    if (amt > 750) { writeAmount(row, ctx.cols, amt - 750); summary.reduced++; }
-    else { writeAmount(row, ctx.cols, 0); summary.zeroed++; }
+    detail.amountBefore = amt;
+    if (amt > 750) { writeAmount(row, ctx.cols, amt - 750); summary.reduced++; detail.amountAfter = amt - 750; detail.note = 'ลด 750'; }
+    else { writeAmount(row, ctx.cols, 0); summary.zeroed++; detail.amountAfter = 0; detail.note = 'ปรับเป็น 0'; }
+    summary.details.push(detail);
   });
   return summary;
 }
 
 // ── Function 2: SSO Introduce by ───────────────────────────────────────────────────────────────
 function fn2_SsoIntroduceBy(ctx) {
-  var summary = { matched: 0, zeroedPRTR: 0, unchangedCLNT: 0, unchangedOther: 0 };
+  var summary = { matched: 0, zeroedPRTR: 0, unchangedCLNT: 0, unchangedOther: 0, countT2A3: 0, countTZ74: 0, details: [] };
   ctx.model.rows.forEach(function (row) {
     if (row.rowNum <= ctx.headerRow) return;
     if (!matchesSSOCondition(row, ctx.cols, ctx.sst)) return;
     summary.matched++;
+    var detail = rowDetailBase(row, ctx);
+    if (normTextUpper(detail.paycode) === 'T2A3') summary.countT2A3++; else summary.countTZ74++;
     var introduceBy = normTextUpper(getCellValue(row.cellsByCol[ctx.cols.IntroduceBy], ctx.sst));
-    if (introduceBy === 'PRTR') { writeAmount(row, ctx.cols, 0); summary.zeroedPRTR++; }
-    else if (introduceBy === 'CLNT') { summary.unchangedCLNT++; }
-    else { summary.unchangedOther++; }
+    var amt = getCellValue(row.cellsByCol[ctx.cols.Amount], ctx.sst);
+    detail.introduceBy = introduceBy;
+    detail.amountBefore = typeof amt === 'number' ? amt : 0;
+    if (introduceBy === 'PRTR') {
+      writeAmount(row, ctx.cols, 0); summary.zeroedPRTR++;
+      detail.amountAfter = 0; detail.note = 'ปรับเป็น 0 (PRTR)';
+    } else if (introduceBy === 'CLNT') {
+      summary.unchangedCLNT++; detail.amountAfter = detail.amountBefore; detail.note = 'ไม่เปลี่ยน (CLNT)';
+    } else {
+      summary.unchangedOther++; detail.amountAfter = detail.amountBefore; detail.note = 'ไม่เปลี่ยน';
+    }
+    summary.details.push(detail);
   });
   return summary;
 }
@@ -152,7 +178,7 @@ function buildExpenseRowFrom(templateRow, ctx) {
 }
 
 function fn3_DuplicateExpense(ctx) {
-  var summary = { added: 0, updated: 0, errors: [] };
+  var summary = { added: 0, updated: 0, errors: [], details: [] };
   var dataRows = ctx.model.rows.filter(function (row) { return row.rowNum > ctx.headerRow; });
 
   var byKey = {};
@@ -178,8 +204,12 @@ function fn3_DuplicateExpense(ctx) {
   if (summary.errors.length) return summary; // hard-stop, never guess which EMP ID is "right"
 
   var newRowsToInsert = [];
+  var newRowKeys = []; // parallel to newRowsToInsert -- carries the person's own EMP ID/name for the detail table
   Object.keys(byKey).forEach(function (key) {
     var person = byKey[key];
+    var templateRow = person.rows[0];
+    var name = getCellValue(templateRow.cellsByCol[ctx.cols.NAME], ctx.sst);
+    var empId = getCellValue(templateRow.cellsByCol[ctx.cols.EMPID], ctx.sst);
     var expenseRow = person.rows.find(function (row) {
       return normTextUpper(getCellValue(row.cellsByCol[ctx.cols.PaycodeCode], ctx.sst)) === EXPENSE_PAYCODE;
     });
@@ -187,14 +217,19 @@ function fn3_DuplicateExpense(ctx) {
       setExpenseFields(expenseRow, ctx);
       recolorRowRed(expenseRow, ctx.styles);
       summary.updated++;
+      summary.details.push({ row: expenseRow.rowNum, name: name, empId: empId, action: 'อัพเดท' });
     } else {
-      newRowsToInsert.push(buildExpenseRowFrom(person.rows[0], ctx));
+      newRowsToInsert.push(buildExpenseRowFrom(templateRow, ctx));
+      newRowKeys.push({ name: name, empId: empId });
       summary.added++;
     }
   });
 
   if (newRowsToInsert.length) {
     var anchorRow = findLastEmployeeRow(ctx.model.rows, ctx.cols.NAME, ctx.sst) || ctx.headerRow;
+    newRowKeys.forEach(function (k, i) {
+      summary.details.push({ row: anchorRow + 1 + i, name: k.name, empId: k.empId, action: 'เพิ่มใหม่' });
+    });
     ctx.model.rows = insertRowsAfter(ctx.model.rows, anchorRow, newRowsToInsert);
   }
   return summary;
@@ -203,13 +238,23 @@ function fn3_DuplicateExpense(ctx) {
 // ── Function 6: Remove SSO ─────────────────────────────────────────────────────────────────────
 function fn6_RemoveSso(ctx) {
   var before = ctx.model.rows.length;
+  var details = [], countT2A3 = 0, countTZ74 = 0;
+  // Capture each matching row's detail BEFORE it's deleted -- deleteAndRenumber discards it.
+  ctx.model.rows.forEach(function (row) {
+    if (row.rowNum <= ctx.headerRow || !matchesSSOCondition(row, ctx.cols, ctx.sst)) return;
+    var detail = rowDetailBase(row, ctx);
+    detail.amount = getCellValue(row.cellsByCol[ctx.cols.Amount], ctx.sst);
+    detail.note = 'ลบออกแล้ว';
+    if (normTextUpper(detail.paycode) === 'T2A3') countT2A3++; else countTZ74++;
+    details.push(detail);
+  });
   ctx.model.rows = deleteAndRenumber(
     ctx.model.rows,
     function (row) { return row.rowNum > ctx.headerRow && matchesSSOCondition(row, ctx.cols, ctx.sst); },
     ctx.headerRow + 1,
     ctx.headerRow + 1
   );
-  return { removed: before - ctx.model.rows.length };
+  return { removed: before - ctx.model.rows.length, countT2A3: countT2A3, countTZ74: countTZ74, details: details };
 }
 
 // ── Function 8: Change Header ──────────────────────────────────────────────────────────────────
@@ -230,14 +275,16 @@ function fn8_ChangeHeader(ctx) {
   if (!headerRowModel) throw new Error('ไม่พบแถว header หลังจากลบแถว 4-5 (คาดว่าจะอยู่ที่แถว ' + newHeaderRow + ')');
 
   var renamed = [];
+  var details = [];
   [['Period', 'Calendar Group'], ['Paycode Code', 'PIN Name']].forEach(function (pair) {
     var oldLabel = pair[0], newLabel = pair[1];
     var colLetter = findColLetterByHeaderText(ctx.aoa, oldHeaderRow, oldLabel);
     writeTextCell(headerRowModel, colLetter, newLabel);
     renamed.push(oldLabel + ' -> ' + newLabel);
+    details.push({ column: colLetter, oldLabel: oldLabel, newLabel: newLabel });
   });
 
-  return { newHeaderRow: newHeaderRow, renamed: renamed };
+  return { newHeaderRow: newHeaderRow, renamed: renamed, details: details, rowsDeleted: 2 };
 }
 
 // ── Structural refs + zip assembly (shared by every function) ─────────────────────────────────
@@ -340,13 +387,24 @@ async function runSingleFileFunction(functionId, buf) {
     var s1 = fn1_SsoPrtr750(ctx);
     reparseContext(ctx);
     var s3a = fn3_DuplicateExpense(ctx);
-    summary = Object.assign({}, s1, s3a);
+    // Deliberately NOT a flat Object.assign -- both stages have their own "details"/"errors" keys,
+    // which would silently clobber stage 1's per-row Amount-adjustment details with stage 3's.
+    summary = {
+      matched: s1.matched, reduced: s1.reduced, zeroed: s1.zeroed, countT2A3: s1.countT2A3, countTZ74: s1.countTZ74,
+      added: s3a.added, updated: s3a.updated, errors: s3a.errors,
+      ssoDetails: s1.details, expenseDetails: s3a.details
+    };
     structuralOpts = buildStructuralOptsAfterAppend(ctx);
   } else if (functionId === 'ssoIntroduceByPlusDuplicate') {
     var s2 = fn2_SsoIntroduceBy(ctx);
     reparseContext(ctx);
     var s3b = fn3_DuplicateExpense(ctx);
-    summary = Object.assign({}, s2, s3b);
+    summary = {
+      matched: s2.matched, zeroedPRTR: s2.zeroedPRTR, unchangedCLNT: s2.unchangedCLNT, unchangedOther: s2.unchangedOther,
+      countT2A3: s2.countT2A3, countTZ74: s2.countTZ74,
+      added: s3b.added, updated: s3b.updated, errors: s3b.errors,
+      ssoDetails: s2.details, expenseDetails: s3b.details
+    };
     structuralOpts = buildStructuralOptsAfterAppend(ctx);
   } else if (functionId === 'removeSso') {
     summary = fn6_RemoveSso(ctx);
@@ -383,11 +441,12 @@ function buildStructuralOptsAfterRowChange(ctx, newHeaderRow, oldYSplit) {
 
 // ── Function 7: Merge ──────────────────────────────────────────────────────────────────────────
 // bufs: array of ArrayBuffer, file 1 first (the base) through file N last, in upload order.
-async function runMergeFunction(bufs) {
+// fileNames: parallel array of display names (optional -- falls back to "ไฟล์ที่ N").
+async function runMergeFunction(bufs, fileNames) {
   if (bufs.length < 2) throw new Error('Merge ต้องการอย่างน้อย 2 ไฟล์');
   var baseCtx = await loadGLInvoiceContext(bufs[0]);
   var baseHeaderLabels = REQUIRED_HEADER_LABELS.slice().sort();
-  var summary = { filesAppended: 0, rowsAppended: 0, rejected: [] };
+  var summary = { filesAppended: 0, rowsAppended: 0, rejected: [], details: [] };
 
   // Per-column style map taken from file 1's own last data row -- file 1 is the explicit visual
   // authority (its header/styles/everything stay as-is); appended rows never carry another file's
@@ -437,6 +496,12 @@ async function runMergeFunction(bufs) {
     });
     summary.filesAppended++;
     summary.rowsAppended += srcDataRows.length;
+    summary.details.push({
+      fileIndex: i + 1,
+      fileName: (fileNames && fileNames[i]) || ('ไฟล์ที่ ' + (i + 1)),
+      rowsAppended: srcDataRows.length,
+      note: 'รวมสำเร็จ'
+    });
   }
 
   if (allNewRows.length) {

@@ -40,6 +40,31 @@
   .btn-main{background:#1565C0;color:#fff;border:none;border-radius:7px;padding:9px 18px;font-size:12.5px;font-weight:600;cursor:pointer;margin-top:10px;}
   .btn-main:disabled{background:#90a4ae;cursor:not-allowed;}
   .dbg{background:#0f172a;color:#80cbc4;border-radius:6px;padding:8px 12px;font-size:10.5px;font-family:Consolas,monospace;white-space:pre-wrap;max-height:160px;overflow:auto;display:none;margin-top:10px;}
+
+  /* ── Result summary card ─────────────────────────────────── */
+  .result-title{font-size:14.5px;font-weight:700;color:#1a237e;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+  .result-sub{font-size:12px;font-weight:700;color:#37474f;margin:4px 0 8px;}
+  .stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:16px;}
+  .stat-box{background:#f8fafc;border:1px solid #eceff1;border-radius:8px;padding:14px 10px;text-align:center;}
+  .stat-num{font-size:26px;font-weight:800;line-height:1.1;}
+  .stat-num.c-red{color:#e53935;} .stat-num.c-green{color:#2e7d32;} .stat-num.c-orange{color:#f57c00;} .stat-num.c-blue{color:#1565C0;}
+  .stat-label{font-size:11px;color:#607d8b;margin-top:5px;}
+  .detail-table-wrap{overflow-x:auto;margin-bottom:12px;border:1px solid #e0e4ea;border-radius:8px;}
+  table.detail-table{width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap;}
+  table.detail-table thead th{background:#1565C0;color:#fff;padding:8px 12px;text-align:left;font-weight:600;position:sticky;top:0;}
+  table.detail-table tbody td{padding:7px 12px;border-top:1px solid #eee;}
+  table.detail-table tbody tr:nth-child(odd){background:#fafbfc;}
+  table.detail-table tbody tr.row-removed{background:#fdecea;}
+  table.detail-table tbody tr.row-added{background:#e8f5e9;}
+  .badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;}
+  .badge.b-removed{background:#ffebee;color:#c62828;}
+  .badge.b-added{background:#e8f5e9;color:#2e7d32;}
+  .badge.b-updated{background:#e3f2fd;color:#1565c0;}
+  .badge.b-neutral{background:#eceff1;color:#546e7a;}
+  .result-footer{font-size:11px;color:#90a4ae;margin:10px 0 14px;}
+  .result-actions{display:flex;gap:10px;flex-wrap:wrap;}
+  .btn-outline{background:#fff;color:#1565C0;border:1px solid #1565C0;border-radius:7px;padding:9px 18px;font-size:12.5px;font-weight:600;cursor:pointer;}
+  .btn-outline:hover{background:#eef4fc;}
 </style>
 </head>
 <body>
@@ -78,7 +103,6 @@
 
       <div id="statusBox" class="status-box" style="display:none"></div>
       <div class="summary-box" id="summaryBox" style="display:none"></div>
-      <button class="btn-main" id="btnDownload" style="display:none">⬇️ ดาวน์โหลดไฟล์ที่ประมวลผลแล้ว</button>
       <div class="dbg" id="dbgBox"></div>
     </div>
   </div>
