@@ -32,22 +32,36 @@ function findHeaderCandidates(aoa, headerRowIdx, mustContain) {
   return out;
 }
 
-// Tiered search for the bundled health-insurance column's header, strictest first. Confirmed
-// real-world phrasings vary by client: KOHLER_PC uses "HEALTH INSURANCE EMPLOYER TOTAL" (matches
-// the strict tier), KARCHER uses plain "Health Insurance Employer" with no "Total" at all (falls
-// through to the loosest tier). Returns the FIRST tier that has at least one match, so a client
-// whose exact phrasing matches the strict tier isn't made ambiguous by looser tiers also matching
-// unrelated columns.
+// Known real-world phrasings for the bundled health-insurance column header, confirmed against
+// actual client files -- most specific first. KOHLER_PC uses the first phrase; KARCHER uses the
+// second, plainer phrase (which is a strict substring of the first -- checking the longer phrase
+// first lets a KOHLER-style file resolve via that single, most-specific tier rather than the
+// looser one, which would also match itself but adds no value there).
+var BUNDLED_HEALTH_PHRASES = [
+  'HEALTH INSURANCE EMPLOYER TOTAL',
+  'HEALTH INSURANCE EMPLOYER',
+];
+
+// Tiered search for the bundled health-insurance column's header. Tries the known exact phrases
+// first (most specific -> least specific, matching real KOHLER_PC / KARCHER files exactly), then
+// falls back to a looser, order-independent word search for any other client's phrasing that
+// doesn't match either known phrase verbatim (e.g. reordered words). Returns the FIRST tier with
+// at least one match, so a file matching an earlier (more specific) tier isn't made falsely
+// ambiguous by a later, looser tier also matching unrelated columns.
 function findBundledHealthCandidatesTiered(aoa, headerRowIdx) {
-  var tiers = [
+  for (var i = 0; i < BUNDLED_HEALTH_PHRASES.length; i++) {
+    var phraseCandidates = findHeaderCandidates(aoa, headerRowIdx, [BUNDLED_HEALTH_PHRASES[i]]);
+    if (phraseCandidates.length) return phraseCandidates;
+  }
+  var tokenTiers = [
     ['INSURANCE', 'TOTAL', 'EMPLOYER'],
     ['INSURANCE', 'TOTAL'],
     ['INSURANCE'], // loosest -- may also catch unrelated text columns (e.g. "Insurance Plan");
                    // that's fine, the ambiguous-candidate picker below makes the user choose.
   ];
-  for (var i = 0; i < tiers.length; i++) {
-    var candidates = findHeaderCandidates(aoa, headerRowIdx, tiers[i]);
-    if (candidates.length) return candidates;
+  for (var j = 0; j < tokenTiers.length; j++) {
+    var tokenCandidates = findHeaderCandidates(aoa, headerRowIdx, tokenTiers[j]);
+    if (tokenCandidates.length) return tokenCandidates;
   }
   return [];
 }
@@ -68,15 +82,16 @@ function findBundledHealthCandidatesTiered(aoa, headerRowIdx) {
 // insurance hint; otherwise (zero matches, or more than one row plausibly qualifies) return -1
 // and let the caller surface this rather than guess.
 //
-// Deliberately conservative here -- requires TWO strong keywords together (INSURANCE+TOTAL or
-// INSURANCE+EMPLOYER), NOT the column-picker's loosest single-keyword ("INSURANCE" alone) tier.
-// Confirmed the real KOHLER_PC row-8 payroll dump has several stray "insurance"-mentioning columns
-// of its own ("Insurance Plan", "Car Insurance (Fixed)", "Fidelity Guarantee Insurance", "Health
-// Insurance By EMP Deduct") -- using the loosest tier here made BOTH row 8 and row 25 qualify,
-// breaking this row-disambiguation itself. A wide payroll table can easily mention "insurance"
-// somewhere among 100+ columns without being the real invoice-summary table; the single-keyword
-// tier is only safe once we already know which row we're picking a column from (see
-// findBundledHealthColumn), not for deciding which row that is.
+// Deliberately conservative here -- checks for the known exact phrases (BUNDLED_HEALTH_PHRASES),
+// NOT the column-picker's looser word-order-independent/single-keyword fallback tiers. Confirmed
+// the real KOHLER_PC row-8 payroll dump has several stray "insurance"-mentioning columns of its
+// own ("Insurance Plan", "Car Insurance (Fixed)", "Fidelity Guarantee Insurance", "Health
+// Insurance By EMP Deduct") -- none contain either exact phrase, so they correctly don't qualify
+// here, but a looser tier (e.g. "INSURANCE" alone) made BOTH row 8 and row 25 qualify, breaking
+// this row-disambiguation itself. A wide payroll table can easily mention "insurance" somewhere
+// among 100+ columns without being the real invoice-summary table; the looser tiers are only safe
+// once we already know which row we're picking a column from (see findBundledHealthColumn), not
+// for deciding which row that is.
 function findInvoiceHeaderRow(aoa) {
   var altIdRows = [];
   for (var r = 0; r < aoa.length; r++) {
@@ -84,8 +99,9 @@ function findInvoiceHeaderRow(aoa) {
   }
   if (altIdRows.length === 1) return altIdRows[0];
   var withBundledHint = altIdRows.filter(function (r) {
-    return findHeaderCandidates(aoa, r, ['INSURANCE', 'TOTAL']).length > 0
-      || findHeaderCandidates(aoa, r, ['INSURANCE', 'EMPLOYER']).length > 0;
+    return BUNDLED_HEALTH_PHRASES.some(function (phrase) {
+      return findHeaderCandidates(aoa, r, [phrase]).length > 0;
+    });
   });
   return withBundledHint.length === 1 ? withBundledHint[0] : -1;
 }
