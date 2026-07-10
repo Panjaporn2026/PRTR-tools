@@ -509,6 +509,11 @@ function colLettersToIndex(letters) {
   for (var i = 0; i < letters.length; i++) col = col * 26 + (letters.charCodeAt(i) - 64);
   return col - 1; // 0-based
 }
+function colIndexToLetters(idx) {
+  var s = '', n = idx + 1;
+  while (n > 0) { var m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); }
+  return s;
+}
 
 // Shared formulas (a Subtotal row filled across many columns via the fill handle is commonly
 // stored this way): a master cell carries the real formula text plus a `ref` range, and every
@@ -522,12 +527,66 @@ function buildSharedFormulaTextMap(sheetXml) {
   return map;
 }
 
+// Maps "COLROW" -> number, for every cell holding a plain numeric literal (no formula, not text).
+// Used as a fallback source of truth when a SUBTOTAL formula cell has no cached <v> of its own
+// (confirmed real-world case: a KARCHER file saved by a non-Excel export pipeline had formula
+// text for every SUBTOTAL cell but NO cached value on any of them -- Excel would compute these on
+// open, but this tool has no formula engine and needs an answer right now to decide hide/show).
+function buildNumericCellGrid(sheetXml) {
+  var grid = {};
+  var cellRe = /<c\s+r="([A-Z]+\d+)"([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g, m;
+  while ((m = cellRe.exec(sheetXml)) !== null) {
+    var addr = m[1], attrs = m[2] || '', inner = m[3] || '';
+    var tMatch = /\bt="([^"]+)"/.exec(attrs);
+    var type = tMatch ? tMatch[1] : null;
+    if (type === 's' || type === 'str' || type === 'inlineStr' || type === 'b' || type === 'e') continue;
+    if (/<f\b/.test(inner)) continue; // only plain literals -- not another formula to evaluate
+    var vMatch = /<v>([\s\S]*?)<\/v>/.exec(inner);
+    if (!vMatch) continue;
+    var num = parseFloat(vMatch[1]);
+    if (!isNaN(num)) grid[addr] = num;
+  }
+  return grid;
+}
+
+// SUBTOTAL's simple aggregate function codes (both the 1-11 "include everything" and the 101-111
+// "ignore manually-hidden rows" variants -- collapsed to the same 1-11 meaning here, since this
+// tool can't know a hidden-row distinction the source file didn't cache either way) are
+// computable directly from the referenced range's own raw values, without a real formula engine.
+// Returns null for any other aggregate (STDEV, VAR, etc.) rather than guessing.
+function computeSubtotalFromRange(formulaText, numericGrid) {
+  var m = /SUBTOTAL\s*\(\s*(\d+)\s*,\s*([A-Z]+)(\d+):([A-Z]+)(\d+)\s*\)/i.exec(formulaText);
+  if (!m) return null;
+  var funcCode = parseInt(m[1], 10) % 100;
+  var startIdx = colLettersToIndex(m[2]), endIdx = colLettersToIndex(m[4]);
+  var rowStart = parseInt(m[3], 10), rowEnd = parseInt(m[5], 10);
+  var values = [];
+  for (var c = Math.min(startIdx, endIdx); c <= Math.max(startIdx, endIdx); c++) {
+    var letters = colIndexToLetters(c);
+    for (var r = Math.min(rowStart, rowEnd); r <= Math.max(rowStart, rowEnd); r++) {
+      var addr = letters + r;
+      if (numericGrid[addr] !== undefined) values.push(numericGrid[addr]);
+    }
+  }
+  switch (funcCode) {
+    case 9: return values.reduce(function (a, b) { return a + b; }, 0); // SUM
+    case 1: return values.length ? values.reduce(function (a, b) { return a + b; }, 0) / values.length : 0; // AVERAGE
+    case 2: return values.length; // COUNT
+    case 4: return values.length ? Math.max.apply(null, values) : 0; // MAX
+    case 5: return values.length ? Math.min.apply(null, values) : 0; // MIN
+    default: return null;
+  }
+}
+
 // Scan every cell in the sheet for a SUBTOTAL(...) formula (resolving shared-formula slaves via
-// the master text above) and group each column's cached <v> values. Returns the 0-based column
-// indices where EVERY SUBTOTAL value found for that column is zero -- a column with even one
-// nonzero subtotal anywhere in the sheet (e.g. a per-group subtotal further down) stays visible.
+// the master text above) and group each column's values -- from the cached <v> if present, else
+// computed directly from the range's own raw data (see computeSubtotalFromRange). Returns the
+// 0-based column indices where EVERY SUBTOTAL value found for that column is zero -- a column
+// with even one nonzero subtotal anywhere in the sheet (e.g. a per-group subtotal further down)
+// stays visible.
 function findZeroSubtotalColumns(sheetXml) {
   var sharedMap = buildSharedFormulaTextMap(sheetXml);
+  var numericGrid = null; // built lazily, only if some cell actually needs the fallback
   var colValues = {};
   var cellRe = /<c\s+r="([A-Z]+)\d+"([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g, m;
   while ((m = cellRe.exec(sheetXml)) !== null) {
@@ -540,7 +599,11 @@ function findZeroSubtotalColumns(sheetXml) {
     if (!formulaText || !/SUBTOTAL\s*\(/i.test(formulaText)) continue;
     var vMatch = /<v>([\s\S]*?)<\/v>/.exec(inner);
     var val = vMatch ? parseFloat(vMatch[1]) : NaN;
-    if (isNaN(val)) continue;
+    if (isNaN(val)) {
+      if (!numericGrid) numericGrid = buildNumericCellGrid(sheetXml);
+      val = computeSubtotalFromRange(formulaText, numericGrid);
+    }
+    if (val === null || isNaN(val)) continue;
     var idx = colLettersToIndex(colLetters);
     (colValues[idx] || (colValues[idx] = [])).push(val);
   }
