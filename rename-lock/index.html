@@ -767,8 +767,10 @@ function findColsAfterMemoOrTotal(sheetXml, sharedStrings) {
   if (col === null) return [];
   const dimMatch = /<dimension ref="[A-Z]+\d+:([A-Z]+)\d+"/.exec(sheetXml);
   const maxCol = dimMatch ? colLettersToIndex(dimMatch[1]) : col;
+  // Leave one column visible right after Memo/Total Invoice Before Vat as a spacer before the
+  // hidden columns start, so the hide boundary doesn't look like it's cutting off mid-table.
   const toHide = [];
-  for (let c = col + 1; c <= maxCol; c++) toHide.push(c);
+  for (let c = col + 2; c <= maxCol; c++) toHide.push(c);
   return toHide;
 }
 
