@@ -1,5 +1,5 @@
 // ══════════════════════════════════════════════════════
-//  UI wiring for the KOHLER Health Insurance Reconcile tool.
+//  UI wiring for the Health Insurance Reconcile tool.
 //  See formula.js / reconcile.js / employee.js / verify.js / excel.js for the actual logic --
 //  this file is state + rendering + the top-level pipeline that calls into them.
 // ══════════════════════════════════════════════════════
