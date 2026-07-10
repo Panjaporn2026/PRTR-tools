@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GL Invoice Processing</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;font-size:13px;background:#f0f2f5;color:#1a1a2e;}
+  .app{max-width:1080px;margin:0 auto;padding:16px;}
+  a.back{display:inline-block;margin-bottom:10px;color:#546e7a;text-decoration:none;font-size:13px;}
+  .card{background:#fff;border-radius:10px;border:1px solid #e0e4ea;padding:20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+  h1{font-size:20px;font-weight:700;color:#1a237e;}
+  .subtitle{color:#546e7a;font-size:11.5px;margin-top:3px;}
+  h2{font-size:14px;font-weight:700;color:#1a237e;margin-bottom:10px;}
+  .usage{background:#e3f2fd;border-radius:8px;padding:12px 14px;font-size:12px;color:#0d47a1;line-height:1.7;margin-bottom:14px;}
+  .usage b{color:#1565c0}
+  .layout{display:grid;grid-template-columns:230px 1fr;gap:16px;align-items:start;}
+  @media(max-width:760px){.layout{grid-template-columns:1fr;}}
+  .sidebar{display:flex;flex-direction:column;gap:6px;}
+  .fn-btn{text-align:left;background:#f8fafc;border:1px solid #e0e4ea;border-radius:8px;padding:10px 12px;font-size:12.5px;cursor:pointer;color:#37474f;transition:.15s;}
+  .fn-btn:hover{border-color:#1565C0;background:#eef4fc;}
+  .fn-btn.active{background:#1565C0;color:#fff;border-color:#1565C0;font-weight:600;}
+  .main-col{min-width:0;}
+  .fn-desc{font-size:12px;color:#546e7a;background:#f8fafc;border-radius:8px;padding:10px 12px;margin-bottom:14px;line-height:1.6;white-space:pre-line;}
+  .dz{border:2px dashed #90a4ae;border-radius:8px;background:#f8fafc;text-align:center;padding:22px 12px;cursor:pointer;transition:.15s;min-height:70px;}
+  .dz.drag{border-color:#3f51b5;background:#e8eaf6;}
+  .dz input[type=file]{display:none;}
+  .dz-hint{font-size:11.5px;color:#607d8b;margin-top:6px;}
+  .status-box{border-radius:6px;padding:8px 14px;font-size:12px;margin:10px 0;}
+  .status-box.info{background:#e3f2fd;color:#1565c0;}
+  .status-box.ok{background:#e8f5e9;color:#2e7d32;}
+  .status-box.err{background:#ffebee;color:#c62828;}
+  .file-row{display:flex;align-items:center;gap:8px;border:1px solid #e0e4ea;border-radius:6px;padding:6px 10px;margin-top:6px;font-size:12px;}
+  .file-row .idx{background:#1565C0;color:#fff;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:10.5px;flex-shrink:0;}
+  .file-row .fname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .file-row .rm{background:none;border:none;color:#e53935;cursor:pointer;font-size:14px;}
+  .summary-box{background:#f8fafc;border-radius:8px;padding:12px 14px;font-size:12px;margin-top:12px;line-height:1.8;}
+  .summary-box .err-line{color:#c62828;}
+  .btn-main{background:#1565C0;color:#fff;border:none;border-radius:7px;padding:9px 18px;font-size:12.5px;font-weight:600;cursor:pointer;margin-top:10px;}
+  .btn-main:disabled{background:#90a4ae;cursor:not-allowed;}
+  .dbg{background:#0f172a;color:#80cbc4;border-radius:6px;padding:8px 12px;font-size:10.5px;font-family:Consolas,monospace;white-space:pre-wrap;max-height:160px;overflow:auto;display:none;margin-top:10px;}
+</style>
+</head>
+<body>
+<div class="app">
+<a href="../" class="back">← กลับหน้าหลัก</a>
+<div class="card">
+  <h1>📊 GL Invoice Processing</h1>
+  <div class="subtitle">ประมวลผลไฟล์ GL Invoice — PRTR Group</div>
+</div>
+
+<div class="card">
+  <div class="usage">
+    📘 <b>วิธีการใช้งาน</b><br>
+    1. เลือกเมนูฟังก์ชันที่ต้องการจากแถบด้านซ้าย<br>
+    2. คลิกหรือลากไฟล์ Excel (.xlsx) มาวางในกล่องอัปโหลด<br>
+    3. ระบบจะประมวลผลอัตโนมัติตามเงื่อนไขของแต่ละฟังก์ชัน และแสดงสรุปผลด้านล่าง<br>
+    4. กด ⬇️ ดาวน์โหลดไฟล์ที่ประมวลผลแล้ว เพื่อบันทึกผลลัพธ์<br>
+    ⚠️ ตรวจสอบความถูกต้องของข้อมูลในไฟล์ต้นฉบับก่อนทุกครั้งเพื่อความแม่นยำ
+  </div>
+
+  <div class="layout">
+    <div class="sidebar" id="sidebar"></div>
+    <div class="main-col">
+      <div class="fn-desc" id="fnDesc"></div>
+
+      <div class="dz" id="dropzone">
+        <label style="cursor:pointer">
+          <div>📄 คลิกหรือลากไฟล์ Excel มาวาง</div>
+          <div class="dz-hint" id="dzHint">.xlsx</div>
+          <input type="file" id="fileInput" accept=".xlsx,.xlsm">
+        </label>
+      </div>
+
+      <div id="fileList"></div>
+      <button class="btn-main" id="btnProcess" style="display:none">▶ เริ่มรวมไฟล์</button>
+
+      <div id="statusBox" class="status-box" style="display:none"></div>
+      <div class="summary-box" id="summaryBox" style="display:none"></div>
+      <button class="btn-main" id="btnDownload" style="display:none">⬇️ ดาวน์โหลดไฟล์ที่ประมวลผลแล้ว</button>
+      <div class="dbg" id="dbgBox"></div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script src="excel.js"></script>
+<script src="sheetmodel.js"></script>
+<script src="styles.js"></script>
+<script src="functions.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
