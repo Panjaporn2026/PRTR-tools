@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KOHLER Health Insurance Reconcile</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;font-size:13px;background:#f0f2f5;color:#1a1a2e;}
+  .app{max-width:960px;margin:0 auto;padding:16px;}
+  a.back{display:inline-block;margin-bottom:10px;color:#546e7a;text-decoration:none;font-size:13px;}
+  .card{background:#fff;border-radius:10px;border:1px solid #e0e4ea;padding:20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+  h1{font-size:20px;font-weight:700;color:#1a237e;}
+  .subtitle{color:#546e7a;font-size:11.5px;margin-top:3px;}
+  h2{font-size:14px;font-weight:700;color:#1a237e;margin-bottom:10px;}
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media(max-width:640px){.two-col{grid-template-columns:1fr;}}
+  .dz{border:2px dashed #90a4ae;border-radius:8px;background:#f8fafc;text-align:center;padding:22px 12px;cursor:pointer;transition:.15s;min-height:90px;}
+  .dz.drag{border-color:#3f51b5;background:#e8eaf6;}
+  .dz.done{border-color:#43a047;background:#f1f8e9;}
+  .dz input[type=file]{display:none;}
+  .dz-hint{font-size:12px;color:#607d8b;margin-top:6px;}
+  .status-box{border-radius:6px;padding:8px 14px;font-size:12px;margin-bottom:10px;}
+  .status-box.info{background:#e3f2fd;color:#1565c0;}
+  .status-box.ok{background:#e8f5e9;color:#2e7d32;}
+  .status-box.err{background:#ffebee;color:#c62828;}
+  .invoice-card{border:1px solid #e0e4ea;border-radius:8px;padding:12px 14px;margin-bottom:10px;}
+  .invoice-card-top{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+  .month-tag{background:#e8eaf6;color:#283593;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600;}
+  .row-remove{margin-left:auto;background:none;border:none;color:#e53935;cursor:pointer;font-size:15px;}
+  .col-card{border-radius:6px;padding:8px 10px;font-size:12px;}
+  .col-card.ok{background:#e8f5e9;}
+  .col-card.warn{background:#fffbeb;}
+  .col-card.err{background:#ffebee;}
+  .col-candidate{margin-top:4px;font-size:12px;}
+  .btn-ack{margin-top:6px;background:#1565C0;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11.5px;cursor:pointer;}
+  .dup-warn{background:#fffbeb;color:#b45309;border-radius:6px;padding:6px 10px;font-size:11.5px;margin-top:6px;}
+  .month-cb{display:inline-flex;align-items:center;gap:5px;margin:4px 10px 4px 0;font-size:12.5px;}
+  .empty-hint{color:#90a4ae;font-size:12.5px;padding:10px;text-align:center;}
+  .btn-main{background:#1565C0;color:#fff;border:none;border-radius:7px;padding:11px 22px;font-size:13.5px;font-weight:600;cursor:pointer;}
+  .btn-main:disabled{background:#90a4ae;cursor:not-allowed;}
+  .dbg{background:#0f172a;color:#80cbc4;border-radius:6px;padding:8px 12px;font-size:10.5px;font-family:Consolas,monospace;white-space:pre-wrap;max-height:180px;overflow:auto;display:none;margin-top:10px;}
+  table{width:100%;border-collapse:collapse;font-size:12px;}
+  thead th{background:#f3f4f6;padding:6px 9px;text-align:left;font-weight:600;}
+  td{padding:6px 9px;border-top:1px solid #eee;}
+  .mo-amt{display:inline-block;margin-right:8px;color:#37474f;}
+  .candidate-card{border:1px solid #e0e4ea;border-radius:8px;padding:10px 12px;margin-bottom:8px;}
+  .cand-check{display:flex;align-items:center;gap:8px;font-size:13px;}
+  .bundle-label{font-size:11.5px;color:#607d8b;margin:4px 0 0 24px;}
+  .nearmiss-warn{background:#fffbeb;color:#b45309;border-radius:6px;padding:6px 10px;font-size:11.5px;margin:6px 0 0 24px;}
+  .tpl-picker{margin:8px 0 0 24px;font-size:12.5px;}
+  .tpl-picker select{margin-left:6px;padding:3px 6px;border-radius:5px;border:1px solid #cfd8dc;}
+  .tpl-error{background:#ffebee;color:#c62828;border-radius:6px;padding:6px 10px;font-size:11.5px;margin-top:6px;}
+  .tpl-ok{background:#e8f5e9;color:#2e7d32;border-radius:6px;padding:6px 10px;font-size:11.5px;margin-top:6px;}
+  .warn-note{background:#fffbeb;border:1px solid #f59e0b;border-radius:8px;padding:10px 14px;font-size:12px;color:#92400e;margin-bottom:14px;}
+</style>
+</head>
+<body>
+<div class="app">
+<a href="../" class="back">← กลับหน้าหลัก</a>
+<div class="card">
+  <h1>🩺 KOHLER Health Insurance Reconcile</h1>
+  <div class="subtitle">อ่าน invoice รายเดือน กรอกยอดลง Detail Reconcile ให้อัตโนมัติ และช่วยเพิ่มพนักงานใหม่แบบตรวจสอบก่อนทุกขั้นตอน</div>
+</div>
+
+<div class="card">
+  <div class="warn-note">⚠️ ไม่มีเครื่องมือคำนวณสูตร Excel ในเบราว์เซอร์ — ไฟล์ที่ได้จะถูกตั้งให้คำนวณสูตรใหม่ทั้งหมดทันทีที่เปิดใน Excel (บนเครื่อง ไม่ใช่ Excel Online) กรุณาเปิดตรวจดูคอลัมน์ Actual Cost ของพนักงานใหม่ก่อนใช้งานจริงเสมอ</div>
+  <h2>📂 อัปโหลดไฟล์</h2>
+  <div class="two-col">
+    <div>
+      <div style="font-size:11.5px;font-weight:700;color:#1a237e;margin-bottom:6px;">1. ไฟล์ Reconcile</div>
+      <div class="dz" id="reconcileDrop">
+        <label>
+          <div>📄 คลิกหรือลากไฟล์มาวาง</div>
+          <div class="dz-hint">KOHLER_PC - Data Reconcile health insurance ....xlsx</div>
+          <input type="file" id="reconcileInput" accept=".xlsx">
+        </label>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:11.5px;font-weight:700;color:#1a237e;margin-bottom:6px;">2. ไฟล์ Invoice รายเดือน (เลือกได้หลายไฟล์)</div>
+      <div class="dz" id="invoiceDrop">
+        <label>
+          <div>📄 คลิกหรือลากไฟล์มาวาง</div>
+          <div class="dz-hint">KOHLER PC - Invoice MMYY.xlsx</div>
+          <input type="file" id="invoiceInput" accept=".xlsx" multiple>
+        </label>
+      </div>
+    </div>
+  </div>
+  <div id="statusBox" class="status-box" style="display:none"></div>
+  <div class="dbg" id="dbgBox"></div>
+</div>
+
+<div class="card">
+  <h2>📄 ไฟล์ Invoice ที่โหลดแล้ว</h2>
+  <div id="invoiceList"></div>
+</div>
+
+<div class="card">
+  <h2>🗓 เดือนที่อยู่ในขอบเขตรอบนี้</h2>
+  <div id="monthChecklist"></div>
+</div>
+
+<div class="card">
+  <button class="btn-main" id="btnStart" onclick="startProcess()" disabled>▶ เริ่มประมวลผล</button>
+</div>
+
+<div class="card" id="reviewCard" style="display:none">
+  <h2>✔ พนักงานเดิม — ยอดที่จะกรอกลง Invoice</h2>
+  <div id="writePreview"></div>
+  <h2 style="margin-top:18px">🆕 พนักงานใหม่ที่พบ (ไม่ติ๊ก = ไม่เพิ่ม)</h2>
+  <div id="candidateList"></div>
+  <button class="btn-main" style="margin-top:14px" onclick="generateOutput()">⬇ สร้างและดาวน์โหลดไฟล์</button>
+</div>
+
+</div>
+
+<script src="excel.js"></script>
+<script src="formula.js"></script>
+<script src="reconcile.js"></script>
+<script src="employee.js"></script>
+<script src="verify.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
