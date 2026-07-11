@@ -34,9 +34,9 @@
   document.head.appendChild(style);
 
   var PET_DEFS = [
-    { src: 'puppy.png', speed: 42 },
-    { src: 'kitten.png', speed: 36 },
-    { src: 'rabbit.png', speed: 58 }
+    { restSrc: 'puppy.png', moveSrc: 'puppy_walk.png', speed: 42 },
+    { restSrc: 'kitten.png', moveSrc: 'kitten_walk.png', speed: 36 },
+    { restSrc: 'rabbit.png', moveSrc: 'rabbit_hop.png', speed: 58 }
   ];
 
   function maxX() { return Math.max(40, (window.innerWidth || 800) - 60); }
@@ -48,14 +48,14 @@
     flip.className = 'osi-pet-flip';
     var img = document.createElement('img');
     img.className = 'osi-pet-img walking';
-    img.src = base + def.src;
+    img.src = base + def.moveSrc;
     img.alt = '';
     flip.appendChild(img);
     wrap.appendChild(flip);
     container.appendChild(wrap);
 
     return {
-      el: wrap, flip: flip, img: img,
+      el: wrap, flip: flip, img: img, restSrc: def.restSrc, moveSrc: def.moveSrc,
       x: Math.random() * maxX(),
       dir: Math.random() < 0.5 ? 1 : -1,
       speed: def.speed,
@@ -70,13 +70,16 @@
     p.img.classList.remove('walking', 'sitting', 'lying');
     if (p.zzz) { p.zzz.remove(); p.zzz = null; }
     if (state === 'walk') {
+      p.img.src = base + p.moveSrc;
       p.img.classList.add('walking');
       p.timer = 4 + Math.random() * 5;
       if (Math.random() < 0.4) p.dir *= -1;
     } else if (state === 'sit') {
+      p.img.src = base + p.restSrc;
       p.img.classList.add('sitting');
       p.timer = 2 + Math.random() * 2.5;
     } else if (state === 'lie') {
+      p.img.src = base + p.restSrc;
       p.img.classList.add('lying');
       p.timer = 4 + Math.random() * 4;
       var z = document.createElement('div');
