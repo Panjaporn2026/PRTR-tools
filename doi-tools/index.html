@@ -31,26 +31,6 @@
     h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; color: #c8102e; }
     .subtitle { font-size: 14px; color: #546e7a; margin-bottom: 24px; }
 
-    /* Drop zone */
-    .dropzone {
-      border: 2px dashed #90a4ae; border-radius: 10px; background: #f8fafc;
-      padding: 28px 20px; text-align: center; cursor: pointer;
-      transition: all .2s; margin-bottom: 20px;
-    }
-    .dropzone:hover, .dropzone.dragover { border-color: #c8102e; background: #fde8ec; }
-    .dropzone .dz-icon { font-size: 28px; margin-bottom: 6px; }
-    .dropzone .dz-title { font-size: 14px; font-weight: 500; }
-    .dropzone .dz-hint { font-size: 12px; color: #607d8b; margin-top: 3px; }
-    #fileInput { display: none; }
-
-    /* Global password bar */
-    .global-bar {
-      background: #fff; border: 1px solid #e0e4ea; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.05);
-      padding: 14px 16px; margin-bottom: 20px; display: none;
-    }
-    .global-bar.show { display: block; }
-    .global-bar-top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-    .global-bar-top label { font-size: 13px; font-weight: 500; color: #546e7a; flex-shrink: 0; }
     .toggle-sw { position: relative; display: inline-block; width: 36px; height: 20px; }
     .toggle-sw input { display: none; }
     .toggle-sw .slider {
@@ -64,104 +44,21 @@
     }
     .toggle-sw input:checked + .slider { background: #c8102e; }
     .toggle-sw input:checked + .slider::after { transform: translateX(16px); }
-    .global-pw-row { display: flex; gap: 8px; align-items: center; }
-    .global-pw-row input {
-      flex: 1; background: #fff; border: 1px solid #cfd8dc;
-      border-radius: 8px; color: #1a1a2e; font-size: 14px;
-      padding: 9px 12px; outline: none; transition: border-color .2s;
-    }
-    .global-pw-row input:focus { border-color: #c8102e; }
-    .btn-apply {
-      background: #c8102e; border: none; border-radius: 8px;
-      color: #fff; cursor: pointer; font-size: 13px; font-weight: 600;
-      padding: 9px 14px; white-space: nowrap; transition: background .2s;
-    }
-    .btn-apply:hover { background: #a30d24; }
-
-    /* File list */
-    .file-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
-
-    .file-row {
-      background: #fff; border: 1px solid #e0e4ea; box-shadow: 0 1px 4px rgba(0,0,0,.05);
-      border-radius: 10px; padding: 14px 16px;
-      transition: border-color .2s;
-    }
-    .file-row.done  { border-color: #43a047; }
-    .file-row.error { border-color: #e53935; }
-    .file-row.processing { border-color: #c8102e; }
-
-    .row-top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-    .row-icon { font-size: 20px; flex-shrink: 0; }
-    .row-orig { font-size: 13px; color: #607d8b; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .row-remove { background: none; border: none; color: #90a4ae; cursor: pointer; font-size: 16px; line-height: 1; padding: 2px; }
-    .row-remove:hover { color: #e53935; }
-
-    .row-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    @media (max-width: 500px) { .row-fields { grid-template-columns: 1fr; } }
-
-    .field-wrap { display: flex; }
-    .field-wrap input {
-      flex: 1; min-width: 0; background: #f8fafc; border: 1px solid #cfd8dc;
-      border-radius: 8px 0 0 8px; color: #1a1a2e; font-size: 13px;
-      padding: 8px 10px; outline: none; transition: border-color .2s;
-    }
-    .field-wrap input:focus { border-color: #c8102e; background: #fff; }
-    .field-ext {
-      background: #eceff1; border: 1px solid #cfd8dc; border-left: none;
-      border-radius: 0 8px 8px 0; padding: 8px 10px; font-size: 13px;
-      color: #607d8b; white-space: nowrap; flex-shrink: 0;
-    }
     .pw-field { position: relative; display: flex; }
-    .pw-field input { flex: 1; min-width: 0; border-radius: 8px; padding-right: 36px; }
+    .pw-field input {
+      flex: 1; min-width: 0; background: #fff; border: 1px solid #cfd8dc;
+      border-radius: 8px; color: #1a1a2e; font-size: 14px;
+      padding: 9px 12px; padding-right: 36px; outline: none; transition: border-color .2s;
+    }
+    .pw-field input:focus { border-color: #c8102e; }
     .pw-eye {
       position: absolute; right: 9px; top: 50%; transform: translateY(-50%);
       background: none; border: none; color: #90a4ae; cursor: pointer; font-size: 14px;
     }
     .pw-eye:hover { color: #546e7a; }
 
-    .row-status { margin-top: 10px; display: none; font-size: 13px; }
-    .row-status.show { display: flex; align-items: center; gap: 8px; }
-    .status-ok { color: #2e7d32; }
-    .status-err { color: #c62828; }
-    .status-proc { color: #c8102e; }
-    .btn-dl-row {
-      display: inline-flex; align-items: center; gap: 6px;
-      background: #2e7d32; border: none; border-radius: 6px;
-      color: #fff; cursor: pointer; font-size: 12px; font-weight: 600;
-      padding: 5px 12px; text-decoration: none; margin-left: auto;
-      transition: background .2s; white-space: nowrap;
-    }
-    .btn-dl-row:hover { background: #1b5e20; color: #fff; }
-
-    /* Action row */
-    .action-row { display: flex; gap: 10px; flex-wrap: wrap; }
-    .btn-main {
-      flex: 1; min-width: 160px; background: #c8102e; border: none; border-radius: 8px;
-      color: #fff; cursor: pointer; font-size: 14px; font-weight: 600;
-      padding: 12px; transition: background .2s;
-    }
-    .btn-main:hover:not(:disabled) { background: #a30d24; }
-    .btn-main:disabled { background: #90a4ae; color: #eceff1; cursor: not-allowed; }
-    .btn-zip {
-      background: #fff; border: 1px solid #c8102e; border-radius: 8px;
-      color: #c8102e; cursor: pointer; font-size: 14px; font-weight: 600;
-      padding: 12px 20px; transition: all .2s; display: none;
-    }
-    .btn-zip.show { display: inline-flex; align-items: center; gap: 6px; }
-    .btn-zip:hover { background: #fde8ec; }
-
-    /* Overall progress */
-    .overall-progress { margin-top: 14px; display: none; }
-    .overall-progress.show { display: block; }
-    .prog-bar { height: 4px; background: #e0e4ea; border-radius: 2px; overflow: hidden; }
-    .prog-fill { height: 100%; width: 0%; background: #c8102e; border-radius: 2px; transition: width .3s; }
-    .prog-label { font-size: 12px; color: #607d8b; margin-top: 5px; }
-
     .divider { border: none; border-top: 1px solid #e0e4ea; margin: 20px 0; }
     .info-row { font-size: 12px; color: #90a4ae; display: flex; gap: 7px; align-items: flex-start; }
-
-    .empty-hint { text-align: center; color: #90a4ae; font-size: 13px; padding: 8px; display: none; }
-    .empty-hint.show { display: block; }
 
     /* Mapping-style section (auto-name / split cards) */
     .mapping-section {
@@ -232,21 +129,42 @@
       <div class="mapping-header-left">
         <div>
           <div class="mapping-title">🏷️ ตั้งชื่ออัตโนมัติ / ✂️ ตัดไฟล์จาก Detail of Invoice</div>
-          <div class="mapping-desc">อ่าน Project Code SAP / เดือนที่จ่ายจากในไฟล์ .xlsx แล้วตั้งชื่อเป็น "Project Code SAP_Detail of invoice_MMYY" ต่อท้ายด้วยคอลัมน์ที่เลือกด้านล่าง — คอลัมน์ชุดเดียวกันนี้ใช้กำหนดว่าจะตัดไฟล์แยกตามอะไรด้วย</div>
+          <div class="mapping-desc">อ่าน Project Code SAP / เดือนที่จ่ายจากในไฟล์ .xlsx แล้วตั้งชื่อเป็น "Project Code SAP_Detail of invoice_MMYY" ต่อท้ายด้วยคอลัมน์ที่เลือกด้านล่าง — คอลัมน์ชุดเดียวกันนี้ใช้กำหนดว่าจะตัดไฟล์แยกตามอะไรด้วย ทุกไฟล์ที่ออกจากเครื่องมือนี้จะถูกซ่อนคอลัมน์ Subtotal = 0 และคอลัมน์หลัง Memo/Total Invoice Before Vat ให้อัตโนมัติเสมอ</div>
         </div>
       </div>
-      <button class="btn-tpl" onclick="autoNameAll()">🏷️ ตั้งชื่ออัตโนมัติ</button>
     </div>
     <div class="autoname-cols" id="autoNameColsWrap" style="display:none"></div>
-    <div class="mapping-status" id="autoNameStatus"></div>
+
+    <!-- Auto-name -->
     <div class="mapping-upload-row" style="margin-top:10px">
+      <div class="mapping-drop" id="autoNameDrop" onclick="document.getElementById('autoNameInput').click()">
+        🏷️ คลิกหรือลากไฟล์ Detail of Invoice มาวาง (เลือกได้หลายไฟล์) เพื่อตั้งชื่ออัตโนมัติ
+      </div>
+      <button class="btn-tpl" id="btnRunAutoName" onclick="runAutoName()" disabled>🏷️ ตั้งชื่ออัตโนมัติ (ดาวน์โหลด)</button>
+    </div>
+    <input type="file" id="autoNameInput" accept=".xlsx" multiple style="display:none">
+    <div class="split-pw-row">
+      <label class="split-pw-label">
+        <span class="toggle-sw"><input type="checkbox" id="autoNamePwToggle" onchange="toggleAutoNamePwRow()"><span class="slider"></span></span>
+        ใส่รหัสผ่านให้ไฟล์ (รหัสเดียวกันทุกไฟล์)
+      </label>
+      <div class="pw-field" id="autoNamePwFieldWrap" style="display:none">
+        <input type="password" id="autoNamePw" placeholder="รหัสผ่าน">
+        <button class="pw-eye" onclick="toggleAutoNamePwVisibility()" tabindex="-1">👁</button>
+      </div>
+    </div>
+    <div class="mapping-status" id="autoNameStatus"></div>
+
+    <hr style="border:none;border-top:1px solid #e0e4ea;margin:16px 0">
+
+    <!-- Split -->
+    <div class="mapping-upload-row">
       <div class="mapping-drop" id="splitDrop" onclick="document.getElementById('splitInput').click()">
         ✂️ คลิกหรือลากไฟล์ Detail of Invoice 1 ไฟล์ ที่ต้องการตัดไฟล์มาวางที่นี่ (คอลัมน์ด้านบนจะขึ้นตามไฟล์นี้)
       </div>
       <button class="btn-tpl" id="btnRunSplit" onclick="runSplit()" disabled>✂️ ตัดไฟล์ (ดาวน์โหลด ZIP)</button>
     </div>
     <input type="file" id="splitInput" accept=".xlsx" style="display:none">
-    <div class="mapping-desc" style="margin-top:8px">ทุกไฟล์ที่ตัดออกมาจะถูกซ่อนคอลัมน์ที่ยอด Subtotal = 0 และคอลัมน์หลัง Memo/Total Invoice Before Vat ให้อัตโนมัติ (เหมือนไฟล์ที่ผ่านการ "ประมวลผล" ปกติ)</div>
     <div class="split-pw-row">
       <label class="split-pw-label">
         <span class="toggle-sw"><input type="checkbox" id="splitPwToggle" onchange="toggleSplitPwRow()"><span class="slider"></span></span>
@@ -260,44 +178,6 @@
     <div class="mapping-status" id="splitStatus"></div>
   </div>
 
-  <!-- Drop zone (always visible) -->
-  <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
-    <div class="dz-icon">📗</div>
-    <div class="dz-title">คลิกหรือลากไฟล์ Detail of Invoice มาวาง</div>
-    <div class="dz-hint">รองรับเฉพาะ .xlsx · เลือกได้หลายไฟล์พร้อมกัน — ใช้ตั้งชื่ออัตโนมัติ + ซ่อนคอลัมน์ + ล็อกรหัสผ่านทีละหลายไฟล์</div>
-  </div>
-  <input type="file" id="fileInput" accept=".xlsx" multiple>
-
-  <!-- Global password -->
-  <div class="global-bar" id="globalBar">
-    <div class="global-bar-top">
-      <label>ใส่รหัสผ่านเดียวกันทุกไฟล์</label>
-      <label class="toggle-sw"><input type="checkbox" id="globalToggle" onchange="toggleGlobal()"><span class="slider"></span></label>
-    </div>
-    <div class="global-pw-row" id="globalPwRow" style="display:none">
-      <div class="pw-field" style="flex:1">
-        <input type="password" id="globalPw" placeholder="รหัสผ่านสำหรับทุกไฟล์">
-        <button class="pw-eye" onclick="toggleGlobalPw()" tabindex="-1">👁</button>
-      </div>
-      <button class="btn-apply" onclick="applyGlobalPw()">ใช้กับทุกไฟล์</button>
-    </div>
-  </div>
-
-  <!-- File list -->
-  <div class="file-list" id="fileList"></div>
-  <div class="empty-hint" id="emptyHint">ยังไม่มีไฟล์ — ลากหรือคลิกเพื่อเพิ่ม</div>
-
-  <!-- Actions -->
-  <div class="action-row" id="actionRow" style="display:none">
-    <button class="btn-main" id="btnProcess" onclick="processAll()">⚙️ ประมวลผลทั้งหมด (ซ่อนคอลัมน์ + ล็อก)</button>
-    <button class="btn-zip" id="btnZip" onclick="downloadZip()">📦 Download ทั้งหมด (ZIP)</button>
-  </div>
-
-  <div class="overall-progress" id="overallProgress">
-    <div class="prog-bar"><div class="prog-fill" id="progFill"></div></div>
-    <div class="prog-label" id="progLabel">กำลังประมวลผล...</div>
-  </div>
-
   <hr class="divider">
   <div class="info-row">
     <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#90a4ae" stroke-width="1.5"/><path d="M8 7v5M8 5v.5" stroke="#90a4ae" stroke-width="1.5" stroke-linecap="round"/></svg>
@@ -306,198 +186,6 @@
 </div>
 
 <script>
-// ===================== STATE =====================
-let fileEntries = []; // { id, file, newName, password, doRename, status, resultBlob, resultName }
-let nextId = 0;
-
-// ===================== DROP ZONE =====================
-const dropzone = document.getElementById('dropzone');
-dropzone.addEventListener('dragover',  e => { e.preventDefault(); dropzone.classList.add('dragover'); });
-dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
-dropzone.addEventListener('drop', e => {
-  e.preventDefault(); dropzone.classList.remove('dragover');
-  addFiles(e.dataTransfer.files);
-});
-document.getElementById('fileInput').addEventListener('change', e => {
-  addFiles(e.target.files);
-  e.target.value = '';
-});
-
-function addFiles(fileList) {
-  let added = 0;
-  for (const f of fileList) {
-    const ext = f.name.split('.').pop().toLowerCase();
-    if (ext !== 'xlsx') continue;
-    fileEntries.push({ id: nextId++, file: f, newName: '', password: '', doRename: true, status: 'pending', resultBlob: null, resultName: '' });
-    added++;
-  }
-  if (!added) { alert('รองรับเฉพาะไฟล์ .xlsx'); return; }
-  renderList();
-  refreshAutoNameColumns();
-}
-
-// ===================== RENDER =====================
-function renderList() {
-  const list = document.getElementById('fileList');
-  const bar  = document.getElementById('globalBar');
-  const row  = document.getElementById('actionRow');
-  const hint = document.getElementById('emptyHint');
-
-  list.innerHTML = '';
-  if (fileEntries.length === 0) {
-    bar.classList.remove('show'); row.style.display = 'none'; hint.classList.add('show'); return;
-  }
-  hint.classList.remove('show');
-  bar.classList.add('show'); row.style.display = 'flex';
-
-  for (const entry of fileEntries) {
-    const el = document.createElement('div');
-    el.className = 'file-row' + (entry.status === 'done' ? ' done' : entry.status === 'error' ? ' error' : entry.status === 'processing' ? ' processing' : '');
-    el.dataset.id = entry.id;
-
-    let statusHtml = '';
-    if (entry.status === 'processing') {
-      statusHtml = `<div class="row-status show"><span class="status-proc">⏳ กำลังประมวลผล...</span></div>`;
-    } else if (entry.status === 'done') {
-      statusHtml = `<div class="row-status show">
-        <span class="status-ok">✅ เสร็จสิ้น</span>
-        <a class="btn-dl-row" href="${URL.createObjectURL(entry.resultBlob)}" download="${entry.resultName}">⬇ ดาวน์โหลด</a>
-      </div>`;
-    } else if (entry.status === 'error') {
-      statusHtml = `<div class="row-status show"><span class="status-err">❌ ${entry.errorMsg || 'เกิดข้อผิดพลาด'}</span></div>`;
-    }
-
-    el.innerHTML = `
-      <div class="row-top">
-        <span class="row-icon">📗</span>
-        <span class="row-orig" title="${entry.file.name}">${entry.file.name}</span>
-        <button class="row-remove" onclick="removeEntry(${entry.id})" title="ลบ">✕</button>
-      </div>
-      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#607d8b;margin-bottom:6px;cursor:pointer;">
-        <input type="checkbox" ${entry.doRename ? 'checked' : ''} onchange="updateEntry(${entry.id},'doRename',this.checked)" style="cursor:pointer;">
-        เปลี่ยนชื่อไฟล์ (ถ้าไม่ติ๊ก จะคงชื่อไฟล์เดิม)
-      </label>
-      <div class="row-fields">
-        <div class="field-wrap">
-          <input type="text" placeholder="ชื่อไฟล์ใหม่ (ไม่ต้องใส่นามสกุล)"
-            value="${entry.newName}" ${entry.doRename ? '' : 'disabled'}
-            onchange="updateEntry(${entry.id},'newName',this.value)"
-            oninput="updateEntry(${entry.id},'newName',this.value)">
-          <span class="field-ext">.xlsx</span>
-        </div>
-        <div class="pw-field">
-          <input type="password" placeholder="รหัสผ่าน (ถ้าต้องการล็อก)"
-            value="${entry.password}"
-            onchange="updateEntry(${entry.id},'password',this.value)"
-            oninput="updateEntry(${entry.id},'password',this.value)"
-            id="pw-${entry.id}">
-          <button class="pw-eye" onclick="togglePwEntry(${entry.id})" tabindex="-1">👁</button>
-        </div>
-      </div>
-      ${statusHtml}`;
-    list.appendChild(el);
-  }
-
-  const doneCount = fileEntries.filter(e => e.status === 'done').length;
-  const btn = document.getElementById('btnZip');
-  doneCount >= 2 ? btn.classList.add('show') : btn.classList.remove('show');
-}
-
-function removeEntry(id) {
-  fileEntries = fileEntries.filter(e => e.id !== id);
-  renderList();
-  refreshAutoNameColumns();
-}
-function updateEntry(id, key, val) {
-  const e = fileEntries.find(e => e.id === id);
-  if (e) e[key] = val;
-}
-function togglePwEntry(id) {
-  const inp = document.getElementById('pw-' + id);
-  if (inp) inp.type = inp.type === 'password' ? 'text' : 'password';
-}
-function toggleGlobalPw() {
-  const inp = document.getElementById('globalPw');
-  if (inp) inp.type = inp.type === 'password' ? 'text' : 'password';
-}
-
-// ===================== GLOBAL PASSWORD =====================
-function toggleGlobal() {
-  const on = document.getElementById('globalToggle').checked;
-  document.getElementById('globalPwRow').style.display = on ? 'flex' : 'none';
-}
-function applyGlobalPw() {
-  const pw = document.getElementById('globalPw').value;
-  for (const e of fileEntries) e.password = pw;
-  renderList();
-}
-
-// ===================== PROCESS =====================
-async function processAll() {
-  if (!fileEntries.length) return;
-  const btn = document.getElementById('btnProcess');
-  btn.disabled = true;
-
-  const prog = document.getElementById('overallProgress');
-  const fill = document.getElementById('progFill');
-  const label= document.getElementById('progLabel');
-  prog.classList.add('show');
-
-  const total = fileEntries.length;
-  let done = 0;
-
-  // Always applied, no user toggle: hide zero-subtotal columns and everything after
-  // Memo/Total Invoice Before Vat, for every file processed.
-  const hideOpts = { hideZeroSubtotal: true, hideAfterMemo: true };
-
-  for (const entry of fileEntries) {
-    const runKey = entry.doRename + ' ' + entry.newName + ' ' + entry.password;
-    if (entry.status === 'done' && entry.processedWith === runKey) { done++; continue; }
-    entry.status = 'processing';
-    renderList();
-
-    const baseName = (entry.doRename && entry.newName.trim()) ? entry.newName.trim() : entry.file.name.replace(/\.[^.]+$/, '');
-    const outName  = baseName + '.xlsx';
-
-    try {
-      label.textContent = `ประมวลผล: ${entry.file.name}`;
-      fill.style.width = (done / total * 100) + '%';
-
-      const buffer = await entry.file.arrayBuffer();
-      const resultBytes = await processExcel(buffer, entry.password, hideOpts);
-      entry.resultBlob = new Blob([resultBytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      entry.resultName = outName;
-      entry.status = 'done';
-      entry.processedWith = runKey;
-    } catch (err) {
-      entry.status = 'error';
-      entry.errorMsg = err.message;
-    }
-
-    done++;
-    fill.style.width = (done / total * 100) + '%';
-    renderList();
-  }
-
-  label.textContent = `เสร็จสิ้น ${fileEntries.filter(e=>e.status==='done').length}/${total} ไฟล์`;
-  btn.disabled = false;
-}
-
-// ===================== DOWNLOAD ZIP =====================
-async function downloadZip() {
-  const doneEntries = fileEntries.filter(e => e.status === 'done' && e.resultBlob);
-  if (!doneEntries.length) return;
-  const zip = new JSZip();
-  for (const e of doneEntries) {
-    const ab = await e.resultBlob.arrayBuffer();
-    zip.file(e.resultName, ab);
-  }
-  const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 1 } });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = 'DOI_files.zip'; a.click();
-}
-
 // ===================== HIDE ZERO-SUBTOTAL / AFTER-MEMO COLUMNS =====================
 // Hides (never deletes/alters) columns whose Excel "Subtotal" (Data > Subtotal, i.e. SUBTOTAL()
 // formula) values are all zero across the whole sheet, plus everything after Memo/Total Invoice
@@ -909,9 +597,9 @@ function renderAutoNameCols(columns) {
     '</div>';
 }
 
-// Scans one file's header row and refreshes the shared checkbox picker from it. Used both when a
-// file lands in the main list and when a file is dropped on the split zone -- whichever file was
-// scanned most recently is what the checkboxes reflect.
+// Scans one file's header row and refreshes the shared checkbox picker from it. Used both when
+// files land in the auto-name zone and when a file is dropped on the split zone -- whichever file
+// was scanned most recently is what the checkboxes reflect.
 async function scanFileForAutoNameCols(file) {
   try {
     const meta = await readDetailOfInvoiceMeta(file);
@@ -919,36 +607,101 @@ async function scanFileForAutoNameCols(file) {
   } catch (err) { renderAutoNameCols(null); }
 }
 
-async function refreshAutoNameColumns() {
-  const entry = fileEntries[0];
-  if (!entry) { renderAutoNameCols(null); return; }
-  await scanFileForAutoNameCols(entry.file);
+// ===================== AUTO-NAME (self-contained: pick files -> download directly) =====================
+let autoNameFiles = [];
+
+const autoNameDrop = document.getElementById('autoNameDrop');
+autoNameDrop.addEventListener('dragover', e => { e.preventDefault(); autoNameDrop.classList.add('dragover'); });
+autoNameDrop.addEventListener('dragleave', () => autoNameDrop.classList.remove('dragover'));
+autoNameDrop.addEventListener('drop', e => {
+  e.preventDefault(); autoNameDrop.classList.remove('dragover');
+  selectAutoNameFiles(e.dataTransfer.files);
+});
+document.getElementById('autoNameInput').addEventListener('change', e => {
+  selectAutoNameFiles(e.target.files);
+  e.target.value = '';
+});
+
+async function selectAutoNameFiles(fileList) {
+  const statusEl = document.getElementById('autoNameStatus');
+  const btn = document.getElementById('btnRunAutoName');
+  statusEl.className = 'mapping-status show';
+  const files = Array.from(fileList).filter(f => f.name.split('.').pop().toLowerCase() === 'xlsx');
+  if (!files.length) {
+    statusEl.innerHTML = '<span class="ms-err">✕ รองรับเฉพาะไฟล์ .xlsx</span>';
+    autoNameFiles = []; btn.disabled = true;
+    return;
+  }
+  autoNameFiles = files;
+  autoNameDrop.textContent = files.length === 1
+    ? '🏷️ ' + files[0].name + ' — คลิกเพื่อเปลี่ยนไฟล์'
+    : '🏷️ เลือกไว้ ' + files.length + ' ไฟล์ — คลิกเพื่อเปลี่ยน';
+  btn.disabled = false;
+  statusEl.innerHTML = '';
+  await scanFileForAutoNameCols(files[0]);
 }
 
-async function autoNameAll() {
+function toggleAutoNamePwRow() {
+  const on = document.getElementById('autoNamePwToggle').checked;
+  document.getElementById('autoNamePwFieldWrap').style.display = on ? 'flex' : 'none';
+}
+function toggleAutoNamePwVisibility() {
+  const inp = document.getElementById('autoNamePw');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+// Reads each picked file's suggested name, hides columns, optionally locks with a password, then
+// downloads directly (single file) or bundled as a ZIP (multiple files) -- no persistent editable
+// list, same one-click shape as the split action below.
+async function runAutoName() {
   const statusEl = document.getElementById('autoNameStatus');
   statusEl.className = 'mapping-status show';
-  statusEl.innerHTML = '<span style="color:#c8102e">⏳ กำลังอ่านไฟล์...</span>';
-  let named = 0, skipped = 0;
+  if (!autoNameFiles.length) {
+    statusEl.innerHTML = '<span class="ms-err">✕ กรุณาเลือกไฟล์ก่อน</span>';
+    return;
+  }
+  statusEl.innerHTML = '<span style="color:#c8102e">⏳ กำลังตั้งชื่อและประมวลผล...</span>';
   const wantCols = autoNameSelectedCols;
-  for (const entry of fileEntries) {
+  const password = document.getElementById('autoNamePwToggle').checked ? document.getElementById('autoNamePw').value : '';
+  const hideOpts = { hideZeroSubtotal: true, hideAfterMemo: true };
+  const outputs = [];
+  let skipped = 0;
+  for (const file of autoNameFiles) {
     try {
-      const meta = await readDetailOfInvoiceMeta(entry.file, wantCols);
+      const meta = await readDetailOfInvoiceMeta(file, wantCols);
       if (!meta) { skipped++; continue; }
       const parts = [];
       meta.columns.forEach(c => {
         if (wantCols.has(c.name) && meta.values[c.name]) parts.push(sanitizeNamePart(meta.values[c.name]));
       });
-      entry.newName = parts.length
+      const baseName = parts.length
         ? `${meta.projectName}_Detail of invoice_${meta.mmyy}_${parts.join('_')}`
         : `${meta.projectName}_Detail of invoice_${meta.mmyy}`;
-      named++;
+      const buffer = await file.arrayBuffer();
+      const finalBytes = await processExcel(buffer, password, hideOpts);
+      outputs.push({ name: baseName + '.xlsx', data: finalBytes });
     } catch (err) { skipped++; }
   }
-  renderList();
+  if (!outputs.length) {
+    statusEl.innerHTML = '<span class="ms-err">✕ ไม่พบไฟล์ที่ตั้งชื่อได้เลย (ไม่ตรงรูปแบบ Detail of Invoice ที่รู้จัก)</span>';
+    return;
+  }
+  if (outputs.length === 1) {
+    const blob = new Blob([outputs[0].data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = outputs[0].name; a.click();
+  } else {
+    const zip = new JSZip();
+    outputs.forEach(o => zip.file(o.name, o.data));
+    const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 1 } });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'DOI_renamed.zip'; a.click();
+  }
   statusEl.innerHTML = skipped === 0
-    ? `<span class="ms-ok">✅ ตั้งชื่อสำเร็จ ${named} ไฟล์</span>`
-    : `<span class="ms-ok">✅ ตั้งชื่อสำเร็จ ${named} ไฟล์</span> <span class="ms-warn">⚠️ ${skipped} ไฟล์ไม่ตรงรูปแบบ Detail of Invoice ที่รู้จัก — ไม่ได้เปลี่ยนชื่อ กรุณาตั้งชื่อเอง</span>`;
+    ? `<span class="ms-ok">✅ ตั้งชื่อและประมวลผลสำเร็จ ${outputs.length} ไฟล์</span>`
+    : `<span class="ms-ok">✅ สำเร็จ ${outputs.length} ไฟล์</span> <span class="ms-warn">⚠️ ${skipped} ไฟล์ไม่ตรงรูปแบบ Detail of Invoice ที่รู้จัก — ข้ามไป</span>`;
 }
 
 // ===================== SPLIT DETAIL OF INVOICE BY COLUMN =====================
@@ -1219,9 +972,6 @@ async function runSplit() {
     statusEl.innerHTML = '<span class="ms-err">✕ ' + escAttr(err.message || String(err)) + '</span>';
   }
 }
-
-// init
-renderList();
 </script>
 </body>
 </html>
