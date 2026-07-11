@@ -14,29 +14,29 @@
     '.osi-pet{position:absolute;bottom:2px;}' +
     '.osi-pet-flip{display:inline-block;}' +
     '.osi-pet-img{display:block;height:60px;width:auto;filter:drop-shadow(0 2px 2px rgba(0,0,0,.15));transform-origin:50% 100%;}' +
-    '.osi-pet-img.walking{animation:osiWalk .5s ease-in-out infinite;}' +
-    '.osi-pet-img.sitting{animation:osiBreatheSit 2.6s ease-in-out infinite;}' +
-    '.osi-pet-img.lying{animation:osiBreatheLie 3.2s ease-in-out infinite;}' +
+    '.osi-pet-img.walking{animation:osiWalk .38s ease-in-out infinite;}' +
+    '.osi-pet-img.sitting{animation:osiBreatheSit 1.8s ease-in-out infinite;}' +
+    '.osi-pet-img.lying{animation:osiBreatheLie 2.4s ease-in-out infinite;}' +
     '.osi-pet-zzz{position:absolute;top:-10px;right:-2px;font-size:13px;opacity:0;animation:osiPetZzz 2.2s ease-in-out infinite;}' +
     '@keyframes osiWalk{' +
     '0%,100%{transform:translateY(0) rotate(0deg) scale(1,1)}' +
-    '25%{transform:translateY(-6px) rotate(4deg) scale(1.05,.93)}' +
-    '50%{transform:translateY(0) rotate(0deg) scale(.95,1.06)}' +
-    '75%{transform:translateY(-6px) rotate(-4deg) scale(1.05,.93)}' +
+    '25%{transform:translateY(-13px) rotate(10deg) scale(1.1,.84)}' +
+    '50%{transform:translateY(0) rotate(0deg) scale(.86,1.16)}' +
+    '75%{transform:translateY(-13px) rotate(-10deg) scale(1.1,.84)}' +
     '}' +
-    '@keyframes osiBreatheSit{0%,100%{transform:scale(1)}50%{transform:scale(1.02,1.03)}}' +
+    '@keyframes osiBreatheSit{0%,100%{transform:scale(1) rotate(0deg)}50%{transform:scale(1.05,1.07) rotate(3deg)}}' +
     '@keyframes osiBreatheLie{' +
     '0%,100%{transform:rotate(-84deg) translate(-8px,6px) scale(1)}' +
-    '50%{transform:rotate(-84deg) translate(-8px,6px) scale(1.02,1.015)}' +
+    '50%{transform:rotate(-84deg) translate(-8px,6px) scale(1.04,1.035)}' +
     '}' +
     '@keyframes osiPetZzz{0%{opacity:0;transform:translateY(4px)}35%{opacity:.85}100%{opacity:0;transform:translateY(-11px)}}' +
     '@media (max-width:520px){#osiPets{height:52px}.osi-pet-img{height:46px}}';
   document.head.appendChild(style);
 
   var PET_DEFS = [
-    { restSrc: 'puppy.png', moveSrc: 'puppy_walk.png', speed: 42 },
-    { restSrc: 'kitten.png', moveSrc: 'kitten_walk.png', speed: 36 },
-    { restSrc: 'rabbit.png', moveSrc: 'rabbit_hop.png', speed: 58 }
+    { restSrc: 'puppy.png', moveSrc: 'puppy_walk.png', speed: 62 },
+    { restSrc: 'kitten.png', moveSrc: 'kitten_walk.png', speed: 54 },
+    { restSrc: 'rabbit.png', moveSrc: 'rabbit_hop.png', speed: 84 }
   ];
 
   function maxX() { return Math.max(40, (window.innerWidth || 800) - 60); }
