@@ -12,18 +12,18 @@
 body{font-family:'IBM Plex Sans Thai','Segoe UI',Arial,sans-serif;font-size:13.5px;background:#f0f2f5;color:#1a1a2e;letter-spacing:.1px;}
 .app{max-width:960px;margin:0 auto;padding:16px;}
 .card{background:#fff;border-radius:10px;border:1px solid #e0e4ea;padding:20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
-h1{font-size:21px;font-weight:700;color:#1a237e;letter-spacing:.1px;}
+h1{font-size:21px;font-weight:700;color:#c8102e;letter-spacing:.1px;}
 .subtitle{color:#546e7a;font-size:12px;margin-top:3px;}
-h2{font-size:14px;font-weight:700;color:#1a237e;margin-bottom:12px;}
+h2{font-size:14px;font-weight:700;color:#c8102e;margin-bottom:12px;}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
 @media(max-width:600px){.two-col{grid-template-columns:1fr;}}
 .ubox{border:2px dashed #90a4ae;border-radius:8px;background:#f8fafc;transition:all .2s;position:relative;overflow:hidden;min-height:110px;}
 .ubox.has-file{border-color:#43a047;background:#f1f8e9;}
-.ubox.drag{border-color:#3f51b5;background:#e8eaf6;}
+.ubox.drag{border-color:#c8102e;background:#fde8ec;}
 .ubox label{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px 12px;cursor:pointer;height:100%;gap:5px;}
 .ubox input[type=file]{position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:999px;}
 .uico{font-size:26px;}
-.utitle{font-weight:700;font-size:12px;color:#1a237e;}
+.utitle{font-weight:700;font-size:12px;color:#c8102e;}
 .udesc{font-size:11px;color:#607d8b;text-align:center;}
 .ufname{font-size:10.5px;color:#2e7d32;font-weight:600;text-align:center;word-break:break-all;margin-top:2px;}
 .notice{background:#e3f2fd;border:1px solid #90caf9;border-radius:6px;padding:10px 14px;font-size:12px;color:#1565c0;margin-bottom:14px;}
@@ -32,34 +32,34 @@ h2{font-size:14px;font-weight:700;color:#1a237e;margin-bottom:12px;}
 .msg.ok{background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;}
 .dbg{background:#263238;color:#80cbc4;border-radius:6px;padding:8px 12px;font-size:10px;font-family:monospace;white-space:pre-wrap;max-height:150px;overflow-y:auto;display:block;margin-top:8px;}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
-.chip{display:flex;align-items:center;gap:5px;background:#e8eaf6;border-radius:20px;padding:3px 10px;font-size:11px;color:#283593;}
+.chip{display:flex;align-items:center;gap:5px;background:#fde8ec;border-radius:20px;padding:3px 10px;font-size:11px;color:#c8102e;}
 .chip .rm{cursor:pointer;color:#e53935;font-size:13px;}
 .summary-grid{display:flex;flex-wrap:wrap;gap:10px;}
 .sc{border:1px solid #e0e4ea;border-radius:8px;padding:12px 14px;min-width:195px;flex:1;}
-.sc .fn{font-size:10.5px;color:#3f51b5;font-weight:700;margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sc .fn{font-size:10.5px;color:#c8102e;font-weight:700;margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .sr{display:flex;justify-content:space-between;font-size:11px;padding:1px 0;}
-.sr .l{color:#607d8b;}.sr .v{font-weight:600;color:#1a237e;}
+.sr .l{color:#607d8b;}.sr .v{font-weight:600;color:#c8102e;}
 .badge{background:#ffecb3;color:#e65100;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;margin-left:3px;}
 .gb-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
 .cbi{display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;padding:5px 8px;border-radius:5px;border:1px solid #e0e4ea;}
-.cbi:hover:not(.dis){border-color:#3f51b5;background:#f3f4fb;}
+.cbi:hover:not(.dis){border-color:#c8102e;background:#fdf4f5;}
 .cbi.dis{opacity:.38;cursor:not-allowed;}
-.cbi input{cursor:pointer;accent-color:#3f51b5;}
-.rc{font-size:11.5px;color:#546e7a;margin-top:10px;}.rc strong{color:#1a237e;}
+.cbi input{cursor:pointer;accent-color:#c8102e;}
+.rc{font-size:11.5px;color:#546e7a;margin-top:10px;}.rc strong{color:#c8102e;}
 table{width:100%;border-collapse:collapse;font-size:11.5px;}
-thead th{background:#1a237e;color:#fff;padding:6px 7px;text-align:center;font-weight:600;white-space:nowrap;}
+thead th{background:#c8102e;color:#fff;padding:6px 7px;text-align:center;font-weight:600;white-space:nowrap;}
 thead th:first-child{border-radius:6px 0 0 0;}thead th:last-child{border-radius:0 6px 0 0;}
-tbody tr:nth-child(odd){background:#f8f9fe;}tbody tr:nth-child(even){background:#fff;}
-tbody tr:hover{background:#eef0fc;}tbody tr.off{opacity:.4;}
+tbody tr:nth-child(odd){background:#fdf7f8;}tbody tr:nth-child(even){background:#fff;}
+tbody tr:hover{background:#fbebed;}tbody tr.off{opacity:.4;}
 tbody td{padding:5px 7px;border-bottom:1px solid #eee;white-space:nowrap;}
 td.n{text-align:right;}td.w{color:#e65100;text-align:center;}td.ok{color:#2e7d32;text-align:center;}
-tfoot tr{background:#e8eaf6;font-weight:700;}tfoot td{padding:5px 7px;border-top:2px solid #1a237e;}
+tfoot tr{background:#fde8ec;font-weight:700;}tfoot td{padding:5px 7px;border-top:2px solid #c8102e;}
 .nd{text-align:center;color:#90a4ae;padding:24px;}
-.ss{font-size:11px;color:#546e7a;margin-top:8px;}.ss strong{color:#1a237e;}
+.ss{font-size:11px;color:#546e7a;margin-top:8px;}.ss strong{color:#c8102e;}
 .dlr{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
-.bld{background:#1565C0;color:#fff;border:none;border-radius:7px;padding:10px 22px;font-size:13px;font-weight:700;cursor:pointer;}
-.bld:hover{background:#0d47a1;}.bld:disabled{background:#90a4ae;cursor:not-allowed;}
-#sm{font-size:11px;color:#1565C0;margin-left:8px;}
+.bld{background:#c8102e;color:#fff;border:none;border-radius:7px;padding:10px 22px;font-size:13px;font-weight:700;cursor:pointer;}
+.bld:hover{background:#a30d24;}.bld:disabled{background:#90a4ae;cursor:not-allowed;}
+#sm{font-size:11px;color:#c8102e;margin-left:8px;}
 .fo{font-size:11px;color:#546e7a;}
 </style>
 </head>
@@ -74,7 +74,7 @@ tfoot tr{background:#e8eaf6;font-weight:700;}tfoot td{padding:5px 7px;border-top
   <div class="notice">ℹ️ อัปโหลดไฟล์ Detail of Invoice แล้วกด Download เพื่อรับไฟล์ Accrue Income ที่กรอกข้อมูลแล้ว — ใช้ Template Accrue Income มาตรฐานในตัว ไม่ต้องแนบเอง</div>
   <h2>📂 อัปโหลดไฟล์</h2>
   <div>
-    <div style="font-size:11.5px;font-weight:700;color:#1a237e;margin-bottom:6px;">Detail of Invoice <span style="color:#607d8b;font-weight:400;">(เลือกได้หลายไฟล์)</span></div>
+    <div style="font-size:11.5px;font-weight:700;color:#c8102e;margin-bottom:6px;">Detail of Invoice <span style="color:#607d8b;font-weight:400;">(เลือกได้หลายไฟล์)</span></div>
     <div class="ubox" id="bInv">
       <label><span class="uico">📄</span><span class="utitle">คลิกหรือลากไฟล์มาวาง</span><span class="udesc">Detail of Invoice .xlsx</span>
         <input type="file" id="fiInv" multiple accept=".xlsx,.xls" onchange="onInvChange(this)">
@@ -767,7 +767,7 @@ function selAll(checked){document.querySelectorAll('.rcb').forEach(function(cb){
 function onCbChange(cb){var k=cb.dataset.rk;rowSelected[k]=cb.checked;cb.closest('tr').classList.toggle('off',!cb.checked);var cbs=document.querySelectorAll('.rcb');var all=Array.from(cbs).every(function(c){return c.checked;});var none=Array.from(cbs).every(function(c){return!c.checked;});var sa=document.getElementById('selAll');sa.checked=all;sa.indeterminate=!all&&!none;updateFoot();updateSS();renderDl();}
 function updateFoot(){var rows=getRows().filter(function(r){return rowSelected[r.rowKey]!==false;});var ft=document.getElementById('pf');if(!rows.length){ft.style.display='none';return;}ft.style.display='';var s=[rows.reduce(function(a,r){return a+r.count;},0),rows.reduce(function(a,r){return a+r.salary;},0),rows.reduce(function(a,r){return a+r.ssf;},0),rows.reduce(function(a,r){return a+r.pvf;},0),rows.reduce(function(a,r){return a+r.health;},0),rows.reduce(function(a,r){return a+r.checkup;},0),rows.reduce(function(a,r){return a+r.alwFix;},0),rows.reduce(function(a,r){return a+r.otherInc;},0),rows.reduce(function(a,r){return a+r.ot;},0),rows.reduce(function(a,r){return a+r.commission;},0),rows.reduce(function(a,r){return a+r.incentive;},0),rows.reduce(function(a,r){return a+r.bonus;},0),rows.reduce(function(a,r){return a+r.alwNonFix;},0),rows.reduce(function(a,r){return a+r.fee;},0),rows.reduce(function(a,r){return a+r.totalInv;},0)];['f0','f1','f2','f3','f4','f5','f6','f7','f8','f9','f10','f11','f12','f13'].forEach(function(id,i){document.getElementById(id).textContent=i===0?s[0]:fmt(s[i]);});}
 function updateSS(){var rows=getRows();var sel=rows.filter(function(r){return rowSelected[r.rowKey]!==false;}).length;document.getElementById('ss').innerHTML='เลือก <strong>'+sel+' / '+rows.length+'</strong> แถว';}
-function renderPreview(){var card=document.getElementById('previewCard');if(!files.length){card.style.display='none';return;}card.style.display='block';var rows=getRows();var tb=document.getElementById('pb');if(!rows.length){tb.innerHTML='<tr><td colspan="14" class="nd">ไม่มีข้อมูล</td></tr>';return;}rows.forEach(function(r){if(rowSelected[r.rowKey]===undefined)rowSelected[r.rowKey]=true;});tb.innerHTML=rows.map(function(r){var sel=rowSelected[r.rowKey]!==false;var calcTot=r.salary+r.alwFix+r.alwNonFix+r.ot+r.commission+r.incentive+r.travelFixed+r.reimburse+r.bonus+r.awards+r.severance+r.checkup+r.uniform+r.eventRoom+r.training+r.otherExp+r.tempSalary+r.otherInc+r.ssf+r.pvf+r.health+r.fee;var diff=Math.abs(calcTot-r.totalInv);return'<tr'+(sel?'':' class="off"')+'><td style="text-align:center"><input type="checkbox" class="rcb" data-rk="'+esc(r.rowKey)+'"'+(sel?' checked':'')+' onchange="onCbChange(this)" style="cursor:pointer;accent-color:#1a237e"></td><td>'+esc(r.company)+' / '+esc(r.detail)+'</td><td class="n">'+r.count+'</td><td class="n">'+fmt(r.salary)+'</td><td class="n">'+fmt(r.ssf)+'</td><td class="n">'+fmt(r.pvf)+'</td><td class="n">'+fmt(r.health)+'</td><td class="n">'+fmt(r.checkup)+'</td><td class="n">'+fmt(r.alwFix)+'</td><td class="n">'+fmt(r.otherInc)+'</td><td class="n">'+fmt(r.ot)+'</td><td class="n">'+fmt(r.commission)+'</td><td class="n">'+fmt(r.incentive)+'</td><td class="n">'+fmt(r.bonus)+'</td><td class="n">'+fmt(r.alwNonFix)+'</td><td class="n">'+fmt(r.fee)+'</td><td class="n">'+fmt(r.totalInv)+'</td><td class="'+(diff>1?'w':'ok')+'">'+(diff>1?'⚠':'✓')+'</td></tr>';}).join('');updateFoot();updateSS();}
+function renderPreview(){var card=document.getElementById('previewCard');if(!files.length){card.style.display='none';return;}card.style.display='block';var rows=getRows();var tb=document.getElementById('pb');if(!rows.length){tb.innerHTML='<tr><td colspan="14" class="nd">ไม่มีข้อมูล</td></tr>';return;}rows.forEach(function(r){if(rowSelected[r.rowKey]===undefined)rowSelected[r.rowKey]=true;});tb.innerHTML=rows.map(function(r){var sel=rowSelected[r.rowKey]!==false;var calcTot=r.salary+r.alwFix+r.alwNonFix+r.ot+r.commission+r.incentive+r.travelFixed+r.reimburse+r.bonus+r.awards+r.severance+r.checkup+r.uniform+r.eventRoom+r.training+r.otherExp+r.tempSalary+r.otherInc+r.ssf+r.pvf+r.health+r.fee;var diff=Math.abs(calcTot-r.totalInv);return'<tr'+(sel?'':' class="off"')+'><td style="text-align:center"><input type="checkbox" class="rcb" data-rk="'+esc(r.rowKey)+'"'+(sel?' checked':'')+' onchange="onCbChange(this)" style="cursor:pointer;accent-color:#c8102e"></td><td>'+esc(r.company)+' / '+esc(r.detail)+'</td><td class="n">'+r.count+'</td><td class="n">'+fmt(r.salary)+'</td><td class="n">'+fmt(r.ssf)+'</td><td class="n">'+fmt(r.pvf)+'</td><td class="n">'+fmt(r.health)+'</td><td class="n">'+fmt(r.checkup)+'</td><td class="n">'+fmt(r.alwFix)+'</td><td class="n">'+fmt(r.otherInc)+'</td><td class="n">'+fmt(r.ot)+'</td><td class="n">'+fmt(r.commission)+'</td><td class="n">'+fmt(r.incentive)+'</td><td class="n">'+fmt(r.bonus)+'</td><td class="n">'+fmt(r.alwNonFix)+'</td><td class="n">'+fmt(r.fee)+'</td><td class="n">'+fmt(r.totalInv)+'</td><td class="'+(diff>1?'w':'ok')+'">'+(diff>1?'⚠':'✓')+'</td></tr>';}).join('');updateFoot();updateSS();}
 function renderDl(){var card=document.getElementById('dlCard');if(!files.length){card.style.display='none';return;}card.style.display='block';var rows=getRows().filter(function(r){return rowSelected[r.rowKey]!==false;});var hasT=!!templateBuf;document.getElementById('fo').textContent=rows.length&&hasT?outFname(rows):(hasT?'':'⚠ กรุณาอัปโหลด Template ด้วย');var btn=document.getElementById('btnDl');btn.disabled=!rows.length||!hasT;btn.textContent=!hasT?'⬇ รอ Template...':rows.length?'⬇ Download Accrued Income Form':'⬇ ยังไม่ได้เลือกแถว';}
 
 // ── Download ─────────────────────────────────
