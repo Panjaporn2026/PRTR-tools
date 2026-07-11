@@ -17,16 +17,33 @@
     '@media (max-width:520px){#osiPeekCat{width:58px;height:72px}}';
   document.head.appendChild(style);
 
-  // Plain smooth curves throughout — an earlier version gave the ears/cheek a jagged "fur"
-  // edge, but at the small display size that texture read as a rendering glitch rather than
-  // fur, so it's gone in favour of a shape that can't be misread.
-  // Ears are separate triangles whose base sits well inside the head blob's own top curve
-  // (not stitched edge-to-edge with it), guaranteeing overlap instead of relying on an exact
-  // seam match.
+  // The reference image's fur-tooth texture actually runs along the BACK/hidden edge (the
+  // straight side that sits flush behind the screen edge) — not the ears or the front-facing
+  // cheek, which are plain smooth curves. Putting the teeth on the wrong edge is what made the
+  // earlier attempts look broken instead of furry.
+  function zigzag(x1, y1, x2, y2, teeth, depth) {
+    var dx = x2 - x1, dy = y2 - y1;
+    var len = Math.sqrt(dx * dx + dy * dy) || 1;
+    var nx = -dy / len, ny = dx / len;
+    var pts = [x1.toFixed(1) + ',' + y1.toFixed(1)];
+    var steps = teeth * 2;
+    for (var i = 1; i < steps; i++) {
+      var t = i / steps;
+      var px = x1 + dx * t, py = y1 + dy * t;
+      var d = (i % 2 === 1) ? depth : 0;
+      pts.push((px + nx * d).toFixed(1) + ',' + (py + ny * d).toFixed(1));
+    }
+    pts.push(x2.toFixed(1) + ',' + y2.toFixed(1));
+    return pts.join(' L');
+  }
+
   var ear1 = 'M24,4 L13,45 L38,40 Z';
   var ear2 = 'M66,14 L55,47 L86,42 Z';
+  // Negative depth so the teeth bite inward (toward x<120) instead of poking out past the
+  // viewBox's right boundary, where the root <svg>'s default overflow:hidden would clip them.
+  var spine = zigzag(120, 140, 120, 8, 12, -4.5);
   var head = 'M22,54 C17,64 15,78 17,92' +
-    ' C17,110 27,126 44,136 C58,144 74,145 90,140 L120,140 L120,8' +
+    ' C17,110 27,126 44,136 C58,144 74,145 90,140 L120,140 L' + spine +
     ' C104,3 78,2 55,6 C36,9 24,18 20,34 C18,44 19,50 22,54 Z';
 
   var svg =
@@ -41,6 +58,7 @@
     '</g>' +
     '<g class="opc-eye"><circle cx="50" cy="83" r="15" fill="#fff"/><circle cx="52" cy="85" r="8" fill="#111"/></g>' +
     '<g class="opc-eye"><circle cx="80" cy="61" r="10" fill="#fff"/><circle cx="82" cy="62" r="5.5" fill="#111"/></g>' +
+    '<path d="M63,70 Q66,75 69,70 Q66,67 63,70 Z" fill="#fff"/>' +
     '<path d="M60,98 Q66,106 72,98" fill="none" stroke="#fff" stroke-width="1.3" stroke-linecap="round" opacity=".8"/>' +
     '</svg>';
 
