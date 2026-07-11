@@ -591,19 +591,22 @@ function toggleAutoNameCol(name, checked) {
 }
 
 // Any header column can be a split/naming key EXCEPT ones that obviously can't work as a grouping
-// key -- per-row unique identifiers, dates, and amount-type columns. Blacklist-based (not a fixed
-// allow-list) so new columns in a client's template (e.g. "Company name", "Position", "Branch") are
-// automatically selectable without code changes every time a template adds a field.
-// `colIndex`/`lineManagerCol` bound the picker to the categorical/identity section of the sheet:
-// every known template puts fields like Cost Center, Position, Company name BEFORE "Line Manager"
-// and the numeric payroll/deduction columns after it -- a real 300+ column DKSH file confirmed this
+// key -- per-row unique identifiers, dates, amount-type columns, and a couple of fields confirmed
+// never useful for splitting (Position/Introduce By/Location -- never a real grouping need).
+// Blacklist-based (not a fixed allow-list) so new columns in a client's template (e.g. "Company
+// name", "Branch") are automatically selectable without code changes every time a template adds a
+// field. `colIndex`/`lineManagerCol` bound the picker to the categorical/identity section of the
+// sheet: every known template puts fields like Cost Center, Company name BEFORE "Line Manager" and
+// the numeric payroll/deduction columns after it -- a real 300+ column DKSH file confirmed this
 // (everything past Line Manager is Basic Pay, Bonus, OT amounts, deductions, ...). Without this
 // bound, `sampleValue` alone isn't enough: a payroll amount column that happens to be blank for
 // every employee in a given month can't be detected as "numeric" from an empty sample.
+const AUTO_NAME_NEVER_USEFUL = new Set(['position', 'introduce by', 'location']);
 function isAutoNameAllowed(name, sampleValue, colIndex, lineManagerCol) {
   const norm = String(name || '').trim().toLowerCase().replace(/\s+/g, ' ');
   if (!norm) return false;
   if (norm === 'name' || norm === 'name (thai)') return false; // per-employee unique
+  if (AUTO_NAME_NEVER_USEFUL.has(norm)) return false;
   if (/\bdate\b/.test(norm)) return false; // Start Date, PO Date, Effective Date (...) -- near-unique per row
   if (/\bno\.?\b/.test(norm)) return false; // No., QT No., Invoice No. -- identifiers, not grouping keys
   if (/\bid\b/.test(norm)) return false; // Emp ID, Alternate ID, Vendor ID (...) -- unique identifiers
@@ -657,6 +660,35 @@ async function scanFileForAutoNameCols(file) {
 function normText(s) { return String(s == null ? '' : s).replace(/\s+/g, ' ').trim(); }
 function normTextUpper(s) { return normText(s).toUpperCase(); }
 
+// A row-level split works by deleting whole <row> elements outright -- but a shared formula (very
+// common in payroll templates: one row's formula filled down over 100+ employee rows via Excel's
+// fill handle) stores the actual formula text ONLY on its "master" cell; every other row in that
+// family stores just `<f t="shared" si="N"/>` with no text of its own, relying on the master. If a
+// split group happens to drop the row holding that master (which is the normal case -- most groups
+// keep only a handful of the original rows), every surviving sibling cell's shared-formula
+// reference points at nothing, and Excel's own repair silently deletes those cells (confirmed
+// real-world case: a DKSH split output prompted "We found a problem with some content" and Excel's
+// repair log reported removed cell/shared-formula/calcChain records -- real data loss). Freezing
+// every DATA-row formula cell to its own cached <v> before any row is touched removes the shared-
+// formula relationship entirely, so there's nothing left to dangle regardless of which rows a given
+// group keeps. The exact numeric/text VALUE displayed is unchanged; only the live-formula mechanism
+// is dropped -- calcChain.xml is stripped and fullCalcOnLoad set separately so Excel doesn't try to
+// recompute anything on open either.
+// Applied ONLY to rows below the header (see splitDetailOfInvoiceFile) -- the title/header block
+// above it is left completely alone, since that's exactly where a SUBTOTAL formula the hide-zero-
+// subtotal-columns feature depends on lives (that convention keeps it out of reach of row deletion
+// in the first place, so it must survive as a real formula for that feature to keep working on
+// split output too).
+function stripFormulaKeepValue(cellXml) {
+  if (!/<f\b/.test(cellXml)) return cellXml;
+  const m = /^(<c\b[^>]*>)([\s\S]*)<\/c>$/.exec(cellXml);
+  if (!m) return cellXml;
+  const openTag = m[1], inner = m[2];
+  const vM = /<v>([\s\S]*?)<\/v>/.exec(inner);
+  if (!vM) return openTag + '</c>'; // no cached value to fall back to -- drop the formula, leave the cell blank
+  return openTag + '<v>' + vM[1] + '</v></c>';
+}
+
 function parseSheetRowsForSplit(sheetXml) {
   const sdStart = sheetXml.indexOf('<sheetData');
   const sdTagEnd = sheetXml.indexOf('>', sdStart) + 1;
@@ -675,7 +707,13 @@ function parseSheetRowsForSplit(sheetXml) {
     const rowInner = rm[2];
     const cellsByCol = {};
     if (rowInner !== undefined) {
-      const cellRe = /<c\s+r="([A-Z]+)\d+"[^>]*(?:\/>|>[\s\S]*?<\/c>)/g;
+      // [^>]*? must be non-greedy: with a greedy [^>]* a self-closing blank cell (very common --
+      // e.g. <c r="GS29" s="255"/>) immediately followed by another cell gets swallowed together
+      // with that next cell into one "match" (the greedy attrs run right past its own "/>" looking
+      // for the NEXT ">" instead), silently merging two cells' XML into one column slot and losing
+      // the other column's key entirely -- confirmed real-world case: a DKSH file produced an
+      // invalid nested <c> inside <c> in the split output, which real Excel refused to open.
+      const cellRe = /<c\s+r="([A-Z]+)\d+"[^>]*?(?:\/>|>[\s\S]*?<\/c>)/g;
       let cm;
       while ((cm = cellRe.exec(rowInner)) !== null) cellsByCol[cm[1]] = cm[0];
     }
@@ -765,6 +803,42 @@ function updateStructuralRefsForSplit(sheetXml, wbXml, opts) {
   return { sheetXml, wbXml };
 }
 
+// calcChain.xml records which cells hold formulas, by original cell address -- now stale/wrong
+// after stripFormulaKeepValue removes every formula and rows get renumbered, and a leftover part
+// referencing cells that no longer have formulas is exactly the kind of mismatch that triggers
+// Excel's "problem with some content" repair prompt. Since no formulas survive in the split output
+// there's nothing left to calculate, so the safest fix is to drop the part entirely (along with its
+// relationship/content-type entries so nothing dangles) rather than try to keep it in sync.
+async function stripCalcChain(zip) {
+  const calcChainPath = 'xl/calcChain.xml';
+  if (!zip.file(calcChainPath)) return;
+  zip.remove(calcChainPath);
+  const relsPath = 'xl/_rels/workbook.xml.rels';
+  const relsFile = zip.file(relsPath);
+  if (relsFile) {
+    const relsXml = (await relsFile.async('string')).replace(/<Relationship\b[^>]*Target="calcChain\.xml"[^>]*\/>/, '');
+    zip.file(relsPath, relsXml);
+  }
+  const ctPath = '[Content_Types].xml';
+  const ctFile = zip.file(ctPath);
+  if (ctFile) {
+    const ctXml = (await ctFile.async('string')).replace(/<Override\b[^>]*PartName="\/xl\/calcChain\.xml"[^>]*\/>/, '');
+    zip.file(ctPath, ctXml);
+  }
+}
+
+// Belt-and-braces alongside stripCalcChain: tell Excel to recompute from scratch on open rather
+// than trust any cached calculation state, in case a formula ever slips through unstripped.
+function ensureFullCalcOnLoad(wbXml) {
+  if (/<calcPr\b/.test(wbXml)) {
+    if (/\bfullCalcOnLoad=/.test(wbXml)) {
+      return wbXml.replace(/(<calcPr\b[^>]*?)fullCalcOnLoad="[^"]*"/, '$1fullCalcOnLoad="1"');
+    }
+    return wbXml.replace(/<calcPr\b([^>]*?)\/>/, '<calcPr$1 fullCalcOnLoad="1"/>');
+  }
+  return wbXml.replace('</workbook>', '<calcPr fullCalcOnLoad="1"/></workbook>');
+}
+
 const SPLIT_UNASSIGNED_KEY = '__UNASSIGNED__';
 const SPLIT_UNASSIGNED_LABEL = 'ไม่ระบุ';
 
@@ -803,6 +877,14 @@ async function splitDetailOfInvoiceFile(file, wantCols) {
   const sheetName = sheetNameM ? decodeXmlEntities(sheetNameM[1]) : null;
   const headerRow1 = meta.headerRowExcel;
   const parsed = parseSheetRowsForSplit(origSheetXml);
+  // Freeze formulas to their cached values in the DATA rows only (see stripFormulaKeepValue) --
+  // the title/header block above headerRow1 is left untouched so a SUBTOTAL formula living there
+  // still works with the hide-zero-subtotal-columns feature applied after splitting.
+  parsed.rows.forEach(row => {
+    if (row.rowNum <= headerRow1) return;
+    for (const col in row.cellsByCol) row.cellsByCol[col] = stripFormulaKeepValue(row.cellsByCol[col]);
+  });
+  await stripCalcChain(zip);
 
   const outputs = [];
   for (const [key, info] of groupInfo) {
@@ -821,7 +903,7 @@ async function splitDetailOfInvoiceFile(file, wantCols) {
       firstCol, lastCol, headerRow: headerRow1, lastRow: newLastRow, sheetName
     });
     newSheetXml = refs.sheetXml;
-    newWbXml = refs.wbXml;
+    newWbXml = ensureFullCalcOnLoad(refs.wbXml);
 
     zip.file(sheetPath, newSheetXml);
     zip.file('xl/workbook.xml', newWbXml);
