@@ -441,12 +441,46 @@ function sanitizeNamePart(s) {
   return String(s||'').trim().replace(/[\\/:*?"<>|]/g,'').replace(/\s+/g,' ').trim();
 }
 
-// Reads a Detail of Invoice .xlsx: scans the first ~20 rows for "COMPANY NAME :" (client's legal
-// entity name -- kept only as a last-resort fallback) and "...PAYROLL FOR THE MONTH OF :" labels,
-// then locates the header row (anchored on the "Line Manager" column, which every known template
-// has) and reads every column's header text plus its first data-row value below. The filename's
-// project prefix comes from the "Project Code SAP" COLUMN value (PRTR's own project code), not
-// from COMPANY NAME (that's the client's own registered company name, a different thing).
+// Finds a label cell (e.g. "COMPANY NAME:") within one row and returns its value -- some templates
+// put label and value in the SAME cell ("COMPANY NAME : Acme Co"), others put the label alone in
+// one cell with the real value in a separate cell further right in that row (confirmed real-world
+// case: a DKSH file with "COMPANY NAME:" in A12 and the actual name in D12, and the pay-period
+// label's value cell holding a real Date object rather than text). Returns the raw cell.v (string,
+// number, or Date) so the caller decides how to interpret it -- never String()'d here, since a Date
+// would otherwise turn into an unparseable locale string.
+function extractLabelValue(ws, range, r, scanColEnd, labelRe) {
+  for (let c = range.s.c; c <= scanColEnd; c++) {
+    const cell = ws[XLSX.utils.encode_cell({ r, c })];
+    if (!cell || cell.v === undefined || cell.v === null) continue;
+    const text = String(cell.v);
+    const m = labelRe.exec(text);
+    if (!m) continue;
+    const trailing = text.slice(m.index + m[0].length).replace(/^[:\s]+/, '').trim();
+    if (trailing) return trailing;
+    for (let c2 = c + 1; c2 <= scanColEnd; c2++) {
+      const cell2 = ws[XLSX.utils.encode_cell({ r, c: c2 })];
+      if (cell2 && cell2.v !== undefined && cell2.v !== null && String(cell2.v).trim() !== '') return cell2.v;
+    }
+    return null;
+  }
+  return null;
+}
+
+// The pay-period value read via extractLabelValue may be a real Date object (when the workbook was
+// read with cellDates:true and the value cell is date-formatted, as in the DKSH-style templates)
+// instead of month-name text ("JUNE 2026") -- handle both rather than assuming text.
+function periodToMMYY(period) {
+  if (period instanceof Date) {
+    return String(period.getMonth() + 1).padStart(2, '0') + String(period.getFullYear()).slice(-2);
+  }
+  return monthYearToMMYY(period);
+}
+
+// Reads a Detail of Invoice .xlsx: scans the first ~20 rows for "COMPANY NAME" and "...PAYROLL FOR
+// THE MONTH OF" labels (see extractLabelValue for the two layouts this handles), then locates the
+// header row and reads every column's header text plus its first data-row value below. The
+// filename's project prefix comes from the "Project Code SAP" COLUMN value (PRTR's own project
+// code), not from COMPANY NAME (the client's own registered company name, a different thing).
 // Returns null if the file doesn't follow this layout at all.
 // `wantColNames` (optional Set) limits which columns get their value read — omit it to read all
 // columns (used for the checkbox-picker discovery scan). "Project Code SAP" is always read
@@ -455,33 +489,43 @@ function sanitizeNamePart(s) {
 // file-splitting feature to group rows) into the returned `rowValues` array.
 async function readDetailOfInvoiceMeta(file, wantColNames, opts) {
   const buf = await file.arrayBuffer();
-  const wb = XLSX.read(buf, { type: 'array' });
+  const wb = XLSX.read(buf, { type: 'array', cellDates: true });
   const ws = wb.Sheets[wb.SheetNames[0]];
   if (!ws['!ref']) return null;
   const range = XLSX.utils.decode_range(ws['!ref']);
   let company = null, period = null;
   const scanRowEnd = Math.min(range.e.r, range.s.r + 20);
-  const scanColEnd = Math.min(range.e.c, range.s.c + 4);
-  let headerRow = -1;
-  for (let r = range.s.r; r <= range.e.r; r++) {
-    if (r <= scanRowEnd) {
-      for (let c = range.s.c; c <= scanColEnd; c++) {
-        const cell = ws[XLSX.utils.encode_cell({ r, c })];
-        if (!cell || cell.v === undefined || cell.v === null) continue;
-        const v = String(cell.v);
-        if (!company) { const m = v.match(/COMPANY\s*NAME\s*:\s*(.+)/i); if (m && m[1].trim()) company = m[1].trim(); }
-        if (!period) { const m = v.match(/PAYROLL\s*FOR\s*THE\s*MONTH\s*OF\s*:\s*(.+)/i); if (m && m[1].trim()) period = m[1].trim(); }
-      }
-    }
-    if (headerRow < 0) {
-      for (let c = range.s.c; c <= range.e.c; c++) {
-        const cell = ws[XLSX.utils.encode_cell({ r, c })];
-        if (cell && String(cell.v||'').trim().toLowerCase() === 'line manager') { headerRow = r; break; }
-      }
-    }
-    if (company && period && headerRow >= 0) break;
+  const scanColEnd = Math.min(range.e.c, range.s.c + 15);
+  for (let r = range.s.r; r <= scanRowEnd; r++) {
+    if (!company) { const v = extractLabelValue(ws, range, r, scanColEnd, /COMPANY\s*NAME\s*:?/i); if (v) company = v; }
+    if (!period) { const v = extractLabelValue(ws, range, r, scanColEnd, /PAYROLL\s*FOR\s*THE\s*MONTH\s*OF\s*:?/i); if (v) period = v; }
+    if (company && period) break;
   }
   if (!company || !period) return null;
+
+  // Some templates carry more than one row containing "Line Manager" -- e.g. a reference/legend
+  // table near the top of the sheet, plus the real working header directly above the actual data
+  // further down (confirmed real-world case: a DKSH file with "Line Manager" at both row 8 and the
+  // true data header at row 28). Collect every candidate and prefer whichever one is immediately
+  // followed by a real data row (its first few cells hold a plain number, e.g. "No." = 1); fall
+  // back to the deepest candidate (closest to the actual data) if none of them checks out.
+  const headerCandidates = [];
+  for (let r = range.s.r; r <= range.e.r; r++) {
+    for (let c = range.s.c; c <= range.e.c; c++) {
+      const cell = ws[XLSX.utils.encode_cell({ r, c })];
+      if (cell && String(cell.v||'').trim().toLowerCase() === 'line manager') { headerCandidates.push(r); break; }
+    }
+  }
+  function rowLooksLikeData(r) {
+    for (let c = range.s.c; c <= Math.min(range.e.c, range.s.c + 3); c++) {
+      const cell = ws[XLSX.utils.encode_cell({ r, c })];
+      if (cell && typeof cell.v === 'number') return true;
+    }
+    return false;
+  }
+  let headerRow = headerCandidates.find(r => rowLooksLikeData(r + 1));
+  if (headerRow === undefined) headerRow = headerCandidates.length ? headerCandidates[headerCandidates.length - 1] : -1;
+
   const columns = [];
   const values = {};
   const colIndexByName = {};
@@ -501,10 +545,15 @@ async function readDetailOfInvoiceMeta(file, wantColNames, opts) {
       }
     }
   }
-  const mmyy = monthYearToMMYY(period);
+  const mmyy = periodToMMYY(period);
   if (!mmyy) return null;
   const projectName = values['Project Code SAP'] ? sanitizeNamePart(values['Project Code SAP']) : sanitizeNamePart(company);
-  const meta = { company: sanitizeNamePart(company), projectName, mmyy, columns, values, headerRowExcel: headerRow + 1 };
+  // Every known template puts the categorical/identity columns (Cost Center, Position, Company
+  // name, ...) BEFORE "Line Manager" and the numeric payroll/deduction columns after it (confirmed
+  // in both the simple synthetic layout and a real 300+ column DKSH file) -- used to bound the
+  // auto-name/split column picker so it doesn't get flooded with amount columns.
+  const lmCol = columns.find(c => c.name.trim().toLowerCase() === 'line manager');
+  const meta = { company: sanitizeNamePart(company), projectName, mmyy, columns, values, headerRowExcel: headerRow + 1, lineManagerCol: lmCol ? lmCol.col : null };
   if (opts && opts.allRows && headerRow >= 0) {
     const wantNames = wantColNames || new Set(columns.map(c => c.name));
     const rowValues = [];
@@ -541,19 +590,34 @@ function toggleAutoNameCol(name, checked) {
   if (checked) autoNameSelectedCols.add(name); else autoNameSelectedCols.delete(name);
 }
 
-// Only these headers are ever offered as auto-name/split building blocks -- "Project Code SAP" is
-// excluded since it's now the fixed filename PREFIX (read automatically), not a pickable suffix.
-const AUTO_NAME_ALLOWED = new Set([
-  'cost center', 'cost center 1', 'cost center 2',
-  'cost center 3', 'cost center 4', 'line manager'
-]);
-function isAutoNameAllowed(name) {
-  return AUTO_NAME_ALLOWED.has(String(name || '').trim().toLowerCase().replace(/\s+/g, ' '));
+// Any header column can be a split/naming key EXCEPT ones that obviously can't work as a grouping
+// key -- per-row unique identifiers, dates, and amount-type columns. Blacklist-based (not a fixed
+// allow-list) so new columns in a client's template (e.g. "Company name", "Position", "Branch") are
+// automatically selectable without code changes every time a template adds a field.
+// `colIndex`/`lineManagerCol` bound the picker to the categorical/identity section of the sheet:
+// every known template puts fields like Cost Center, Position, Company name BEFORE "Line Manager"
+// and the numeric payroll/deduction columns after it -- a real 300+ column DKSH file confirmed this
+// (everything past Line Manager is Basic Pay, Bonus, OT amounts, deductions, ...). Without this
+// bound, `sampleValue` alone isn't enough: a payroll amount column that happens to be blank for
+// every employee in a given month can't be detected as "numeric" from an empty sample.
+function isAutoNameAllowed(name, sampleValue, colIndex, lineManagerCol) {
+  const norm = String(name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  if (!norm) return false;
+  if (norm === 'name' || norm === 'name (thai)') return false; // per-employee unique
+  if (/\bdate\b/.test(norm)) return false; // Start Date, PO Date, Effective Date (...) -- near-unique per row
+  if (/\bno\.?\b/.test(norm)) return false; // No., QT No., Invoice No. -- identifiers, not grouping keys
+  if (/\bid\b/.test(norm)) return false; // Emp ID, Alternate ID, Vendor ID (...) -- unique identifiers
+  if (lineManagerCol != null && colIndex != null && colIndex > lineManagerCol) return false;
+  if (sampleValue !== undefined && sampleValue !== null) {
+    const trimmed = String(sampleValue).trim();
+    if (trimmed !== '' && trimmed !== '-' && isFinite(Number(trimmed.replace(/,/g, '')))) return false;
+  }
+  return true;
 }
 
-function renderAutoNameCols(columns) {
+function renderAutoNameCols(columns, values, lineManagerCol) {
   const wrap = document.getElementById('autoNameColsWrap');
-  columns = (columns || []).filter(c => isAutoNameAllowed(c.name));
+  columns = (columns || []).filter(c => isAutoNameAllowed(c.name, values ? values[c.name] : undefined, c.col, lineManagerCol));
   if (!columns.length) { wrap.style.display = 'none'; wrap.innerHTML = ''; autoNameAvailableCols = []; return; }
   autoNameAvailableCols = columns;
   const knownNames = new Set(columns.map(c => c.name));
@@ -581,7 +645,7 @@ function renderAutoNameCols(columns) {
 async function scanFileForAutoNameCols(file) {
   try {
     const meta = await readDetailOfInvoiceMeta(file);
-    renderAutoNameCols(meta ? meta.columns : null);
+    renderAutoNameCols(meta ? meta.columns : null, meta ? meta.values : null, meta ? meta.lineManagerCol : null);
   } catch (err) { renderAutoNameCols(null); }
 }
 
