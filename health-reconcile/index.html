@@ -12,7 +12,11 @@
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'IBM Plex Sans Thai','Segoe UI',Tahoma,Arial,sans-serif;font-size:13.5px;background:#f0f2f5;color:#1a1a2e;letter-spacing:.1px;}
   .app{max-width:960px;margin:0 auto;padding:16px;}
-  a.back{display:inline-block;margin-bottom:10px;color:#546e7a;text-decoration:none;font-size:13px;font-weight:500;}
+  header.topnav{background:#fff;border-bottom:3px solid #c8102e;padding:14px 24px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:10;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+  .topnav .logo{font-weight:700;font-size:16px;color:#c8102e;text-decoration:none;display:inline-flex;align-items:center;gap:8px;}
+  .topnav .logo img{height:22px;width:auto;}
+  .topnav .crumb{color:#ccc;font-size:14px;}
+  .topnav .crumb-current{font-size:14px;color:#546e7a;}
   .card{background:#fff;border-radius:10px;border:1px solid #e0e4ea;padding:20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
   h1{font-size:21px;font-weight:700;color:#c8102e;letter-spacing:.1px;}
   .subtitle{color:#546e7a;font-size:12px;margin-top:3px;}
@@ -43,7 +47,6 @@
   .empty-hint{color:#90a4ae;font-size:12.5px;padding:10px;text-align:center;}
   .btn-main{background:#c8102e;color:#fff;border:none;border-radius:7px;padding:11px 22px;font-size:13.5px;font-weight:600;cursor:pointer;}
   .btn-main:disabled{background:#90a4ae;cursor:not-allowed;}
-  .dbg{background:#0f172a;color:#80cbc4;border-radius:6px;padding:8px 12px;font-size:10.5px;font-family:Consolas,monospace;white-space:pre-wrap;max-height:180px;overflow:auto;display:none;margin-top:10px;}
   table{width:100%;border-collapse:collapse;font-size:12px;}
   thead th{background:#f3f4f6;padding:6px 9px;text-align:left;font-weight:600;}
   td{padding:6px 9px;border-top:1px solid #eee;}
@@ -60,8 +63,12 @@
 </style>
 </head>
 <body>
+<header class="topnav">
+  <a class="logo" href="../"><img src="favicon-64.png" alt=""> PRTR Tools</a>
+  <span class="crumb">›</span>
+  <span class="crumb-current">Health Insurance Reconcile</span>
+</header>
 <div class="app">
-<a href="../" class="back">← กลับหน้าหลัก</a>
 <div class="card">
   <h1>🩺 Health Insurance Reconcile</h1>
   <div class="subtitle">อ่าน invoice รายเดือน กรอกยอดลง Detail Reconcile ให้อัตโนมัติ และช่วยเพิ่มพนักงานใหม่แบบตรวจสอบก่อนทุกขั้นตอน</div>
@@ -93,7 +100,6 @@
     </div>
   </div>
   <div id="statusBox" class="status-box" style="display:none"></div>
-  <div class="dbg" id="dbgBox"></div>
 </div>
 
 <div class="card">

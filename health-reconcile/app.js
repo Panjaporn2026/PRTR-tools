@@ -16,14 +16,7 @@ var state = {
   planCodeCols: null,
 };
 
-function dbg(msg) {
-  var el = document.getElementById('dbgBox');
-  if (!el) return;
-  el.style.display = 'block';
-  el.textContent += '[' + new Date().toLocaleTimeString() + '] ' + msg + '\n';
-  el.scrollTop = 1e9;
-  console.log(msg);
-}
+function dbg(msg) { console.log(msg); }
 function setStatus(msg, cls) {
   var el = document.getElementById('statusBox');
   el.textContent = msg || '';

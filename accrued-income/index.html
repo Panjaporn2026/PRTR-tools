@@ -12,6 +12,11 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'IBM Plex Sans Thai','Segoe UI',Arial,sans-serif;font-size:13.5px;background:#f0f2f5;color:#1a1a2e;letter-spacing:.1px;}
 .app{max-width:960px;margin:0 auto;padding:16px;}
+header.topnav{background:#fff;border-bottom:3px solid #c8102e;padding:14px 24px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:10;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+.topnav .logo{font-weight:700;font-size:16px;color:#c8102e;text-decoration:none;display:inline-flex;align-items:center;gap:8px;}
+.topnav .logo img{height:22px;width:auto;}
+.topnav .crumb{color:#ccc;font-size:14px;}
+.topnav .crumb-current{font-size:14px;color:#546e7a;}
 .card{background:#fff;border-radius:10px;border:1px solid #e0e4ea;padding:20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
 h1{font-size:21px;font-weight:700;color:#c8102e;letter-spacing:.1px;}
 .subtitle{color:#546e7a;font-size:12px;margin-top:3px;}
@@ -31,7 +36,6 @@ h2{font-size:14px;font-weight:700;color:#c8102e;margin-bottom:12px;}
 .msg{border-radius:6px;padding:8px 14px;font-size:12px;margin-top:8px;display:none;}
 .msg.err{background:#ffebee;color:#c62828;border:1px solid #ef9a9a;}
 .msg.ok{background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;}
-.dbg{background:#263238;color:#80cbc4;border-radius:6px;padding:8px 12px;font-size:10px;font-family:monospace;white-space:pre-wrap;max-height:150px;overflow-y:auto;display:block;margin-top:8px;}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
 .chip{display:flex;align-items:center;gap:5px;background:#fde8ec;border-radius:20px;padding:3px 10px;font-size:11px;color:#c8102e;}
 .chip .rm{cursor:pointer;color:#e53935;font-size:13px;}
@@ -65,8 +69,12 @@ tfoot tr{background:#fde8ec;font-weight:700;}tfoot td{padding:5px 7px;border-top
 </style>
 </head>
 <body>
+<header class="topnav">
+  <a class="logo" href="../"><img src="favicon-64.png" alt=""> PRTR Tools</a>
+  <span class="crumb">›</span>
+  <span class="crumb-current">Accrued Income Generator</span>
+</header>
 <div class="app">
-<a href="../" style="display:inline-block;margin-bottom:10px;color:#546e7a;text-decoration:none;font-size:13px;">← กลับหน้าหลัก</a>
 <div class="card">
   <h1>📋 PRTR Accrued Income Generator</h1>
   <div class="subtitle">ทำงานได้โดยไม่ต้องโหลด library จากอินเทอร์เน็ต — ใช้ browser API ล้วนๆ</div>
@@ -86,7 +94,6 @@ tfoot tr{background:#fde8ec;font-weight:700;}tfoot td{padding:5px 7px;border-top
   <div class="msg err" id="errBox"></div>
   <div class="msg" id="tplBox" style="background:#e3f2fd;color:#1565c0;display:none;">⏳ กำลังโหลด Template Accrue Income ในตัว...</div>
   <div class="msg ok" id="okBox"></div>
-  <div class="dbg" id="dbgBox"></div>
 </div>
 <div class="card" id="summaryCard" style="display:none"><h2>📄 สรุปข้อมูล</h2><div class="summary-grid" id="summaryGrid"></div></div>
 <div class="card" id="groupCard" style="display:none">
@@ -489,7 +496,7 @@ var GROUP_DEFS=[
   {key:'cc4',label:'COST CENTER 4',col:'cc4'},
 ];
 
-function dbg(m){var b=document.getElementById('dbgBox');b.style.display='block';b.textContent+='['+new Date().toLocaleTimeString()+'] '+m+'\n';b.scrollTop=9999;console.log(m);}
+function dbg(m){console.log(m);}
 function showErr(m){var b=document.getElementById('errBox');b.textContent=m;b.style.display='block';}
 function showOk(m){var b=document.getElementById('okBox');b.textContent=m;b.style.display='block';setTimeout(function(){b.style.display='none';},5000);}
 

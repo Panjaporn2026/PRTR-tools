@@ -21,8 +21,12 @@
     a { color: #607d8b; text-decoration: none; }
     a:hover { color: #c8102e; }
     .wrap { max-width: 760px; margin: 0 auto; }
-    .back { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 20px; font-size: 14px; font-weight: 500; }
-    h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; color: #1a237e; }
+    header.topnav { background: #fff; border-bottom: 3px solid #c8102e; padding: 14px 24px; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 10; box-shadow: 0 1px 4px rgba(0,0,0,.06); margin: -24px -16px 24px; }
+    .topnav .logo { font-weight: 700; font-size: 16px; color: #c8102e; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
+    .topnav .logo img { height: 22px; width: auto; }
+    .topnav .crumb { color: #ccc; font-size: 14px; }
+    .topnav .crumb-current { font-size: 14px; color: #546e7a; }
+    h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; color: #c8102e; }
     .subtitle { font-size: 14px; color: #546e7a; margin-bottom: 24px; }
 
     /* Drop zone */
@@ -199,8 +203,12 @@
   </style>
 </head>
 <body>
+<header class="topnav">
+  <a class="logo" href="../"><img src="favicon-64.png" alt=""> PRTR Tools</a>
+  <span class="crumb">›</span>
+  <span class="crumb-current">File Rename &amp; Lock</span>
+</header>
 <div class="wrap">
-  <a href="../" class="back">← กลับหน้าหลัก</a>
   <h1>🔒 File Rename & Lock</h1>
   <p class="subtitle">ตั้งชื่อไฟล์ใหม่ และ/หรือ ล็อกรหัสผ่านสำหรับเปิด — รองรับ .xlsx และ .pdf — แก้ไขได้หลายไฟล์พร้อมกัน</p>
 
