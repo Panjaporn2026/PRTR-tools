@@ -208,6 +208,10 @@
     }
     .an-col-chip:has(input:checked) { border-color: #c8102e; color: #c8102e; background: #fde8ec; }
     .an-col-chip input { accent-color: #c8102e; cursor: pointer; }
+    .split-pw-row { margin-top: 8px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .split-pw-label { font-size: 12px; color: #607d8b; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+    .split-pw-row .pw-field { flex: 1; min-width: 220px; max-width: 320px; }
+    .split-pw-row .pw-field input { width: 100%; }
     .btn-clear-map {
       margin-left: auto; background: none; border: none;
       color: #90a4ae; cursor: pointer; font-size: 12px;
@@ -266,6 +270,17 @@
       <button class="btn-tpl" id="btnRunSplit" onclick="runSplit()" disabled>✂️ ตัดไฟล์ (ดาวน์โหลด ZIP)</button>
     </div>
     <input type="file" id="splitInput" accept=".xlsx" style="display:none">
+    <div class="mapping-desc" style="margin-top:8px">ทุกไฟล์ที่ตัดออกมาจะถูกซ่อนคอลัมน์ที่ยอด Subtotal = 0 และคอลัมน์หลัง Memo/Total Invoice Before Vat ให้อัตโนมัติ (เหมือนไฟล์ที่ผ่านการ "ประมวลผล" ปกติ)</div>
+    <div class="split-pw-row">
+      <label class="split-pw-label">
+        <span class="toggle-sw"><input type="checkbox" id="splitPwToggle" onchange="toggleSplitPwRow()"><span class="slider"></span></span>
+        ใส่รหัสผ่านให้ไฟล์ที่ตัดออกมา (รหัสเดียวกันทุกไฟล์)
+      </label>
+      <div class="pw-field" id="splitPwFieldWrap" style="display:none">
+        <input type="password" id="splitPw" placeholder="รหัสผ่านสำหรับไฟล์ที่ตัดออกมา">
+        <button class="pw-eye" onclick="toggleSplitPwVisibility()" tabindex="-1">👁</button>
+      </div>
+    </div>
     <div class="mapping-status" id="splitStatus"></div>
   </div>
 
@@ -1411,6 +1426,15 @@ async function selectSplitFile(file) {
   await scanFileForAutoNameCols(file);
 }
 
+function toggleSplitPwRow() {
+  const on = document.getElementById('splitPwToggle').checked;
+  document.getElementById('splitPwFieldWrap').style.display = on ? 'flex' : 'none';
+}
+function toggleSplitPwVisibility() {
+  const inp = document.getElementById('splitPw');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
 async function runSplit() {
   const statusEl = document.getElementById('splitStatus');
   statusEl.className = 'mapping-status show';
@@ -1422,8 +1446,17 @@ async function runSplit() {
   statusEl.innerHTML = '<span style="color:#c8102e">⏳ กำลังตัดไฟล์...</span>';
   try {
     const { outputs } = await splitDetailOfInvoiceFile(file, autoNameSelectedCols);
+    const password = document.getElementById('splitPwToggle').checked ? document.getElementById('splitPw').value : '';
+    // Same post-processing every normal "ประมวลผล" run already applies: hide zero-subtotal
+    // columns + everything after Memo/Total Invoice Before Vat, then optionally lock with a
+    // password -- so a split output is exactly as finished as a normally-processed file.
+    const hideOpts = { hideZeroSubtotal: true, hideAfterMemo: true };
+    statusEl.innerHTML = '<span style="color:#c8102e">⏳ กำลังซ่อนคอลัมน์และล็อกรหัสผ่าน...</span>';
     const outerZip = new JSZip();
-    outputs.forEach(o => outerZip.file(o.name, o.data));
+    for (const o of outputs) {
+      const finalBytes = await processExcel(o.data, password, hideOpts);
+      outerZip.file(o.name, finalBytes);
+    }
     const blob = await outerZip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 1 } });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
