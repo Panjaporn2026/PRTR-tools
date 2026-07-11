@@ -35,11 +35,16 @@
     return pts.join(' L');
   }
 
-  var ear1 = 'M' + zigzag(24, 6, 12, 50, 3, 4) + ' L40,44 Z';
-  var ear2 = 'M' + zigzag(64, 18, 54, 52, 2, 3.5) + ' L86,46 Z';
+  // Ears are drawn as separate spikes whose base sits well inside the head blob's own solid
+  // top curve (not stitched edge-to-edge with it) — that way the two shapes always overlap by
+  // a safe margin instead of having to meet at an exact seam, which is what previously left a
+  // sliver of background showing through between the ears.
+  var ear1 = 'M' + zigzag(24, 4, 14, 44, 3, 4) + ' L38,40 Z';
+  var ear2 = 'M' + zigzag(66, 14, 56, 46, 2, 3.5) + ' L86,42 Z';
   var cheek = zigzag(22, 54, 17, 92, 4, 4);
-  var head = 'M40,44 C34,44 27,47 22,54 L' + cheek +
-    ' C17,110 27,126 44,136 C58,144 74,145 90,140 L120,140 L120,8 L86,46 L64,18 L40,44 Z';
+  var head = 'M22,54 L' + cheek +
+    ' C17,110 27,126 44,136 C58,144 74,145 90,140 L120,140 L120,8' +
+    ' C104,3 78,2 55,6 C36,9 24,18 20,34 C18,44 19,50 22,54 Z';
 
   var svg =
     '<svg viewBox="0 0 120 150" xmlns="http://www.w3.org/2000/svg">' +
