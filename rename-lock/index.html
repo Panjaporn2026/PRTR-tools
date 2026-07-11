@@ -1072,9 +1072,20 @@ function toggleAutoNameCol(name, checked) {
   if (checked) autoNameSelectedCols.add(name); else autoNameSelectedCols.delete(name);
 }
 
+// Only these headers are ever offered as auto-name building blocks — a Detail of Invoice
+// file has many columns (Amount, EMP ID, ...) that make useless/noisy filename parts.
+const AUTO_NAME_ALLOWED = new Set([
+  'project code sap', 'cost center', 'cost center 1', 'cost center 2',
+  'cost center 3', 'cost center 4', 'line manager'
+]);
+function isAutoNameAllowed(name) {
+  return AUTO_NAME_ALLOWED.has(String(name || '').trim().toLowerCase().replace(/\s+/g, ' '));
+}
+
 function renderAutoNameCols(columns) {
   const wrap = document.getElementById('autoNameColsWrap');
-  if (!columns || !columns.length) { wrap.style.display = 'none'; wrap.innerHTML = ''; autoNameAvailableCols = []; return; }
+  columns = (columns || []).filter(c => isAutoNameAllowed(c.name));
+  if (!columns.length) { wrap.style.display = 'none'; wrap.innerHTML = ''; autoNameAvailableCols = []; return; }
   autoNameAvailableCols = columns;
   const knownNames = new Set(columns.map(c => c.name));
   // Selections from a previous scan that no longer exist in this file are dropped.
