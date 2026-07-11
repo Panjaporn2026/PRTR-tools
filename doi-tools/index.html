@@ -275,6 +275,51 @@ function findZeroSubtotalColumns(sheetXml) {
   return toHide;
 }
 
+// Same SUBTOTAL-formula scan as findZeroSubtotalColumns, but returns every column that has one
+// AT ALL (regardless of its cached value) rather than filtering to all-zero. Used by the split
+// feature: after splitting, the ORIGINAL file's cached subtotal reflects the whole unsplit dataset,
+// not this specific group's rows, so "is it zero" has to be re-decided from the group's own
+// surviving row values (see computeZeroValueColsForGroup) -- this just identifies WHICH columns are
+// legitimately subtotal-tracked (i.e. numeric, worth checking) in the first place.
+function findSubtotalTrackedColumns(sheetXml) {
+  var sharedMap = buildSharedFormulaTextMap(sheetXml);
+  var tracked = new Set();
+  var cellRe = /<c\s+r="([A-Z]+)\d+"([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g, m;
+  while ((m = cellRe.exec(sheetXml)) !== null) {
+    var colLetters = m[1], inner = m[3] || '';
+    var fFull = /<f\b[^>]*>([\s\S]*?)<\/f>/.exec(inner);
+    var fShared = /<f\s+t="shared"[^>]*\bsi="(\d+)"[^>]*\/>/.exec(inner);
+    var formulaText = null;
+    if (fFull) formulaText = fFull[1];
+    else if (fShared && sharedMap[fShared[1]] !== undefined) formulaText = sharedMap[fShared[1]];
+    if (!formulaText || !/SUBTOTAL\s*\(/i.test(formulaText)) continue;
+    tracked.add(colLettersToIndex(colLetters));
+  }
+  return tracked;
+}
+
+// For one split group's kept rows, decide hide/show for each subtotal-tracked column based on
+// THAT group's own surviving data (not the original file's stale aggregate): hidden if every row
+// in this group has a zero or blank value there.
+function computeZeroValueColsForGroup(keptRows, headerRow1, trackedCols, sst) {
+  const dataRows = keptRows.filter(r => r.rowNum > headerRow1);
+  const toHide = [];
+  trackedCols.forEach(colIdx => {
+    const letters = colIndexToLetters(colIdx);
+    let nonZero = false;
+    for (const row of dataRows) {
+      const cellXml = row.cellsByCol[letters];
+      if (!cellXml) continue;
+      const val = getCellValueForSplit(cellXml, sst);
+      if (val === null || val === undefined || val === '') continue;
+      if (typeof val === 'number') { if (Math.abs(val) > 1e-9) { nonZero = true; break; } }
+      else { nonZero = true; break; } // non-numeric non-blank content -- treat as "has content"
+    }
+    if (!nonZero) toHide.push(colIdx);
+  });
+  return toHide;
+}
+
 function parseColsEntries(colsInnerXml) {
   var entries = [];
   var re = /<col\b([^>]*?)\/>/g, m;
@@ -406,7 +451,12 @@ async function applyColumnHiding(buffer, opts) {
   });
   for (const path of sheetPaths) {
     const xml = await zip.file(path).async('string');
-    let toHide = opts.hideZeroSubtotal ? findZeroSubtotalColumns(xml) : [];
+    // A split output's own per-group zero-value columns (see computeZeroValueColsForGroup)
+    // supersede the generic whole-file scan, since the cached subtotal in a split file no longer
+    // reflects just that file's own rows.
+    let toHide = opts.hideZeroSubtotal
+      ? (opts.zeroSubtotalColsOverride || findZeroSubtotalColumns(xml))
+      : [];
     if (opts.hideAfterMemo) toHide = toHide.concat(findColsAfterMemoOrTotal(xml, sharedStrings));
     toHide = Array.from(new Set(toHide));
     if (toHide.length) zip.file(path, hideColumnsInSheetXml(xml, toHide));
@@ -885,6 +935,9 @@ async function splitDetailOfInvoiceFile(file, wantCols) {
     for (const col in row.cellsByCol) row.cellsByCol[col] = stripFormulaKeepValue(row.cellsByCol[col]);
   });
   await stripCalcChain(zip);
+  // Which columns are legitimately subtotal-tracked at all (see findSubtotalTrackedColumns) --
+  // computed once from the ORIGINAL sheet since splitting never adds/removes columns, only rows.
+  const trackedSubtotalCols = findSubtotalTrackedColumns(origSheetXml);
 
   const outputs = [];
   for (const [key, info] of groupInfo) {
@@ -897,6 +950,11 @@ async function splitDetailOfInvoiceFile(file, wantCols) {
     );
     const newLastRow = headerRow1 + info.count;
     const { firstCol, lastCol } = columnExtentForSplit(keptRows, headerRow1);
+    // The original file's cached SUBTOTAL values reflect the whole unsplit dataset, not this
+    // group's own rows -- e.g. a column could be nonzero in the aggregate but genuinely zero for
+    // every row THIS group kept. Re-decide hide/show directly from this group's surviving values
+    // rather than trusting the (now stale) cached subtotal.
+    const zeroValueCols = computeZeroValueColsForGroup(keptRows, headerRow1, trackedSubtotalCols, sst);
     let newSheetXml = serializeSheetRowsForSplit({ pre: parsed.pre, post: parsed.post, rows: keptRows });
     let newWbXml = origWbXml;
     const refs = updateStructuralRefsForSplit(newSheetXml, newWbXml, {
@@ -915,7 +973,8 @@ async function splitDetailOfInvoiceFile(file, wantCols) {
       name: (suffix ? `${baseName}_${suffix}` : baseName) + '.xlsx',
       data: outBytes,
       rowCount: info.count,
-      isUnassigned: key === SPLIT_UNASSIGNED_KEY
+      isUnassigned: key === SPLIT_UNASSIGNED_KEY,
+      zeroValueCols
     });
   }
   return { meta, outputs };
@@ -979,10 +1038,12 @@ async function runSplit() {
     // Same post-processing every normal "ประมวลผล" run already applies: hide zero-subtotal
     // columns + everything after Memo/Total Invoice Before Vat, then optionally lock with a
     // password -- so a split output is exactly as finished as a normally-processed file.
-    const hideOpts = { hideZeroSubtotal: true, hideAfterMemo: true };
+    // zeroSubtotalColsOverride uses THIS group's own re-decided hide list (computed in
+    // splitDetailOfInvoiceFile) instead of re-scanning the file's now-stale cached subtotals.
     statusEl.innerHTML = '<span style="color:#c8102e">⏳ กำลังซ่อนคอลัมน์และล็อกรหัสผ่าน...</span>';
     const outerZip = new JSZip();
     for (const o of outputs) {
+      const hideOpts = { hideZeroSubtotal: true, hideAfterMemo: true, zeroSubtotalColsOverride: o.zeroValueCols };
       const finalBytes = await processExcel(o.data, password, hideOpts);
       outerZip.file(o.name, finalBytes);
     }
