@@ -180,6 +180,8 @@
       padding: 6px 12px; transition: all .2s; white-space: nowrap; flex-shrink: 0;
     }
     .btn-tpl:hover { border-color: #c8102e; color: #c8102e; }
+    .btn-tpl:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-tpl:disabled:hover { border-color: #cfd8dc; color: #546e7a; }
     .mapping-upload-row { display: flex; align-items: center; gap: 10px; }
     .mapping-drop {
       flex: 1; border: 1.5px dashed #cfd8dc; border-radius: 8px; background: #f8fafc;
@@ -259,8 +261,9 @@
     <div class="mapping-status" id="autoNameStatus"></div>
     <div class="mapping-upload-row" style="margin-top:10px">
       <div class="mapping-drop" id="splitDrop" onclick="document.getElementById('splitInput').click()">
-        ✂️ คลิกหรือลากไฟล์ Detail of Invoice 1 ไฟล์ เพื่อตัดไฟล์แยกตามคอลัมน์ที่ติ๊กไว้ด้านบน (ดาวน์โหลดเป็น ZIP)
+        ✂️ คลิกหรือลากไฟล์ Detail of Invoice 1 ไฟล์ ที่ต้องการตัดไฟล์มาวางที่นี่ (คอลัมน์ด้านบนจะขึ้นตามไฟล์นี้)
       </div>
+      <button class="btn-tpl" id="btnRunSplit" onclick="runSplit()" disabled>✂️ ตัดไฟล์ (ดาวน์โหลด ZIP)</button>
     </div>
     <input type="file" id="splitInput" accept=".xlsx" style="display:none">
     <div class="mapping-status" id="splitStatus"></div>
@@ -1140,13 +1143,20 @@ function renderAutoNameCols(columns) {
     '</div>';
 }
 
+// Scans one file's header row and refreshes the shared checkbox picker from it. Used both when a
+// file lands in the main list (rename flow) and when a file is dropped on the split zone --
+// whichever file was scanned most recently is what the checkboxes reflect.
+async function scanFileForAutoNameCols(file) {
+  try {
+    const meta = await readDetailOfInvoiceMeta(file);
+    renderAutoNameCols(meta ? meta.columns : null);
+  } catch (err) { renderAutoNameCols(null); }
+}
+
 async function refreshAutoNameColumns() {
   const entry = fileEntries.find(e => e.file.name.split('.').pop().toLowerCase() === 'xlsx');
   if (!entry) { renderAutoNameCols(null); return; }
-  try {
-    const meta = await readDetailOfInvoiceMeta(entry.file);
-    renderAutoNameCols(meta ? meta.columns : null);
-  } catch (err) { renderAutoNameCols(null); }
+  await scanFileForAutoNameCols(entry.file);
 }
 
 async function autoNameAll() {
@@ -1367,24 +1377,46 @@ async function splitDetailOfInvoiceFile(file, wantCols) {
   return { meta, outputs };
 }
 
+let splitTargetFile = null;
+
 const splitDrop = document.getElementById('splitDrop');
 splitDrop.addEventListener('dragover', e => { e.preventDefault(); splitDrop.classList.add('dragover'); });
 splitDrop.addEventListener('dragleave', () => splitDrop.classList.remove('dragover'));
 splitDrop.addEventListener('drop', e => {
   e.preventDefault(); splitDrop.classList.remove('dragover');
   const f = e.dataTransfer.files[0];
-  if (f) runSplit(f);
+  if (f) selectSplitFile(f);
 });
 document.getElementById('splitInput').addEventListener('change', e => {
-  if (e.target.files[0]) runSplit(e.target.files[0]);
+  if (e.target.files[0]) selectSplitFile(e.target.files[0]);
   e.target.value = '';
 });
 
-async function runSplit(file) {
+// Picking a file only loads it + refreshes the column checkboxes from IT specifically -- the
+// actual split only runs when the user presses the "ตัดไฟล์" button, so they always get a chance
+// to review/tick columns for this exact file first, even if they never touched the main file list.
+async function selectSplitFile(file) {
   const statusEl = document.getElementById('splitStatus');
+  const btn = document.getElementById('btnRunSplit');
   statusEl.className = 'mapping-status show';
   if (file.name.split('.').pop().toLowerCase() !== 'xlsx') {
     statusEl.innerHTML = '<span class="ms-err">✕ รองรับเฉพาะไฟล์ .xlsx</span>';
+    splitTargetFile = null; btn.disabled = true;
+    return;
+  }
+  splitTargetFile = file;
+  splitDrop.textContent = '✂️ ' + file.name + ' — คลิกเพื่อเปลี่ยนไฟล์';
+  btn.disabled = false;
+  statusEl.innerHTML = '';
+  await scanFileForAutoNameCols(file);
+}
+
+async function runSplit() {
+  const statusEl = document.getElementById('splitStatus');
+  statusEl.className = 'mapping-status show';
+  const file = splitTargetFile;
+  if (!file) {
+    statusEl.innerHTML = '<span class="ms-err">✕ กรุณาเลือกไฟล์ที่ต้องการตัดก่อน</span>';
     return;
   }
   statusEl.innerHTML = '<span style="color:#c8102e">⏳ กำลังตัดไฟล์...</span>';
