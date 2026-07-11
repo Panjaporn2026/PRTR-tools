@@ -17,32 +17,15 @@
     '@media (max-width:520px){#osiPeekCat{width:58px;height:72px}}';
   document.head.appendChild(style);
 
-  // Returns a full jagged polyline from (x1,y1) to (x2,y2) INCLUDING both endpoints, so callers
-  // can splice it straight into a path with no gap/jump at the seam.
-  function zigzag(x1, y1, x2, y2, teeth, depth) {
-    var dx = x2 - x1, dy = y2 - y1;
-    var len = Math.sqrt(dx * dx + dy * dy) || 1;
-    var nx = -dy / len, ny = dx / len;
-    var pts = [x1.toFixed(1) + ',' + y1.toFixed(1)];
-    var steps = teeth * 2;
-    for (var i = 1; i < steps; i++) {
-      var t = i / steps;
-      var px = x1 + dx * t, py = y1 + dy * t;
-      var d = (i % 2 === 1) ? depth : 0;
-      pts.push((px + nx * d).toFixed(1) + ',' + (py + ny * d).toFixed(1));
-    }
-    pts.push(x2.toFixed(1) + ',' + y2.toFixed(1));
-    return pts.join(' L');
-  }
-
-  // Ears are drawn as separate spikes whose base sits well inside the head blob's own solid
-  // top curve (not stitched edge-to-edge with it) — that way the two shapes always overlap by
-  // a safe margin instead of having to meet at an exact seam, which is what previously left a
-  // sliver of background showing through between the ears.
-  var ear1 = 'M' + zigzag(24, 4, 14, 44, 3, 4) + ' L38,40 Z';
-  var ear2 = 'M' + zigzag(66, 14, 56, 46, 2, 3.5) + ' L86,42 Z';
-  var cheek = zigzag(22, 54, 17, 92, 4, 4);
-  var head = 'M22,54 L' + cheek +
+  // Plain smooth curves throughout — an earlier version gave the ears/cheek a jagged "fur"
+  // edge, but at the small display size that texture read as a rendering glitch rather than
+  // fur, so it's gone in favour of a shape that can't be misread.
+  // Ears are separate triangles whose base sits well inside the head blob's own top curve
+  // (not stitched edge-to-edge with it), guaranteeing overlap instead of relying on an exact
+  // seam match.
+  var ear1 = 'M24,4 L13,45 L38,40 Z';
+  var ear2 = 'M66,14 L55,47 L86,42 Z';
+  var head = 'M22,54 C17,64 15,78 17,92' +
     ' C17,110 27,126 44,136 C58,144 74,145 90,140 L120,140 L120,8' +
     ' C104,3 78,2 55,6 C36,9 24,18 20,34 C18,44 19,50 22,54 Z';
 
