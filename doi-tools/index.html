@@ -84,7 +84,7 @@
     .mapping-upload-row .btn-tpl { align-self: stretch; text-align: center; padding: 9px 12px; }
     .mapping-drop {
       flex: 1; border: 1.5px dashed #cfd8dc; border-radius: 8px; background: #f8fafc;
-      padding: 10px 14px; text-align: center; cursor: pointer;
+      padding: 22px 16px; text-align: center; cursor: pointer;
       font-size: 13px; color: #607d8b; transition: all .2s;
     }
     .mapping-drop:hover, .mapping-drop.dragover { border-color: #c8102e; color: #c8102e; background: #fde8ec; }
@@ -140,7 +140,6 @@
       <div class="mapping-drop" id="splitDrop" onclick="document.getElementById('splitInput').click()">
         ✂️ คลิกหรือลากไฟล์ Detail of Invoice 1 ไฟล์ ที่ต้องการตัดไฟล์มาวางที่นี่ (คอลัมน์ด้านบนจะขึ้นตามไฟล์นี้)
       </div>
-      <button class="btn-tpl" id="btnRunSplit" onclick="runSplit()" disabled>✂️ ตัดไฟล์ (ดาวน์โหลด ZIP)</button>
     </div>
     <input type="file" id="splitInput" accept=".xlsx" style="display:none">
     <div class="split-pw-row">
@@ -153,6 +152,7 @@
         <button class="pw-eye" onclick="toggleSplitPwVisibility()" tabindex="-1">👁</button>
       </div>
     </div>
+    <button class="btn-tpl" id="btnRunSplit" onclick="runSplit()" disabled style="align-self:stretch;text-align:center;padding:9px 12px;margin-top:12px;width:100%">✂️ ตัดไฟล์ (ดาวน์โหลด ZIP)</button>
     <div class="mapping-status" id="splitStatus"></div>
   </div>
 
