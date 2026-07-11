@@ -203,6 +203,16 @@
       color: #90a4ae; cursor: pointer; font-size: 12px;
     }
     .btn-clear-map:hover { color: #c62828; }
+    .autoname-cols { margin-top: 10px; }
+    .an-cols-label { font-size: 12px; color: #607d8b; margin-bottom: 6px; }
+    .an-cols-list { display: flex; flex-wrap: wrap; gap: 6px 10px; }
+    .an-col-chip {
+      display: flex; align-items: center; gap: 5px; font-size: 12px; color: #37474f;
+      background: #f8fafc; border: 1px solid #cfd8dc; border-radius: 6px;
+      padding: 4px 9px; cursor: pointer; user-select: none;
+    }
+    .an-col-chip:has(input:checked) { border-color: #c8102e; color: #c8102e; background: #fde8ec; }
+    .an-col-chip input { accent-color: #c8102e; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -234,6 +244,21 @@
     </div>
     <input type="file" id="mappingInput" accept=".xlsx" style="display:none">
     <div class="mapping-status" id="mappingStatus"></div>
+  </div>
+
+  <!-- Auto-name from Detail of Invoice content -->
+  <div class="mapping-section">
+    <div class="mapping-header">
+      <div class="mapping-header-left">
+        <div>
+          <div class="mapping-title">🏷️ ตั้งชื่ออัตโนมัติจาก Detail of Invoice</div>
+          <div class="mapping-desc">อ่าน Project Code SAP / เดือนที่จ่ายจากในไฟล์ .xlsx ที่อยู่ในรายการด้านล่าง แล้วตั้งชื่อเป็น "Project Code SAP_Detail of invoice_MMYY" ต่อท้ายด้วยคอลัมน์ที่เลือก</div>
+        </div>
+      </div>
+      <button class="btn-tpl" onclick="autoNameAll()">🏷️ ตั้งชื่ออัตโนมัติ</button>
+    </div>
+    <div class="autoname-cols" id="autoNameColsWrap" style="display:none"></div>
+    <div class="mapping-status" id="autoNameStatus"></div>
   </div>
 
   <!-- Drop zone (always visible) -->
@@ -312,6 +337,7 @@ function addFiles(fileList) {
   // Auto-apply mapping if loaded
   if (Object.keys(currentMapping).length) applyMapping();
   else renderList();
+  refreshAutoNameColumns();
 }
 
 // ===================== RENDER =====================
@@ -387,6 +413,7 @@ function renderList() {
 function removeEntry(id) {
   fileEntries = fileEntries.filter(e => e.id !== id);
   renderList();
+  refreshAutoNameColumns();
 }
 function updateEntry(id, key, val) {
   const e = fileEntries.find(e => e.id === id);
@@ -959,6 +986,171 @@ async function processPdf(buffer, password) {
   for(const p of parts){ out.set(p,off); off+=p.length; }
   return out;
 }
+
+// ===================== AUTO-NAME FROM DETAIL OF INVOICE =====================
+const MONTH_NAMES = {
+  jan:'01',january:'01', feb:'02',february:'02', mar:'03',march:'03', apr:'04',april:'04',
+  may:'05', jun:'06',june:'06', jul:'07',july:'07', aug:'08',august:'08',
+  sep:'09',sept:'09',september:'09', oct:'10',october:'10', nov:'11',november:'11', dec:'12',december:'12'
+};
+function monthYearToMMYY(s) {
+  const m = String(s||'').match(/([A-Za-z]+)[\s\-\/]+(\d{4}|\d{2})/);
+  if (!m) return null;
+  const mm = MONTH_NAMES[m[1].toLowerCase()];
+  if (!mm) return null;
+  const yy = m[2].length === 4 ? m[2].slice(-2) : m[2];
+  return mm + yy;
+}
+function sanitizeNamePart(s) {
+  return String(s||'').trim().replace(/[\\/:*?"<>|]/g,'').replace(/\s+/g,' ').trim();
+}
+
+// Reads a Detail of Invoice .xlsx: scans the first ~20 rows for "COMPANY NAME :" (client's legal
+// entity name -- kept only as a last-resort fallback) and "...PAYROLL FOR THE MONTH OF :" labels,
+// then locates the header row (anchored on the "Line Manager" column, which every known template
+// has) and reads every column's header text plus its first data-row value below. The filename's
+// project prefix comes from the "Project Code SAP" COLUMN value (PRTR's own project code), not
+// from COMPANY NAME (that's the client's own registered company name, a different thing).
+// Returns null if the file doesn't follow this layout at all.
+// `wantColNames` (optional Set) limits which columns get their value read — omit it to read all
+// columns (used for the checkbox-picker discovery scan). "Project Code SAP" is always read
+// regardless, since the filename prefix depends on it.
+async function readDetailOfInvoiceMeta(file, wantColNames) {
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, { type: 'array' });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  if (!ws['!ref']) return null;
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  let company = null, period = null;
+  const scanRowEnd = Math.min(range.e.r, range.s.r + 20);
+  const scanColEnd = Math.min(range.e.c, range.s.c + 4);
+  let headerRow = -1;
+  for (let r = range.s.r; r <= range.e.r; r++) {
+    if (r <= scanRowEnd) {
+      for (let c = range.s.c; c <= scanColEnd; c++) {
+        const cell = ws[XLSX.utils.encode_cell({ r, c })];
+        if (!cell || cell.v === undefined || cell.v === null) continue;
+        const v = String(cell.v);
+        if (!company) { const m = v.match(/COMPANY\s*NAME\s*:\s*(.+)/i); if (m && m[1].trim()) company = m[1].trim(); }
+        if (!period) { const m = v.match(/PAYROLL\s*FOR\s*THE\s*MONTH\s*OF\s*:\s*(.+)/i); if (m && m[1].trim()) period = m[1].trim(); }
+      }
+    }
+    if (headerRow < 0) {
+      for (let c = range.s.c; c <= range.e.c; c++) {
+        const cell = ws[XLSX.utils.encode_cell({ r, c })];
+        if (cell && String(cell.v||'').trim().toLowerCase() === 'line manager') { headerRow = r; break; }
+      }
+    }
+    if (company && period && headerRow >= 0) break;
+  }
+  if (!company || !period) return null;
+  const columns = [];
+  const values = {};
+  const alwaysReadNames = new Set(['Project Code SAP']);
+  if (headerRow >= 0) {
+    for (let c = range.s.c; c <= range.e.c; c++) {
+      const hc = ws[XLSX.utils.encode_cell({ r: headerRow, c })];
+      const name = hc && hc.v !== undefined && hc.v !== null ? String(hc.v).trim() : '';
+      if (!name) continue;
+      columns.push({ name, col: c });
+      if (!wantColNames || wantColNames.has(name) || alwaysReadNames.has(name)) {
+        for (let r = headerRow + 1; r <= range.e.r; r++) {
+          const cell = ws[XLSX.utils.encode_cell({ r, c })];
+          if (cell && String(cell.v||'').trim()) { values[name] = String(cell.v).trim(); break; }
+        }
+      }
+    }
+  }
+  const mmyy = monthYearToMMYY(period);
+  if (!mmyy) return null;
+  const projectName = values['Project Code SAP'] ? sanitizeNamePart(values['Project Code SAP']) : sanitizeNamePart(company);
+  return { company: sanitizeNamePart(company), projectName, mmyy, columns, values };
+}
+
+// ===================== AUTO-NAME COLUMN PICKER =====================
+let autoNameAvailableCols = []; // [{name, col}] from the most recently scanned file
+let autoNameSelectedCols = new Set(); // column header names to append to the filename
+
+function escAttr(s) {
+  return String(s).replace(/[&<>"']/g, ch => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[ch]));
+}
+
+function toggleAutoNameCol(name, checked) {
+  if (checked) autoNameSelectedCols.add(name); else autoNameSelectedCols.delete(name);
+}
+
+// Only these headers are ever offered as auto-name building blocks -- "Project Code SAP" is
+// excluded since it's now the fixed filename PREFIX (read automatically), not a pickable suffix.
+const AUTO_NAME_ALLOWED = new Set([
+  'cost center', 'cost center 1', 'cost center 2',
+  'cost center 3', 'cost center 4', 'line manager'
+]);
+function isAutoNameAllowed(name) {
+  return AUTO_NAME_ALLOWED.has(String(name || '').trim().toLowerCase().replace(/\s+/g, ' '));
+}
+
+function renderAutoNameCols(columns) {
+  const wrap = document.getElementById('autoNameColsWrap');
+  columns = (columns || []).filter(c => isAutoNameAllowed(c.name));
+  if (!columns.length) { wrap.style.display = 'none'; wrap.innerHTML = ''; autoNameAvailableCols = []; return; }
+  autoNameAvailableCols = columns;
+  const knownNames = new Set(columns.map(c => c.name));
+  autoNameSelectedCols.forEach(n => { if (!knownNames.has(n)) autoNameSelectedCols.delete(n); });
+  if (autoNameSelectedCols.size === 0) {
+    const lm = columns.find(c => c.name.trim().toLowerCase() === 'line manager');
+    if (lm) autoNameSelectedCols.add(lm.name);
+  }
+  wrap.style.display = 'block';
+  wrap.innerHTML =
+    '<div class="an-cols-label">เลือกคอลัมน์ที่ต้องการต่อท้ายชื่อไฟล์ (เรียงตามลำดับคอลัมน์ในไฟล์):</div>' +
+    '<div class="an-cols-list">' +
+    columns.map(c => {
+      const checked = autoNameSelectedCols.has(c.name) ? 'checked' : '';
+      return '<label class="an-col-chip"><input type="checkbox" ' + checked +
+        ' onchange="toggleAutoNameCol(\'' + escAttr(c.name).replace(/'/g, '&#39;') + '\', this.checked)"> ' +
+        escAttr(c.name) + '</label>';
+    }).join('') +
+    '</div>';
+}
+
+// Scans the first xlsx file already in the main list and refreshes the checkbox picker from it.
+async function refreshAutoNameColumns() {
+  const entry = fileEntries.find(e => e.file.name.split('.').pop().toLowerCase() === 'xlsx');
+  if (!entry) { renderAutoNameCols(null); return; }
+  try {
+    const meta = await readDetailOfInvoiceMeta(entry.file);
+    renderAutoNameCols(meta ? meta.columns : null);
+  } catch (err) { renderAutoNameCols(null); }
+}
+
+async function autoNameAll() {
+  const statusEl = document.getElementById('autoNameStatus');
+  statusEl.className = 'mapping-status show';
+  statusEl.innerHTML = '<span style="color:#c8102e">⏳ กำลังอ่านไฟล์...</span>';
+  let named = 0, skipped = 0;
+  const wantCols = autoNameSelectedCols;
+  for (const entry of fileEntries) {
+    const ext = entry.file.name.split('.').pop().toLowerCase();
+    if (ext !== 'xlsx') continue;
+    try {
+      const meta = await readDetailOfInvoiceMeta(entry.file, wantCols);
+      if (!meta) { skipped++; continue; }
+      const parts = [];
+      meta.columns.forEach(c => {
+        if (wantCols.has(c.name) && meta.values[c.name]) parts.push(sanitizeNamePart(meta.values[c.name]));
+      });
+      entry.newName = parts.length
+        ? `${meta.projectName}_Detail of invoice_${meta.mmyy}_${parts.join('_')}`
+        : `${meta.projectName}_Detail of invoice_${meta.mmyy}`;
+      named++;
+    } catch (err) { skipped++; }
+  }
+  renderList();
+  statusEl.innerHTML = skipped === 0
+    ? `<span class="ms-ok">✅ ตั้งชื่อสำเร็จ ${named} ไฟล์</span>`
+    : `<span class="ms-ok">✅ ตั้งชื่อสำเร็จ ${named} ไฟล์</span> <span class="ms-warn">⚠️ ${skipped} ไฟล์ไม่ตรงรูปแบบ Detail of Invoice ที่รู้จัก — ไม่ได้เปลี่ยนชื่อ กรุณาตั้งชื่อเอง</span>`;
+}
+
 // ===================== MAPPING EXCEL =====================
 // Drag & drop for mapping file
 const mappingDrop = document.getElementById('mappingDrop');
