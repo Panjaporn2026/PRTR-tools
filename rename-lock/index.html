@@ -249,14 +249,21 @@
     <div class="mapping-header">
       <div class="mapping-header-left">
         <div>
-          <div class="mapping-title">🏷️ ตั้งชื่ออัตโนมัติจาก Detail of Invoice</div>
-          <div class="mapping-desc">อ่าน COMPANY NAME / เดือนที่จ่ายจากในไฟล์ .xlsx แล้วตั้งชื่อเป็น "ชื่อโปรเจค_Detail of invoice_MMYY" ต่อท้ายด้วยคอลัมน์ที่เลือกด้านล่าง</div>
+          <div class="mapping-title">🏷️ ตั้งชื่ออัตโนมัติ / ✂️ ตัดไฟล์จาก Detail of Invoice</div>
+          <div class="mapping-desc">อ่าน COMPANY NAME / เดือนที่จ่ายจากในไฟล์ .xlsx แล้วตั้งชื่อเป็น "ชื่อโปรเจค_Detail of invoice_MMYY" ต่อท้ายด้วยคอลัมน์ที่เลือกด้านล่าง — คอลัมน์ชุดเดียวกันนี้ใช้กำหนดว่าจะตัดไฟล์แยกตามอะไรด้วย</div>
         </div>
       </div>
       <button class="btn-tpl" onclick="autoNameAll()">🏷️ ตั้งชื่ออัตโนมัติ</button>
     </div>
     <div class="autoname-cols" id="autoNameColsWrap" style="display:none"></div>
     <div class="mapping-status" id="autoNameStatus"></div>
+    <div class="mapping-upload-row" style="margin-top:10px">
+      <div class="mapping-drop" id="splitDrop" onclick="document.getElementById('splitInput').click()">
+        ✂️ คลิกหรือลากไฟล์ Detail of Invoice 1 ไฟล์ เพื่อตัดไฟล์แยกตามคอลัมน์ที่ติ๊กไว้ด้านบน (ดาวน์โหลดเป็น ZIP)
+      </div>
+    </div>
+    <input type="file" id="splitInput" accept=".xlsx" style="display:none">
+    <div class="mapping-status" id="splitStatus"></div>
   </div>
 
   <!-- Drop zone (always visible) -->
@@ -1010,7 +1017,9 @@ function sanitizeNamePart(s) {
 // layout at all (a different client's template) rather than guessing.
 // `wantColNames` (optional Set) limits which columns get their value read — omit it to
 // read all columns (used for the checkbox-picker discovery scan).
-async function readDetailOfInvoiceMeta(file, wantColNames) {
+// `opts.allRows` additionally collects every data row's values for wantColNames (used by the
+// file-splitting feature to group rows) into the returned `rowValues` array.
+async function readDetailOfInvoiceMeta(file, wantColNames, opts) {
   const buf = await file.arrayBuffer();
   const wb = XLSX.read(buf, { type: 'array' });
   const ws = wb.Sheets[wb.SheetNames[0]];
@@ -1041,12 +1050,14 @@ async function readDetailOfInvoiceMeta(file, wantColNames) {
   if (!company || !period) return null;
   const columns = [];
   const values = {};
+  const colIndexByName = {};
   if (headerRow >= 0) {
     for (let c = range.s.c; c <= range.e.c; c++) {
       const hc = ws[XLSX.utils.encode_cell({ r: headerRow, c })];
       const name = hc && hc.v !== undefined && hc.v !== null ? String(hc.v).trim() : '';
       if (!name) continue;
       columns.push({ name, col: c });
+      colIndexByName[name] = c;
       if (!wantColNames || wantColNames.has(name)) {
         for (let r = headerRow + 1; r <= range.e.r; r++) {
           const cell = ws[XLSX.utils.encode_cell({ r, c })];
@@ -1057,7 +1068,29 @@ async function readDetailOfInvoiceMeta(file, wantColNames) {
   }
   const mmyy = monthYearToMMYY(period);
   if (!mmyy) return null;
-  return { company: sanitizeNamePart(company), mmyy, columns, values };
+  const meta = { company: sanitizeNamePart(company), mmyy, columns, values, headerRowExcel: headerRow + 1 };
+  if (opts && opts.allRows && headerRow >= 0) {
+    const wantNames = wantColNames || new Set(columns.map(c => c.name));
+    const rowValues = [];
+    for (let r = headerRow + 1; r <= range.e.r; r++) {
+      let anyCellInRow = false;
+      for (let c = range.s.c; c <= range.e.c; c++) {
+        const cell = ws[XLSX.utils.encode_cell({ r, c })];
+        if (cell && cell.v !== undefined && cell.v !== null && String(cell.v).trim() !== '') { anyCellInRow = true; break; }
+      }
+      if (!anyCellInRow) continue; // skip trailing/blank rows past the real data
+      const rowVals = {};
+      wantNames.forEach(name => {
+        const c = colIndexByName[name];
+        if (c === undefined) return;
+        const cell = ws[XLSX.utils.encode_cell({ r, c })];
+        rowVals[name] = cell && cell.v !== undefined && cell.v !== null ? String(cell.v).trim() : '';
+      });
+      rowValues.push({ rowNum: r + 1, values: rowVals });
+    }
+    meta.rowValues = rowValues;
+  }
+  return meta;
 }
 
 // ===================== AUTO-NAME COLUMN PICKER =====================
@@ -1142,6 +1175,235 @@ async function autoNameAll() {
   statusEl.innerHTML = skipped === 0
     ? `<span class="ms-ok">✅ ตั้งชื่อสำเร็จ ${named} ไฟล์</span>`
     : `<span class="ms-ok">✅ ตั้งชื่อสำเร็จ ${named} ไฟล์</span> <span class="ms-warn">⚠️ ${skipped} ไฟล์ไม่ตรงรูปแบบ Detail of Invoice ที่รู้จัก — ไม่ได้เปลี่ยนชื่อ กรุณาตั้งชื่อเอง</span>`;
+}
+
+// ===================== SPLIT DETAIL OF INVOICE BY COLUMN =====================
+// Row-level XML engine ported from gl-invoice/sheetmodel.js -- surgical raw-XML row deletion so
+// styles, merged cells, column widths etc. never change, only rows get physically removed.
+// (colLettersToIndex/colIndexToLetters/decodeXmlEntities already exist above in this file.)
+
+function normText(s) { return String(s == null ? '' : s).replace(/\s+/g, ' ').trim(); }
+function normTextUpper(s) { return normText(s).toUpperCase(); }
+
+function parseSheetRowsForSplit(sheetXml) {
+  const sdStart = sheetXml.indexOf('<sheetData');
+  const sdTagEnd = sheetXml.indexOf('>', sdStart) + 1;
+  const sdEnd = sheetXml.indexOf('</sheetData>');
+  const pre = sheetXml.slice(0, sdTagEnd);
+  const sdBody = sheetXml.slice(sdTagEnd, sdEnd);
+  const post = sheetXml.slice(sdEnd);
+  const rows = [];
+  const rowRe = /<row\b([^>]*?)(?:\/>|>([\s\S]*?)<\/row>)/g;
+  let rm;
+  while ((rm = rowRe.exec(sdBody)) !== null) {
+    const rNumM = /\br="(\d+)"/.exec(rm[1]);
+    if (!rNumM) continue;
+    const rowNum = parseInt(rNumM[1], 10);
+    const attrsRest = rm[1].replace(/\s*\br="\d+"/, '');
+    const rowInner = rm[2];
+    const cellsByCol = {};
+    if (rowInner !== undefined) {
+      const cellRe = /<c\s+r="([A-Z]+)\d+"[^>]*(?:\/>|>[\s\S]*?<\/c>)/g;
+      let cm;
+      while ((cm = cellRe.exec(rowInner)) !== null) cellsByCol[cm[1]] = cm[0];
+    }
+    rows.push({ rowNum, attrsRest, cellsByCol });
+  }
+  return { pre, post, rows };
+}
+
+function readdressCellForSplit(rawCellXml, newAddr) {
+  return rawCellXml.replace(/^<c\s+r="[A-Z]+\d+"/, '<c r="' + newAddr + '"');
+}
+
+function serializeSheetRowsForSplit(model) {
+  const rowsXml = model.rows.map(row => {
+    const cellsXml = Object.keys(row.cellsByCol)
+      .sort((a, b) => colLettersToIndex(a) - colLettersToIndex(b))
+      .map(col => readdressCellForSplit(row.cellsByCol[col], col + row.rowNum))
+      .join('');
+    return '<row r="' + row.rowNum + '"' + row.attrsRest + '>' + cellsXml + '</row>';
+  }).join('');
+  return model.pre + rowsXml + model.post;
+}
+
+// Deletes rows matching shouldDelete(row), then renumbers every REMAINING row whose ORIGINAL
+// rowNum was >= renumberFromOriginal so there are no gaps. Rows before that point (title/header)
+// are left completely untouched.
+function deleteAndRenumberForSplit(rows, shouldDelete, renumberFromOriginal, newStartRowNum) {
+  const kept = rows.filter(row => !shouldDelete(row));
+  const fixed = kept.filter(row => row.rowNum < renumberFromOriginal);
+  const toRenumber = kept.filter(row => row.rowNum >= renumberFromOriginal);
+  let n = newStartRowNum;
+  toRenumber.forEach(row => { row.rowNum = n++; });
+  return fixed.concat(toRenumber);
+}
+
+function getCellValueForSplit(rawCellXml, sst) {
+  if (!rawCellXml) return null;
+  const tMatch = /\bt="([^"]+)"/.exec(rawCellXml);
+  const type = tMatch ? tMatch[1] : null;
+  const innerM = /^<c\b[^>]*>([\s\S]*)<\/c>$/.exec(rawCellXml);
+  const inner = innerM ? innerM[1] : '';
+  if (type === 's') {
+    const vM = /<v>([\s\S]*?)<\/v>/.exec(inner);
+    return vM ? (sst[parseInt(vM[1], 10)] != null ? sst[parseInt(vM[1], 10)] : null) : null;
+  }
+  if (type === 'inlineStr') {
+    const isM = /<is>([\s\S]*?)<\/is>/.exec(inner);
+    const tM = isM ? /<t[^>]*>([\s\S]*?)<\/t>/.exec(isM[1]) : null;
+    return tM ? decodeXmlEntities(tM[1]) : null;
+  }
+  const vM3 = /<v>([\s\S]*?)<\/v>/.exec(inner);
+  if (!vM3) return null;
+  const n = parseFloat(vM3[1]);
+  return isNaN(n) ? vM3[1] : n;
+}
+
+// First/last column letters actually used in the header row (column count never changes by
+// splitting, so this is the same for every group's output).
+function columnExtentForSplit(rows, headerRowNum) {
+  const headerRow = rows.find(r => r.rowNum === headerRowNum);
+  const cols = headerRow ? Object.keys(headerRow.cellsByCol) : [];
+  if (!cols.length) throw new Error('ไม่พบคอลัมน์ใดๆ ในแถว header (แถว ' + headerRowNum + ')');
+  const indices = cols.map(colLettersToIndex);
+  return { firstCol: colIndexToLetters(Math.min.apply(null, indices)), lastCol: colIndexToLetters(Math.max.apply(null, indices)) };
+}
+
+// Keeps <dimension>, <autoFilter ref>, and the _xlnm._FilterDatabase defined name in sync after a
+// row-count change. Every .replace() here is naturally a no-op if the tag doesn't exist in this
+// particular file, since this feature works on arbitrary Detail of Invoice templates rather than
+// one confirmed layout.
+function updateStructuralRefsForSplit(sheetXml, wbXml, opts) {
+  const newDim = opts.firstCol + '1:' + opts.lastCol + opts.lastRow;
+  sheetXml = sheetXml.replace(/<dimension ref="[^"]*"\s*\/>/, '<dimension ref="' + newDim + '"/>');
+
+  const newAutoFilterRange = opts.firstCol + opts.headerRow + ':' + opts.lastCol + opts.lastRow;
+  sheetXml = sheetXml.replace(/<autoFilter\b[^>]*(?:\/>|>[\s\S]*?<\/autoFilter>)/,
+    '<autoFilter ref="' + newAutoFilterRange + '"/>');
+
+  if (opts.sheetName) {
+    const escName = opts.sheetName.replace(/'/g, "''");
+    const newRange = "'" + escName + "'!$" + opts.firstCol + '$' + opts.headerRow + ':$' + opts.lastCol + '$' + opts.lastRow;
+    wbXml = wbXml.replace(
+      /(<definedName\s+name="_xlnm\._FilterDatabase"[^>]*>)[\s\S]*?(<\/definedName>)/,
+      (_, open, close) => open + escAttr(newRange) + close
+    );
+  }
+  return { sheetXml, wbXml };
+}
+
+const SPLIT_UNASSIGNED_KEY = '__UNASSIGNED__';
+const SPLIT_UNASSIGNED_LABEL = 'ไม่ระบุ';
+
+async function splitDetailOfInvoiceFile(file, wantCols) {
+  if (!wantCols || !wantCols.size) throw new Error('กรุณาติ๊กเลือกอย่างน้อย 1 คอลัมน์ก่อนตัดไฟล์');
+  const buf = await file.arrayBuffer();
+  const meta = await readDetailOfInvoiceMeta(file, wantCols, { allRows: true });
+  if (!meta) throw new Error('ไม่พบรูปแบบ Detail of Invoice ที่รู้จักในไฟล์นี้');
+  const effectiveCols = meta.columns.filter(c => wantCols.has(c.name));
+  if (!effectiveCols.length) throw new Error('ไม่พบคอลัมน์ที่ติ๊กเลือกไว้ในไฟล์นี้ — กรุณาติ๊กคอลัมน์ที่มีอยู่จริงในไฟล์');
+  if (!meta.rowValues || !meta.rowValues.length) throw new Error('ไม่พบแถวข้อมูลในไฟล์นี้');
+
+  // Group every data row by the tuple of its selected-column values; a row missing ANY of them
+  // goes into one shared "ไม่ระบุ" bucket rather than being silently dropped or half-classified.
+  const rowNumToKey = new Map();
+  const groupInfo = new Map(); // key -> { parts: [sanitized values] | null, count }
+  meta.rowValues.forEach(rv => {
+    const rawParts = effectiveCols.map(c => rv.values[c.name] || '');
+    const hasBlank = rawParts.some(p => !p);
+    const key = hasBlank ? SPLIT_UNASSIGNED_KEY : rawParts.join('');
+    rowNumToKey.set(rv.rowNum, key);
+    if (!groupInfo.has(key)) {
+      groupInfo.set(key, { parts: hasBlank ? null : rawParts.map(sanitizeNamePart), count: 0 });
+    }
+    groupInfo.get(key).count++;
+  });
+
+  const zip = await JSZip.loadAsync(buf);
+  const sheetPaths = Object.keys(zip.files).filter(n => /^xl\/worksheets\/sheet\d+\.xml$/.test(n));
+  if (sheetPaths.length !== 1) throw new Error('รองรับเฉพาะไฟล์ที่มี Sheet เดียว (พบ ' + sheetPaths.length + ' sheet ในไฟล์นี้)');
+  const sheetPath = sheetPaths[0];
+  const origSheetXml = await zip.file(sheetPath).async('string');
+  const origWbXml = await zip.file('xl/workbook.xml').async('string');
+  const sst = await readSharedStrings(zip);
+  const sheetNameM = /<sheet\b[^>]*\bname="([^"]*)"/.exec(origWbXml);
+  const sheetName = sheetNameM ? decodeXmlEntities(sheetNameM[1]) : null;
+  const headerRow1 = meta.headerRowExcel;
+  const parsed = parseSheetRowsForSplit(origSheetXml);
+
+  const outputs = [];
+  for (const [key, info] of groupInfo) {
+    const clonedRows = parsed.rows.map(r => ({ rowNum: r.rowNum, attrsRest: r.attrsRest, cellsByCol: r.cellsByCol }));
+    const keptRows = deleteAndRenumberForSplit(
+      clonedRows,
+      row => row.rowNum > headerRow1 && (rowNumToKey.get(row.rowNum) || SPLIT_UNASSIGNED_KEY) !== key,
+      headerRow1 + 1,
+      headerRow1 + 1
+    );
+    const newLastRow = headerRow1 + info.count;
+    const { firstCol, lastCol } = columnExtentForSplit(keptRows, headerRow1);
+    let newSheetXml = serializeSheetRowsForSplit({ pre: parsed.pre, post: parsed.post, rows: keptRows });
+    let newWbXml = origWbXml;
+    const refs = updateStructuralRefsForSplit(newSheetXml, newWbXml, {
+      firstCol, lastCol, headerRow: headerRow1, lastRow: newLastRow, sheetName
+    });
+    newSheetXml = refs.sheetXml;
+    newWbXml = refs.wbXml;
+
+    zip.file(sheetPath, newSheetXml);
+    zip.file('xl/workbook.xml', newWbXml);
+    const outBytes = await zip.generateAsync({ type: 'uint8array' });
+
+    const suffix = key === SPLIT_UNASSIGNED_KEY ? SPLIT_UNASSIGNED_LABEL : info.parts.join('_');
+    const baseName = `${meta.company}_Detail of invoice_${meta.mmyy}`;
+    outputs.push({
+      name: (suffix ? `${baseName}_${suffix}` : baseName) + '.xlsx',
+      data: outBytes,
+      rowCount: info.count,
+      isUnassigned: key === SPLIT_UNASSIGNED_KEY
+    });
+  }
+  return { meta, outputs };
+}
+
+const splitDrop = document.getElementById('splitDrop');
+splitDrop.addEventListener('dragover', e => { e.preventDefault(); splitDrop.classList.add('dragover'); });
+splitDrop.addEventListener('dragleave', () => splitDrop.classList.remove('dragover'));
+splitDrop.addEventListener('drop', e => {
+  e.preventDefault(); splitDrop.classList.remove('dragover');
+  const f = e.dataTransfer.files[0];
+  if (f) runSplit(f);
+});
+document.getElementById('splitInput').addEventListener('change', e => {
+  if (e.target.files[0]) runSplit(e.target.files[0]);
+  e.target.value = '';
+});
+
+async function runSplit(file) {
+  const statusEl = document.getElementById('splitStatus');
+  statusEl.className = 'mapping-status show';
+  if (file.name.split('.').pop().toLowerCase() !== 'xlsx') {
+    statusEl.innerHTML = '<span class="ms-err">✕ รองรับเฉพาะไฟล์ .xlsx</span>';
+    return;
+  }
+  statusEl.innerHTML = '<span style="color:#c8102e">⏳ กำลังตัดไฟล์...</span>';
+  try {
+    const { outputs } = await splitDetailOfInvoiceFile(file, autoNameSelectedCols);
+    const outerZip = new JSZip();
+    outputs.forEach(o => outerZip.file(o.name, o.data));
+    const blob = await outerZip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 1 } });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = file.name.replace(/\.xlsx$/i, '') + '_split.zip'; a.click();
+
+    const unassigned = outputs.find(o => o.isUnassigned);
+    const totalRows = outputs.reduce((sum, o) => sum + o.rowCount, 0);
+    statusEl.innerHTML = `<span class="ms-ok">✅ ตัดไฟล์สำเร็จ ${outputs.length} ไฟล์ (รวม ${totalRows} แถว)</span>` +
+      (unassigned ? ` <span class="ms-warn">⚠️ มี ${unassigned.rowCount} แถวที่คอลัมน์ที่เลือกว่างเปล่า ถูกรวมไว้ในไฟล์ "ไม่ระบุ"</span>` : '');
+  } catch (err) {
+    statusEl.innerHTML = '<span class="ms-err">✕ ' + escAttr(err.message || String(err)) + '</span>';
+  }
 }
 
 // ===================== MAPPING EXCEL =====================
