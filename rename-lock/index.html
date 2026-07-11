@@ -14,151 +14,151 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: 'IBM Plex Sans Thai', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #0f172a; color: #e2e8f0;
+      background: #f0f2f5; color: #1a1a2e;
       min-height: 100vh; padding: 24px 16px; letter-spacing: .1px;
     }
-    a { color: #94a3b8; text-decoration: none; }
-    a:hover { color: #e2e8f0; }
+    a { color: #607d8b; text-decoration: none; }
+    a:hover { color: #c8102e; }
     .wrap { max-width: 760px; margin: 0 auto; }
-    .back { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 20px; font-size: 14px; }
-    h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
-    .subtitle { font-size: 14px; color: #64748b; margin-bottom: 24px; }
+    .back { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 20px; font-size: 14px; font-weight: 500; }
+    h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; color: #1a237e; }
+    .subtitle { font-size: 14px; color: #546e7a; margin-bottom: 24px; }
 
     /* Drop zone */
     .dropzone {
-      border: 2px dashed #334155; border-radius: 10px;
+      border: 2px dashed #90a4ae; border-radius: 10px; background: #f8fafc;
       padding: 28px 20px; text-align: center; cursor: pointer;
       transition: all .2s; margin-bottom: 20px;
     }
-    .dropzone:hover, .dropzone.dragover { border-color: #e11d48; background: rgba(225,29,72,.10); }
+    .dropzone:hover, .dropzone.dragover { border-color: #c8102e; background: #fde8ec; }
     .dropzone .dz-icon { font-size: 28px; margin-bottom: 6px; }
     .dropzone .dz-title { font-size: 14px; font-weight: 500; }
-    .dropzone .dz-hint { font-size: 12px; color: #64748b; margin-top: 3px; }
+    .dropzone .dz-hint { font-size: 12px; color: #607d8b; margin-top: 3px; }
     #fileInput { display: none; }
 
     /* Global password bar */
     .global-bar {
-      background: #1e293b; border: 1px solid #334155; border-radius: 10px;
+      background: #fff; border: 1px solid #e0e4ea; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.05);
       padding: 14px 16px; margin-bottom: 20px; display: none;
     }
     .global-bar.show { display: block; }
     .global-bar-top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-    .global-bar-top label { font-size: 13px; font-weight: 500; color: #94a3b8; flex-shrink: 0; }
+    .global-bar-top label { font-size: 13px; font-weight: 500; color: #546e7a; flex-shrink: 0; }
     .toggle-sw { position: relative; display: inline-block; width: 36px; height: 20px; }
     .toggle-sw input { display: none; }
     .toggle-sw .slider {
-      position: absolute; inset: 0; background: #334155;
+      position: absolute; inset: 0; background: #cfd8dc;
       border-radius: 20px; cursor: pointer; transition: .2s;
     }
     .toggle-sw .slider::after {
       content: ''; position: absolute; left: 3px; top: 3px;
       width: 14px; height: 14px; border-radius: 50%;
-      background: #64748b; transition: .2s;
+      background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: .2s;
     }
-    .toggle-sw input:checked + .slider { background: #e11d48; }
-    .toggle-sw input:checked + .slider::after { transform: translateX(16px); background: #fff; }
+    .toggle-sw input:checked + .slider { background: #c8102e; }
+    .toggle-sw input:checked + .slider::after { transform: translateX(16px); }
     .global-pw-row { display: flex; gap: 8px; align-items: center; }
     .global-pw-row input {
-      flex: 1; background: #0f172a; border: 1px solid #334155;
-      border-radius: 8px; color: #e2e8f0; font-size: 14px;
+      flex: 1; background: #fff; border: 1px solid #cfd8dc;
+      border-radius: 8px; color: #1a1a2e; font-size: 14px;
       padding: 9px 12px; outline: none; transition: border-color .2s;
     }
-    .global-pw-row input:focus { border-color: #e11d48; }
+    .global-pw-row input:focus { border-color: #c8102e; }
     .btn-apply {
-      background: #e11d48; border: none; border-radius: 8px;
+      background: #c8102e; border: none; border-radius: 8px;
       color: #fff; cursor: pointer; font-size: 13px; font-weight: 600;
       padding: 9px 14px; white-space: nowrap; transition: background .2s;
     }
-    .btn-apply:hover { background: #be123c; }
+    .btn-apply:hover { background: #a30d24; }
 
     /* File list */
     .file-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
 
     .file-row {
-      background: #1e293b; border: 1px solid #334155;
+      background: #fff; border: 1px solid #e0e4ea; box-shadow: 0 1px 4px rgba(0,0,0,.05);
       border-radius: 10px; padding: 14px 16px;
       transition: border-color .2s;
     }
-    .file-row.done  { border-color: #166534; }
-    .file-row.error { border-color: #7f1d1d; }
-    .file-row.processing { border-color: #9f1239; }
+    .file-row.done  { border-color: #43a047; }
+    .file-row.error { border-color: #e53935; }
+    .file-row.processing { border-color: #c8102e; }
 
     .row-top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
     .row-icon { font-size: 20px; flex-shrink: 0; }
-    .row-orig { font-size: 13px; color: #64748b; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .row-remove { background: none; border: none; color: #475569; cursor: pointer; font-size: 16px; line-height: 1; padding: 2px; }
-    .row-remove:hover { color: #f87171; }
+    .row-orig { font-size: 13px; color: #607d8b; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .row-remove { background: none; border: none; color: #90a4ae; cursor: pointer; font-size: 16px; line-height: 1; padding: 2px; }
+    .row-remove:hover { color: #e53935; }
 
     .row-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     @media (max-width: 500px) { .row-fields { grid-template-columns: 1fr; } }
 
     .field-wrap { display: flex; }
     .field-wrap input {
-      flex: 1; min-width: 0; background: #0f172a; border: 1px solid #2d3748;
-      border-radius: 8px 0 0 8px; color: #e2e8f0; font-size: 13px;
+      flex: 1; min-width: 0; background: #f8fafc; border: 1px solid #cfd8dc;
+      border-radius: 8px 0 0 8px; color: #1a1a2e; font-size: 13px;
       padding: 8px 10px; outline: none; transition: border-color .2s;
     }
-    .field-wrap input:focus { border-color: #e11d48; }
+    .field-wrap input:focus { border-color: #c8102e; background: #fff; }
     .field-ext {
-      background: #0f172a; border: 1px solid #2d3748; border-left: none;
+      background: #eceff1; border: 1px solid #cfd8dc; border-left: none;
       border-radius: 0 8px 8px 0; padding: 8px 10px; font-size: 13px;
-      color: #475569; white-space: nowrap; flex-shrink: 0;
+      color: #607d8b; white-space: nowrap; flex-shrink: 0;
     }
     .pw-field { position: relative; display: flex; }
     .pw-field input { flex: 1; min-width: 0; border-radius: 8px; padding-right: 36px; }
     .pw-eye {
       position: absolute; right: 9px; top: 50%; transform: translateY(-50%);
-      background: none; border: none; color: #475569; cursor: pointer; font-size: 14px;
+      background: none; border: none; color: #90a4ae; cursor: pointer; font-size: 14px;
     }
-    .pw-eye:hover { color: #94a3b8; }
+    .pw-eye:hover { color: #546e7a; }
 
     .row-status { margin-top: 10px; display: none; font-size: 13px; }
     .row-status.show { display: flex; align-items: center; gap: 8px; }
-    .status-ok { color: #4ade80; }
-    .status-err { color: #f87171; }
-    .status-proc { color: #fb7185; }
+    .status-ok { color: #2e7d32; }
+    .status-err { color: #c62828; }
+    .status-proc { color: #c8102e; }
     .btn-dl-row {
       display: inline-flex; align-items: center; gap: 6px;
-      background: #166534; border: none; border-radius: 6px;
+      background: #2e7d32; border: none; border-radius: 6px;
       color: #fff; cursor: pointer; font-size: 12px; font-weight: 600;
       padding: 5px 12px; text-decoration: none; margin-left: auto;
       transition: background .2s; white-space: nowrap;
     }
-    .btn-dl-row:hover { background: #15803d; color: #fff; }
+    .btn-dl-row:hover { background: #1b5e20; color: #fff; }
 
     /* Action row */
     .action-row { display: flex; gap: 10px; flex-wrap: wrap; }
     .btn-main {
-      flex: 1; min-width: 160px; background: #e11d48; border: none; border-radius: 8px;
+      flex: 1; min-width: 160px; background: #c8102e; border: none; border-radius: 8px;
       color: #fff; cursor: pointer; font-size: 14px; font-weight: 600;
       padding: 12px; transition: background .2s;
     }
-    .btn-main:hover:not(:disabled) { background: #be123c; }
-    .btn-main:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+    .btn-main:hover:not(:disabled) { background: #a30d24; }
+    .btn-main:disabled { background: #90a4ae; color: #eceff1; cursor: not-allowed; }
     .btn-zip {
-      background: #0f172a; border: 1px solid #334155; border-radius: 8px;
-      color: #94a3b8; cursor: pointer; font-size: 14px; font-weight: 600;
+      background: #fff; border: 1px solid #c8102e; border-radius: 8px;
+      color: #c8102e; cursor: pointer; font-size: 14px; font-weight: 600;
       padding: 12px 20px; transition: all .2s; display: none;
     }
     .btn-zip.show { display: inline-flex; align-items: center; gap: 6px; }
-    .btn-zip:hover { border-color: #e11d48; color: #e2e8f0; }
+    .btn-zip:hover { background: #fde8ec; }
 
     /* Overall progress */
     .overall-progress { margin-top: 14px; display: none; }
     .overall-progress.show { display: block; }
-    .prog-bar { height: 4px; background: #1e293b; border-radius: 2px; overflow: hidden; }
-    .prog-fill { height: 100%; width: 0%; background: #e11d48; border-radius: 2px; transition: width .3s; }
-    .prog-label { font-size: 12px; color: #64748b; margin-top: 5px; }
+    .prog-bar { height: 4px; background: #e0e4ea; border-radius: 2px; overflow: hidden; }
+    .prog-fill { height: 100%; width: 0%; background: #c8102e; border-radius: 2px; transition: width .3s; }
+    .prog-label { font-size: 12px; color: #607d8b; margin-top: 5px; }
 
-    .divider { border: none; border-top: 1px solid #1e293b; margin: 20px 0; }
-    .info-row { font-size: 12px; color: #475569; display: flex; gap: 7px; align-items: flex-start; }
+    .divider { border: none; border-top: 1px solid #e0e4ea; margin: 20px 0; }
+    .info-row { font-size: 12px; color: #90a4ae; display: flex; gap: 7px; align-items: flex-start; }
 
-    .empty-hint { text-align: center; color: #475569; font-size: 13px; padding: 8px; display: none; }
+    .empty-hint { text-align: center; color: #90a4ae; font-size: 13px; padding: 8px; display: none; }
     .empty-hint.show { display: block; }
 
     /* Mapping section */
     .mapping-section {
-      background: #1e293b; border: 1px solid #334155; border-radius: 10px;
+      background: #fff; border: 1px solid #e0e4ea; box-shadow: 0 1px 4px rgba(0,0,0,.05); border-radius: 10px;
       padding: 14px 16px; margin-bottom: 20px;
     }
     .mapping-header {
@@ -166,35 +166,35 @@
       gap: 10px; margin-bottom: 12px; flex-wrap: wrap;
     }
     .mapping-header-left { display: flex; align-items: center; gap: 8px; }
-    .mapping-title { font-size: 13px; font-weight: 600; color: #e2e8f0; }
-    .mapping-desc { font-size: 12px; color: #64748b; margin-top: 2px; }
+    .mapping-title { font-size: 13px; font-weight: 600; color: #1a1a2e; }
+    .mapping-desc { font-size: 12px; color: #607d8b; margin-top: 2px; }
     .btn-tpl {
-      background: #0f172a; border: 1px solid #334155; border-radius: 7px;
-      color: #94a3b8; cursor: pointer; font-size: 12px; font-weight: 500;
+      background: #f8fafc; border: 1px solid #cfd8dc; border-radius: 7px;
+      color: #546e7a; cursor: pointer; font-size: 12px; font-weight: 500;
       padding: 6px 12px; transition: all .2s; white-space: nowrap; flex-shrink: 0;
     }
-    .btn-tpl:hover { border-color: #e11d48; color: #fda4af; }
+    .btn-tpl:hover { border-color: #c8102e; color: #c8102e; }
     .mapping-upload-row { display: flex; align-items: center; gap: 10px; }
     .mapping-drop {
-      flex: 1; border: 1.5px dashed #334155; border-radius: 8px;
+      flex: 1; border: 1.5px dashed #cfd8dc; border-radius: 8px; background: #f8fafc;
       padding: 10px 14px; text-align: center; cursor: pointer;
-      font-size: 13px; color: #64748b; transition: all .2s;
+      font-size: 13px; color: #607d8b; transition: all .2s;
     }
-    .mapping-drop:hover, .mapping-drop.dragover { border-color: #e11d48; color: #fda4af; background: rgba(225,29,72,.08); }
+    .mapping-drop:hover, .mapping-drop.dragover { border-color: #c8102e; color: #c8102e; background: #fde8ec; }
     .mapping-status {
       margin-top: 10px; font-size: 13px; display: none;
       align-items: center; gap: 8px; padding: 8px 10px;
-      background: #0f172a; border-radius: 7px;
+      background: #f8fafc; border-radius: 7px;
     }
     .mapping-status.show { display: flex; }
-    .ms-ok  { color: #4ade80; }
-    .ms-warn { color: #fbbf24; }
-    .ms-err  { color: #f87171; }
+    .ms-ok  { color: #2e7d32; }
+    .ms-warn { color: #b45309; }
+    .ms-err  { color: #c62828; }
     .btn-clear-map {
       margin-left: auto; background: none; border: none;
-      color: #475569; cursor: pointer; font-size: 12px;
+      color: #90a4ae; cursor: pointer; font-size: 12px;
     }
-    .btn-clear-map:hover { color: #f87171; }
+    .btn-clear-map:hover { color: #c62828; }
   </style>
 </head>
 <body>
@@ -277,7 +277,7 @@
 
   <hr class="divider">
   <div class="info-row">
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#475569" stroke-width="1.5"/><path d="M8 7v5M8 5v.5" stroke="#475569" stroke-width="1.5" stroke-linecap="round"/></svg>
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#90a4ae" stroke-width="1.5"/><path d="M8 7v5M8 5v.5" stroke="#90a4ae" stroke-width="1.5" stroke-linecap="round"/></svg>
     ทำงานในเบราว์เซอร์ทั้งหมด — ไฟล์และรหัสผ่านไม่ถูกส่งออกไปยังเซิร์ฟเวอร์ใดๆ
   </div>
 </div>
@@ -354,7 +354,7 @@ function renderList() {
         <span class="row-orig" title="${entry.file.name}">${entry.file.name}</span>
         <button class="row-remove" onclick="removeEntry(${entry.id})" title="ลบ">✕</button>
       </div>
-      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#94a3b8;margin-bottom:6px;cursor:pointer;">
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#607d8b;margin-bottom:6px;cursor:pointer;">
         <input type="checkbox" ${entry.doRename ? 'checked' : ''} onchange="updateEntry(${entry.id},'doRename',this.checked)" style="cursor:pointer;">
         เปลี่ยนชื่อไฟล์ (ถ้าไม่ติ๊ก จะล็อกแต่คงชื่อไฟล์เดิม)
       </label>
@@ -1027,7 +1027,7 @@ async function readDetailOfInvoiceMeta(file) {
 async function autoNameAll() {
   const statusEl = document.getElementById('autoNameStatus');
   statusEl.className = 'mapping-status show';
-  statusEl.innerHTML = '<span style="color:#fb7185">⏳ กำลังอ่านไฟล์...</span>';
+  statusEl.innerHTML = '<span style="color:#c8102e">⏳ กำลังอ่านไฟล์...</span>';
   let named = 0, skipped = 0;
   for (const entry of fileEntries) {
     const ext = entry.file.name.split('.').pop().toLowerCase();
@@ -1065,7 +1065,7 @@ document.getElementById('mappingInput').addEventListener('change', e => {
 async function loadMappingFile(file) {
   const statusEl = document.getElementById('mappingStatus');
   statusEl.className = 'mapping-status show';
-  statusEl.innerHTML = '<span style="color:#fb7185">⏳ กำลังอ่าน Excel...</span>';
+  statusEl.innerHTML = '<span style="color:#c8102e">⏳ กำลังอ่าน Excel...</span>';
   try {
     const buffer = await file.arrayBuffer();
     const wb = await XlsxPopulate.fromDataAsync(buffer);
