@@ -40,7 +40,7 @@ var state = { fnId: FUNCTIONS[0].id, files: [], resultBytes: null, resultBaseNam
 // by default since most months don't need them.
 var EXTRA_LINE_TYPE_OPTIONS = [
   { key: 'EXPENSE', label: 'ค่าใช้จ่าย (EXPENSE)', sub: 'Paycode EXPENSE · Account 51110116 · Grouping E51110116', checkedByDefault: true },
-  { key: 'SSO_RETRO', label: 'เงินสมทบประกันสังคมนายจ้าง (This Month before Retro)', sub: 'Paycode T2A3 · Account 51110102 · Grouping E51110102' },
+  { key: 'PROVIDENT_FUND_REFUND', label: 'คืนเงินสมทบกองทุนสำรองเลี้ยงชีพนายจ้าง', sub: 'Paycode T208 · Account 51110103 · Grouping E51110103' },
   { key: 'ACCIDENT_REFUND', label: 'หักค่าประกันอุบัติเหตุ ค่าใช้จ่ายลูกค้า (คืนค่าประกันซื่อสัตย์)', sub: 'Paycode AC CL D AC · Account 51110104 · Grouping E51110104' }
 ];
 var FN_IDS_WITH_EXTRA_LINE_OPTIONS = ['duplicate', 'sso750PlusDuplicate', 'ssoIntroduceByPlusDuplicate'];

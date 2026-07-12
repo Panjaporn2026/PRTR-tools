@@ -16,7 +16,7 @@ var EXPENSE_GROUPING = 'E51110116';
 // with the exact same idempotent add-or-update pattern as EXPENSE, just keyed by their own Paycode.
 var LINE_TYPES = {
   EXPENSE: { paycodeCode: EXPENSE_PAYCODE, paycodeName: EXPENSE_PAYCODE_NAME, account: EXPENSE_ACCOUNT, grouping: EXPENSE_GROUPING },
-  SSO_RETRO: { paycodeCode: 'T2A3', paycodeName: 'เงินสมทบประกันสังคมนายจ้าง (This Month before Retro)', account: '51110102', grouping: 'E51110102' },
+  PROVIDENT_FUND_REFUND: { paycodeCode: 'T208', paycodeName: 'เงินสมทบกองทุนสำรองเลี้ยงชีพนายจ้าง', account: '51110103', grouping: 'E51110103' },
   ACCIDENT_REFUND: { paycodeCode: 'AC CL D AC', paycodeName: 'หักค่าประกันอุบัติเหตุ ค่าใช้จ่ายลูกค้า', account: '51110104', grouping: 'E51110104' }
 };
 
@@ -186,7 +186,7 @@ function buildLineRowFrom(templateRow, ctx, lineType) {
   return { attrsRest: templateRow.attrsRest, cellsByCol: cellsByCol };
 }
 
-// lineTypeKeys: e.g. ['EXPENSE'] or ['EXPENSE', 'SSO_RETRO', 'ACCIDENT_REFUND'] -- EXPENSE is
+// lineTypeKeys: e.g. ['EXPENSE'] or ['EXPENSE', 'PROVIDENT_FUND_REFUND', 'ACCIDENT_REFUND'] -- EXPENSE is
 // always included by the caller; the other two are opt-in checkboxes (most months don't need
 // them). Each line type is added/updated independently per person, keyed by that line type's own
 // Paycode Code, so a person can end up with any combination of the selected lines.
@@ -393,7 +393,7 @@ function applyCalcChainFix(zipFiles, enc) {
 
 // ── Top-level entry points, one per function id ────────────────────────────────────────────────
 // selectedLineTypeKeys: array of LINE_TYPES keys the user checked in the UI (e.g. ['EXPENSE',
-// 'SSO_RETRO']) for the 3 functions that run the Duplicate step. EXPENSE is checked by default in
+// 'PROVIDENT_FUND_REFUND']) for the 3 functions that run the Duplicate step. EXPENSE is checked by default in
 // the UI but is a real, uncheckable-off-by-force choice here -- an empty array is valid and just
 // means no Duplicate rows get added/updated this run.
 async function runSingleFileFunction(functionId, buf, selectedLineTypeKeys) {
