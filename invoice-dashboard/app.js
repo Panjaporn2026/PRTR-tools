@@ -10,13 +10,35 @@
     { key: 'unknown', label: 'ไม่ทราบสถานะ (ตรวจสอบ)', cls: 'c-gray' }
   ];
   var NOT_SENT_STATUSES = ["In Progress", "Don't Send", "Not Send"];
+  var DATE_RANGE_DEFS = [
+    { key: 'all', label: 'ทั้งหมด' },
+    { key: 'today', label: 'วันนี้', days: 0 },
+    { key: '7d', label: '7 วันล่าสุด', days: 7 },
+    { key: '1m', label: '1 เดือนล่าสุด', days: 30 },
+    { key: '2m', label: '2 เดือนล่าสุด', days: 60 }
+  ];
 
   var state = {
     files: [],       // [{name, rows:[record]}]
     records: [],      // merged flat records
     activeBucket: 'all',
-    searchText: ''
+    searchText: '',
+    dateRange: 'all'
   };
+
+  function startOfDay(d) {
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  }
+
+  function filterByDateRange(records) {
+    var def = DATE_RANGE_DEFS.filter(function (d) { return d.key === state.dateRange; })[0];
+    if (!def || def.days == null) return records;
+    var cutoff = startOfDay(new Date());
+    cutoff.setDate(cutoff.getDate() - def.days);
+    return records.filter(function (r) {
+      return r.docDate instanceof Date && r.docDate >= cutoff;
+    });
+  }
 
   function esc_(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -236,10 +258,19 @@
 
   function renderDashboard() {
     dashboard.style.display = 'block';
-    var records = state.records;
+    var records = filterByDateRange(state.records);
     var agg = computeCounts(records);
     var totalCount = records.length;
     var totalAmount = records.reduce(function (s, r) { return s + r.total; }, 0);
+
+    var dateChipsHtml = '<div class="chip-row">' +
+      DATE_RANGE_DEFS.map(function (d) {
+        var active = state.dateRange === d.key ? ' active' : '';
+        return '<button class="chip date-chip' + active + '" data-range="' + d.key + '">' + esc_(d.label) + '</button>';
+      }).join('') +
+      '</div>';
+    var dateNote = records.length !== state.records.length ?
+      '<div class="result-footer">กรองตาม Document Date: แสดง ' + fmtInt(records.length) + ' จาก ' + fmtInt(state.records.length) + ' แถวทั้งหมดที่อัปโหลด</div>' : '';
 
     var statCardsHtml = '<div class="stat-row">' +
       '<div class="stat-box"><div class="stat-num c-blue">' + fmtInt(totalCount) + '</div>' +
@@ -290,6 +321,8 @@
     var moreNote = filtered.length > 500 ? '<div class="result-footer">แสดง 500 จาก ' + filtered.length + ' แถวที่ตรงเงื่อนไข — ใช้ช่องค้นหาเพื่อกรองเพิ่มเติม</div>' : '';
 
     dashboard.innerHTML =
+      dateChipsHtml +
+      dateNote +
       statCardsHtml +
       chipsHtml +
       '<div class="search-row">' + searchHtml + '</div>' +
@@ -298,7 +331,13 @@
       '<th>Total</th><th>Status</th><th>Action</th><th>หมวด</th></tr></thead><tbody>' +
       tableRowsHtml + '</tbody></table></div>' + moreNote;
 
-    Array.prototype.forEach.call(dashboard.querySelectorAll('.chip'), function (btn) {
+    Array.prototype.forEach.call(dashboard.querySelectorAll('.date-chip'), function (btn) {
+      btn.addEventListener('click', function () {
+        state.dateRange = btn.getAttribute('data-range');
+        renderDashboard();
+      });
+    });
+    Array.prototype.forEach.call(dashboard.querySelectorAll('.chip:not(.date-chip)'), function (btn) {
       btn.addEventListener('click', function () {
         state.activeBucket = btn.getAttribute('data-bucket');
         renderDashboard();
