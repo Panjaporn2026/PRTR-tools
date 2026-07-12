@@ -392,13 +392,15 @@ function applyCalcChainFix(zipFiles, enc) {
 }
 
 // ── Top-level entry points, one per function id ────────────────────────────────────────────────
-// extraLineTypeKeys: optional array of LINE_TYPES keys beyond EXPENSE (e.g. ['SSO_RETRO']),
-// selected via checkbox in the UI for the 3 functions that run the Duplicate step.
-async function runSingleFileFunction(functionId, buf, extraLineTypeKeys) {
+// selectedLineTypeKeys: array of LINE_TYPES keys the user checked in the UI (e.g. ['EXPENSE',
+// 'SSO_RETRO']) for the 3 functions that run the Duplicate step. EXPENSE is checked by default in
+// the UI but is a real, uncheckable-off-by-force choice here -- an empty array is valid and just
+// means no Duplicate rows get added/updated this run.
+async function runSingleFileFunction(functionId, buf, selectedLineTypeKeys) {
   var ctx = await loadGLInvoiceContext(buf);
   var summary;
   var structuralOpts = null;
-  var lineTypeKeys = ['EXPENSE'].concat(extraLineTypeKeys || []);
+  var lineTypeKeys = selectedLineTypeKeys || [];
 
   if (functionId === 'sso750') {
     summary = fn1_SsoPrtr750(ctx);

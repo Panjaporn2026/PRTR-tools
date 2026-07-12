@@ -9,11 +9,11 @@ var FUNCTIONS = [
   { id: 'ssoIntroduceBy', label: '2. SSO Introduce by', multi: false,
     desc: 'เงื่อนไขหลัก: Grouping = E51110102 & Paycode = T2A3 หรือ TZ74\n• Introduce By = PRTR → Amount ใหม่ = 0\n• Introduce By = CLNT → ไม่เปลี่ยน\nแถวที่ไม่ตรงเงื่อนไข ไม่เปลี่ยน' },
   { id: 'duplicate', label: '3. Duplicate', multi: false,
-    desc: 'เพิ่ม/อัพเดทแถว EXPENSE ต่อท้ายทุกคน (unique NAME):\nPaycode Code = EXPENSE, Paycode Name = ค่าใช้จ่าย\nAccount = 51110116, Grouping = E51110116, Amount = (ว่าง)\nแถว EXPENSE ทุกแถว — ตัวอักษรสีแดง\nเลือกเพิ่มแถวอื่นได้ด้านล่าง (ไม่บังคับ)' },
+    desc: 'เพิ่ม/อัพเดทแถวต่อท้ายทุกคน (unique NAME) ตามที่เลือกไว้ด้านล่าง\nแถวที่เพิ่ม/อัพเดททุกแถว — ตัวอักษรสีแดง\nPaycode Code = EXPENSE, Paycode Name = ค่าใช้จ่าย\nAccount = 51110116, Grouping = E51110116, Amount = (ว่าง)' },
   { id: 'sso750PlusDuplicate', label: '4. SSO PRTR 750 + Duplicate EXPENSE', multi: false,
-    desc: 'ขั้นที่ 1: ปรับ Amount เหมือนฟังก์ชัน 1\nขั้นที่ 2: เพิ่ม/อัพเดทแถว EXPENSE เหมือนฟังก์ชัน 3 (สีแดง)\nเลือกเพิ่มแถวอื่นได้ด้านล่าง (ไม่บังคับ)' },
+    desc: 'ขั้นที่ 1: ปรับ Amount เหมือนฟังก์ชัน 1\nขั้นที่ 2: เพิ่ม/อัพเดทแถวเหมือนฟังก์ชัน 3 ตามที่เลือกไว้ด้านล่าง (สีแดง)' },
   { id: 'ssoIntroduceByPlusDuplicate', label: '5. SSO Introduce by + Duplicate EXPENSE', multi: false,
-    desc: 'ขั้นที่ 1: ปรับ Amount เหมือนฟังก์ชัน 2\nขั้นที่ 2: เพิ่ม/อัพเดทแถว EXPENSE เหมือนฟังก์ชัน 3 (สีแดง)\nเลือกเพิ่มแถวอื่นได้ด้านล่าง (ไม่บังคับ)' },
+    desc: 'ขั้นที่ 1: ปรับ Amount เหมือนฟังก์ชัน 2\nขั้นที่ 2: เพิ่ม/อัพเดทแถวเหมือนฟังก์ชัน 3 ตามที่เลือกไว้ด้านล่าง (สีแดง)' },
   { id: 'removeSso', label: '6. Remove SSO', multi: false,
     desc: 'Grouping = E51110102 & Paycode = T2A3 หรือ TZ74\n• บรรทัดที่ตรงเงื่อนไข → ลบออกทั้งบรรทัด\n• บรรทัดอื่นทั้งหมด → คงเดิม' },
   { id: 'merge', label: '7. Merge', multi: true,
@@ -25,7 +25,7 @@ var FUNCTIONS = [
 var FN_META = {
   sso750: { icon: '💰', title: 'สรุปผล SSO PRTR 750' },
   ssoIntroduceBy: { icon: '💰', title: 'สรุปผล SSO Introduce by' },
-  duplicate: { icon: '➕', title: 'สรุปผล Duplicate — แถว EXPENSE' },
+  duplicate: { icon: '➕', title: 'สรุปผล Duplicate — แถวที่เพิ่ม/อัพเดท' },
   sso750PlusDuplicate: { icon: '💰➕', title: 'สรุปผล SSO PRTR 750 + Duplicate EXPENSE' },
   ssoIntroduceByPlusDuplicate: { icon: '💰➕', title: 'สรุปผล SSO Introduce by + Duplicate EXPENSE' },
   removeSso: { icon: '🗑️', title: 'สรุปผล Remove SSO — บรรทัดที่ถูกลบ' },
@@ -33,11 +33,13 @@ var FN_META = {
   changeHeader: { icon: '📝', title: 'สรุปผล Change Header' }
 };
 
-var state = { fnId: FUNCTIONS[0].id, files: [], resultBytes: null, resultBaseName: null, processedAt: null, sourceLabel: null, extraLineTypes: [] };
+var state = { fnId: FUNCTIONS[0].id, files: [], resultBytes: null, resultBaseName: null, processedAt: null, sourceLabel: null, extraLineTypes: ['EXPENSE'] };
 
-// Extra opt-in line types for the Duplicate step (functions 3/4/5) -- EXPENSE is always added
-// automatically and isn't listed here since it's not a choice.
+// Selectable line types for the Duplicate step (functions 3/4/5). EXPENSE is first and checked by
+// default (matches the tool's original always-on behavior); the other two are opt-in, unchecked
+// by default since most months don't need them.
 var EXTRA_LINE_TYPE_OPTIONS = [
+  { key: 'EXPENSE', label: 'ค่าใช้จ่าย (EXPENSE)', sub: 'Paycode EXPENSE · Account 51110116 · Grouping E51110116', checkedByDefault: true },
   { key: 'SSO_RETRO', label: 'เงินสมทบประกันสังคมนายจ้าง (This Month before Retro)', sub: 'Paycode T2A3 · Account 51110102 · Grouping E51110102' },
   { key: 'ACCIDENT_REFUND', label: 'หักค่าประกันอุบัติเหตุ ค่าใช้จ่ายลูกค้า (คืนค่าประกันซื่อสัตย์)', sub: 'Paycode AC CL D AC · Account 51110104 · Grouping E51110104' }
 ];
@@ -73,7 +75,7 @@ function renderExtraLineOptions() {
   var el = document.getElementById('extraLineOptions');
   if (FN_IDS_WITH_EXTRA_LINE_OPTIONS.indexOf(state.fnId) === -1) { el.innerHTML = ''; el.style.display = 'none'; return; }
   el.style.display = 'block';
-  el.innerHTML = '<div class="extra-line-title">➕ เลือกแถวเพิ่มเติม (ไม่บังคับ — EXPENSE เพิ่มให้อัตโนมัติเสมอ)</div>' +
+  el.innerHTML = '<div class="extra-line-title">➕ เลือกแถวที่ต้องการเพิ่ม/อัพเดท</div>' +
     EXTRA_LINE_TYPE_OPTIONS.map(function (o) {
       var checked = state.extraLineTypes.indexOf(o.key) !== -1 ? ' checked' : '';
       return '<label class="extra-line-opt">' +
@@ -124,7 +126,7 @@ function resetForNewFile() {
 function selectFunction(id) {
   state.fnId = id;
   state.files = [];
-  state.extraLineTypes = [];
+  state.extraLineTypes = EXTRA_LINE_TYPE_OPTIONS.filter(function (o) { return o.checkedByDefault; }).map(function (o) { return o.key; });
   resetOutputUI();
   renderSidebar();
   renderFnDesc();
@@ -323,10 +325,10 @@ function buildResultBody(fn, summary) {
     html += '<div class="result-sub">ผลปรับ SSO</div>';
     html += detailTableHtml(isPrtr ? SSO_ADJUST_COLUMNS : SSO_INTRODUCE_COLUMNS, summary.ssoDetails);
     html += statRowHtml([
-      { value: summary.added, label: 'เพิ่มแถว EXPENSE ใหม่', color: 'green' },
-      { value: summary.updated, label: 'อัพเดทแถว EXPENSE เดิม', color: 'blue' }
+      { value: summary.added, label: 'เพิ่มแถวใหม่ (Duplicate)', color: 'green' },
+      { value: summary.updated, label: 'อัพเดทแถวเดิม (Duplicate)', color: 'blue' }
     ]);
-    html += '<div class="result-sub">แถว EXPENSE</div>';
+    html += '<div class="result-sub">แถวที่เพิ่ม/อัพเดท</div>';
     html += detailTableHtml(EXPENSE_COLUMNS, summary.expenseDetails);
   } else if (fn.id === 'removeSso') {
     html += statRowHtml([
