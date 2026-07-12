@@ -11,6 +11,15 @@ var EXPENSE_PAYCODE_NAME = 'ค่าใช้จ่าย';
 var EXPENSE_ACCOUNT = '51110116';
 var EXPENSE_GROUPING = 'E51110116';
 
+// Duplicate (function 3) line types -- EXPENSE is always added; the other two are opt-in via
+// checkbox (most months don't need them, confirmed by the user), each added/updated per person
+// with the exact same idempotent add-or-update pattern as EXPENSE, just keyed by their own Paycode.
+var LINE_TYPES = {
+  EXPENSE: { paycodeCode: EXPENSE_PAYCODE, paycodeName: EXPENSE_PAYCODE_NAME, account: EXPENSE_ACCOUNT, grouping: EXPENSE_GROUPING },
+  SSO_RETRO: { paycodeCode: 'T2A3', paycodeName: 'เงินสมทบประกันสังคมนายจ้าง (This Month before Retro)', account: '51110102', grouping: 'E51110102' },
+  ACCIDENT_REFUND: { paycodeCode: 'AC CL D AC', paycodeName: 'หักค่าประกันอุบัติเหตุ ค่าใช้จ่ายลูกค้า', account: '51110104', grouping: 'E51110104' }
+};
+
 var REQUIRED_HEADER_LABELS = ['NAME', 'Paycode Code', 'Paycode Name', 'Account', 'Grouping', 'Amount', 'Introduce By', 'EMP ID'];
 
 function findColLetterByHeaderText(aoa, headerRowNum, label) {
@@ -126,12 +135,12 @@ function fn2_SsoIntroduceBy(ctx) {
   return summary;
 }
 
-// ── Function 3: Duplicate (add-or-update EXPENSE row per person, idempotent) ───────────────────
-function setExpenseFields(row, ctx) {
-  writeTextCell(row, ctx.cols.PaycodeCode, EXPENSE_PAYCODE);
-  writeTextCell(row, ctx.cols.PaycodeName, EXPENSE_PAYCODE_NAME);
-  writeTextCell(row, ctx.cols.Account, EXPENSE_ACCOUNT);
-  writeTextCell(row, ctx.cols.Grouping, EXPENSE_GROUPING);
+// ── Function 3: Duplicate (add-or-update a fixed line per person, idempotent) ───────────────────
+function setLineFields(row, ctx, lineType) {
+  writeTextCell(row, ctx.cols.PaycodeCode, lineType.paycodeCode);
+  writeTextCell(row, ctx.cols.PaycodeName, lineType.paycodeName);
+  writeTextCell(row, ctx.cols.Account, lineType.account);
+  writeTextCell(row, ctx.cols.Grouping, lineType.grouping);
   writeBlankCell(row, ctx.cols.Amount);
 }
 function writeTextCell(row, colLetter, text) {
@@ -152,20 +161,20 @@ function recolorRowRed(row, styles) {
     row.cellsByCol[col] = restyleCell(cellXml, col + row.rowNum, redIdx);
   });
 }
-// Builds a brand-new EXPENSE row's cell map (no rowNum assigned yet -- insertRowsAfter sets it),
+// Builds a brand-new line row's cell map (no rowNum assigned yet -- insertRowsAfter sets it),
 // copying every identity column's actual VALUE (never a raw shared-string/style index) from
-// templateRow, recoloring every cell red, and overriding the 5 EXPENSE-specific fields.
-function buildExpenseRowFrom(templateRow, ctx) {
+// templateRow, recoloring every cell red, and overriding the 5 line-type-specific fields.
+function buildLineRowFrom(templateRow, ctx, lineType) {
   var cellsByCol = {};
   Object.keys(templateRow.cellsByCol).forEach(function (col) {
     var origCellXml = templateRow.cellsByCol[col];
     var styleIdx = getCellStyleIndex(origCellXml);
     var redIdx = getOrCreateRedVariant(ctx.styles, styleIdx);
     var placeholderAddr = col + '1'; // real address assigned later by insertRowsAfter/readdress
-    if (col === ctx.cols.PaycodeCode) cellsByCol[col] = buildInlineStringCell(placeholderAddr, redIdx, EXPENSE_PAYCODE);
-    else if (col === ctx.cols.PaycodeName) cellsByCol[col] = buildInlineStringCell(placeholderAddr, redIdx, EXPENSE_PAYCODE_NAME);
-    else if (col === ctx.cols.Account) cellsByCol[col] = buildInlineStringCell(placeholderAddr, redIdx, EXPENSE_ACCOUNT);
-    else if (col === ctx.cols.Grouping) cellsByCol[col] = buildInlineStringCell(placeholderAddr, redIdx, EXPENSE_GROUPING);
+    if (col === ctx.cols.PaycodeCode) cellsByCol[col] = buildInlineStringCell(placeholderAddr, redIdx, lineType.paycodeCode);
+    else if (col === ctx.cols.PaycodeName) cellsByCol[col] = buildInlineStringCell(placeholderAddr, redIdx, lineType.paycodeName);
+    else if (col === ctx.cols.Account) cellsByCol[col] = buildInlineStringCell(placeholderAddr, redIdx, lineType.account);
+    else if (col === ctx.cols.Grouping) cellsByCol[col] = buildInlineStringCell(placeholderAddr, redIdx, lineType.grouping);
     else if (col === ctx.cols.Amount) cellsByCol[col] = buildBlankCell(placeholderAddr, redIdx);
     else {
       var val = getCellValue(origCellXml, ctx.sst);
@@ -177,7 +186,11 @@ function buildExpenseRowFrom(templateRow, ctx) {
   return { attrsRest: templateRow.attrsRest, cellsByCol: cellsByCol };
 }
 
-function fn3_DuplicateExpense(ctx) {
+// lineTypeKeys: e.g. ['EXPENSE'] or ['EXPENSE', 'SSO_RETRO', 'ACCIDENT_REFUND'] -- EXPENSE is
+// always included by the caller; the other two are opt-in checkboxes (most months don't need
+// them). Each line type is added/updated independently per person, keyed by that line type's own
+// Paycode Code, so a person can end up with any combination of the selected lines.
+function fn3_DuplicateLines(ctx, lineTypeKeys) {
   var summary = { added: 0, updated: 0, errors: [], details: [] };
   var dataRows = ctx.model.rows.filter(function (row) { return row.rowNum > ctx.headerRow; });
 
@@ -204,35 +217,39 @@ function fn3_DuplicateExpense(ctx) {
   if (summary.errors.length) return summary; // hard-stop, never guess which EMP ID is "right"
 
   var newRowsToInsert = [];
-  var newRowKeys = []; // parallel to newRowsToInsert -- carries the person's own EMP ID/name for the detail table
-  Object.keys(byKey).forEach(function (key) {
-    var person = byKey[key];
-    var templateRow = person.rows[0];
-    var name = getCellValue(templateRow.cellsByCol[ctx.cols.NAME], ctx.sst);
-    var empId = getCellValue(templateRow.cellsByCol[ctx.cols.EMPID], ctx.sst);
-    var expenseRow = person.rows.find(function (row) {
-      return normTextUpper(getCellValue(row.cellsByCol[ctx.cols.PaycodeCode], ctx.sst)) === EXPENSE_PAYCODE;
+  var newRowKeys = []; // parallel to newRowsToInsert -- carries the person's own EMP ID/name/lineType for the detail table
+
+  lineTypeKeys.forEach(function (lineTypeKey) {
+    var lineType = LINE_TYPES[lineTypeKey];
+    Object.keys(byKey).forEach(function (key) {
+      var person = byKey[key];
+      var templateRow = person.rows[0];
+      var name = getCellValue(templateRow.cellsByCol[ctx.cols.NAME], ctx.sst);
+      var empId = getCellValue(templateRow.cellsByCol[ctx.cols.EMPID], ctx.sst);
+      var existingRow = person.rows.find(function (row) {
+        return normTextUpper(getCellValue(row.cellsByCol[ctx.cols.PaycodeCode], ctx.sst)) === normTextUpper(lineType.paycodeCode);
+      });
+      if (existingRow) {
+        setLineFields(existingRow, ctx, lineType);
+        recolorRowRed(existingRow, ctx.styles);
+        summary.updated++;
+        summary.details.push({ row: existingRow.rowNum, name: name, empId: empId,
+          paycodeCode: lineType.paycodeCode, paycodeName: lineType.paycodeName,
+          account: lineType.account, grouping: lineType.grouping, action: 'อัพเดท' });
+      } else {
+        newRowsToInsert.push(buildLineRowFrom(templateRow, ctx, lineType));
+        newRowKeys.push({ name: name, empId: empId, lineType: lineType });
+        summary.added++;
+      }
     });
-    if (expenseRow) {
-      setExpenseFields(expenseRow, ctx);
-      recolorRowRed(expenseRow, ctx.styles);
-      summary.updated++;
-      summary.details.push({ row: expenseRow.rowNum, name: name, empId: empId,
-        paycodeCode: EXPENSE_PAYCODE, paycodeName: EXPENSE_PAYCODE_NAME,
-        account: EXPENSE_ACCOUNT, grouping: EXPENSE_GROUPING, action: 'อัพเดท' });
-    } else {
-      newRowsToInsert.push(buildExpenseRowFrom(templateRow, ctx));
-      newRowKeys.push({ name: name, empId: empId });
-      summary.added++;
-    }
   });
 
   if (newRowsToInsert.length) {
     var anchorRow = findLastEmployeeRow(ctx.model.rows, ctx.cols.NAME, ctx.sst) || ctx.headerRow;
     newRowKeys.forEach(function (k, i) {
       summary.details.push({ row: anchorRow + 1 + i, name: k.name, empId: k.empId,
-        paycodeCode: EXPENSE_PAYCODE, paycodeName: EXPENSE_PAYCODE_NAME,
-        account: EXPENSE_ACCOUNT, grouping: EXPENSE_GROUPING, action: 'เพิ่มใหม่' });
+        paycodeCode: k.lineType.paycodeCode, paycodeName: k.lineType.paycodeName,
+        account: k.lineType.account, grouping: k.lineType.grouping, action: 'เพิ่มใหม่' });
     });
     ctx.model.rows = insertRowsAfter(ctx.model.rows, anchorRow, newRowsToInsert);
   }
@@ -375,22 +392,25 @@ function applyCalcChainFix(zipFiles, enc) {
 }
 
 // ── Top-level entry points, one per function id ────────────────────────────────────────────────
-async function runSingleFileFunction(functionId, buf) {
+// extraLineTypeKeys: optional array of LINE_TYPES keys beyond EXPENSE (e.g. ['SSO_RETRO']),
+// selected via checkbox in the UI for the 3 functions that run the Duplicate step.
+async function runSingleFileFunction(functionId, buf, extraLineTypeKeys) {
   var ctx = await loadGLInvoiceContext(buf);
   var summary;
   var structuralOpts = null;
+  var lineTypeKeys = ['EXPENSE'].concat(extraLineTypeKeys || []);
 
   if (functionId === 'sso750') {
     summary = fn1_SsoPrtr750(ctx);
   } else if (functionId === 'ssoIntroduceBy') {
     summary = fn2_SsoIntroduceBy(ctx);
   } else if (functionId === 'duplicate') {
-    summary = fn3_DuplicateExpense(ctx);
+    summary = fn3_DuplicateLines(ctx, lineTypeKeys);
     structuralOpts = buildStructuralOptsAfterAppend(ctx);
   } else if (functionId === 'sso750PlusDuplicate') {
     var s1 = fn1_SsoPrtr750(ctx);
     reparseContext(ctx);
-    var s3a = fn3_DuplicateExpense(ctx);
+    var s3a = fn3_DuplicateLines(ctx, lineTypeKeys);
     // Deliberately NOT a flat Object.assign -- both stages have their own "details"/"errors" keys,
     // which would silently clobber stage 1's per-row Amount-adjustment details with stage 3's.
     summary = {
@@ -402,7 +422,7 @@ async function runSingleFileFunction(functionId, buf) {
   } else if (functionId === 'ssoIntroduceByPlusDuplicate') {
     var s2 = fn2_SsoIntroduceBy(ctx);
     reparseContext(ctx);
-    var s3b = fn3_DuplicateExpense(ctx);
+    var s3b = fn3_DuplicateLines(ctx, lineTypeKeys);
     summary = {
       matched: s2.matched, zeroedPRTR: s2.zeroedPRTR, unchangedCLNT: s2.unchangedCLNT, unchangedOther: s2.unchangedOther,
       countT2A3: s2.countT2A3, countTZ74: s2.countTZ74,

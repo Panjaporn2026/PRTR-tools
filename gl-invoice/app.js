@@ -9,11 +9,11 @@ var FUNCTIONS = [
   { id: 'ssoIntroduceBy', label: '2. SSO Introduce by', multi: false,
     desc: 'เงื่อนไขหลัก: Grouping = E51110102 & Paycode = T2A3 หรือ TZ74\n• Introduce By = PRTR → Amount ใหม่ = 0\n• Introduce By = CLNT → ไม่เปลี่ยน\nแถวที่ไม่ตรงเงื่อนไข ไม่เปลี่ยน' },
   { id: 'duplicate', label: '3. Duplicate', multi: false,
-    desc: 'เพิ่ม/อัพเดทแถว EXPENSE ต่อท้ายทุกคน (unique NAME):\nPaycode Code = EXPENSE, Paycode Name = ค่าใช้จ่าย\nAccount = 51110116, Grouping = E51110116, Amount = (ว่าง)\nแถว EXPENSE ทุกแถว — ตัวอักษรสีแดง' },
+    desc: 'เพิ่ม/อัพเดทแถว EXPENSE ต่อท้ายทุกคน (unique NAME):\nPaycode Code = EXPENSE, Paycode Name = ค่าใช้จ่าย\nAccount = 51110116, Grouping = E51110116, Amount = (ว่าง)\nแถว EXPENSE ทุกแถว — ตัวอักษรสีแดง\nเลือกเพิ่มแถวอื่นได้ด้านล่าง (ไม่บังคับ)' },
   { id: 'sso750PlusDuplicate', label: '4. SSO PRTR 750 + Duplicate EXPENSE', multi: false,
-    desc: 'ขั้นที่ 1: ปรับ Amount เหมือนฟังก์ชัน 1\nขั้นที่ 2: เพิ่ม/อัพเดทแถว EXPENSE เหมือนฟังก์ชัน 3 (สีแดง)' },
+    desc: 'ขั้นที่ 1: ปรับ Amount เหมือนฟังก์ชัน 1\nขั้นที่ 2: เพิ่ม/อัพเดทแถว EXPENSE เหมือนฟังก์ชัน 3 (สีแดง)\nเลือกเพิ่มแถวอื่นได้ด้านล่าง (ไม่บังคับ)' },
   { id: 'ssoIntroduceByPlusDuplicate', label: '5. SSO Introduce by + Duplicate EXPENSE', multi: false,
-    desc: 'ขั้นที่ 1: ปรับ Amount เหมือนฟังก์ชัน 2\nขั้นที่ 2: เพิ่ม/อัพเดทแถว EXPENSE เหมือนฟังก์ชัน 3 (สีแดง)' },
+    desc: 'ขั้นที่ 1: ปรับ Amount เหมือนฟังก์ชัน 2\nขั้นที่ 2: เพิ่ม/อัพเดทแถว EXPENSE เหมือนฟังก์ชัน 3 (สีแดง)\nเลือกเพิ่มแถวอื่นได้ด้านล่าง (ไม่บังคับ)' },
   { id: 'removeSso', label: '6. Remove SSO', multi: false,
     desc: 'Grouping = E51110102 & Paycode = T2A3 หรือ TZ74\n• บรรทัดที่ตรงเงื่อนไข → ลบออกทั้งบรรทัด\n• บรรทัดอื่นทั้งหมด → คงเดิม' },
   { id: 'merge', label: '7. Merge', multi: true,
@@ -33,7 +33,15 @@ var FN_META = {
   changeHeader: { icon: '📝', title: 'สรุปผล Change Header' }
 };
 
-var state = { fnId: FUNCTIONS[0].id, files: [], resultBytes: null, resultBaseName: null, processedAt: null, sourceLabel: null };
+var state = { fnId: FUNCTIONS[0].id, files: [], resultBytes: null, resultBaseName: null, processedAt: null, sourceLabel: null, extraLineTypes: [] };
+
+// Extra opt-in line types for the Duplicate step (functions 3/4/5) -- EXPENSE is always added
+// automatically and isn't listed here since it's not a choice.
+var EXTRA_LINE_TYPE_OPTIONS = [
+  { key: 'SSO_RETRO', label: 'เงินสมทบประกันสังคมนายจ้าง (This Month before Retro)', sub: 'Paycode T2A3 · Account 51110102 · Grouping E51110102' },
+  { key: 'ACCIDENT_REFUND', label: 'หักค่าประกันอุบัติเหตุ ค่าใช้จ่ายลูกค้า (คืนค่าประกันซื่อสัตย์)', sub: 'Paycode AC CL D AC · Account 51110104 · Grouping E51110104' }
+];
+var FN_IDS_WITH_EXTRA_LINE_OPTIONS = ['duplicate', 'sso750PlusDuplicate', 'ssoIntroduceByPlusDuplicate'];
 
 function dbg(msg) { console.log(msg); }
 function setStatus(msg, cls) {
@@ -55,6 +63,27 @@ function renderSidebar() {
 }
 function renderFnDesc() {
   document.getElementById('fnDesc').textContent = currentFn().desc;
+}
+function toggleExtraLineType(key, checked) {
+  var i = state.extraLineTypes.indexOf(key);
+  if (checked && i === -1) state.extraLineTypes.push(key);
+  else if (!checked && i !== -1) state.extraLineTypes.splice(i, 1);
+}
+function renderExtraLineOptions() {
+  var el = document.getElementById('extraLineOptions');
+  if (FN_IDS_WITH_EXTRA_LINE_OPTIONS.indexOf(state.fnId) === -1) { el.innerHTML = ''; el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  el.innerHTML = '<div class="extra-line-title">➕ เลือกแถวเพิ่มเติม (ไม่บังคับ — EXPENSE เพิ่มให้อัตโนมัติเสมอ)</div>' +
+    EXTRA_LINE_TYPE_OPTIONS.map(function (o) {
+      var checked = state.extraLineTypes.indexOf(o.key) !== -1 ? ' checked' : '';
+      return '<label class="extra-line-opt">' +
+        '<input type="checkbox" data-key="' + o.key + '"' + checked + '>' +
+        '<span><b>' + esc_(o.label) + '</b><br><span class="extra-line-sub">' + esc_(o.sub) + '</span></span>' +
+        '</label>';
+    }).join('');
+  Array.prototype.forEach.call(el.querySelectorAll('input[type=checkbox]'), function (cb) {
+    cb.addEventListener('change', function () { toggleExtraLineType(cb.getAttribute('data-key'), cb.checked); });
+  });
 }
 function renderDropzoneHint() {
   var fn = currentFn();
@@ -95,9 +124,11 @@ function resetForNewFile() {
 function selectFunction(id) {
   state.fnId = id;
   state.files = [];
+  state.extraLineTypes = [];
   resetOutputUI();
   renderSidebar();
   renderFnDesc();
+  renderExtraLineOptions();
   renderDropzoneHint();
   renderFileList();
   document.getElementById('fileInput').value = '';
@@ -154,7 +185,7 @@ async function runProcessing() {
       state.sourceLabel = state.files.map(function (f) { return f.name; }).join(', ');
     } else {
       var buf = await state.files[0].arrayBuffer();
-      result = await runSingleFileFunction(fn.id, buf);
+      result = await runSingleFileFunction(fn.id, buf, state.extraLineTypes);
       state.resultBaseName = state.files[0].name.replace(/\.[^.]+$/, '');
       state.sourceLabel = state.files[0].name;
     }
@@ -359,4 +390,5 @@ function downloadResult() {
 // init
 renderSidebar();
 renderFnDesc();
+renderExtraLineOptions();
 renderDropzoneHint();
