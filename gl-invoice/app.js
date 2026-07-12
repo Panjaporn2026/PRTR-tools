@@ -203,7 +203,9 @@ function detailTableHtml(columns, rows) {
   var thead = '<tr>' + columns.map(function (c) { return '<th>' + esc_(c.label) + '</th>'; }).join('') + '</tr>';
   var tbody = rows.map(function (r) {
     var rowClass = r._rowClass ? ' class="' + r._rowClass + '"' : '';
-    return '<tr' + rowClass + '>' + columns.map(function (c) { return '<td>' + c.render(r) + '</td>'; }).join('') + '</tr>';
+    return '<tr' + rowClass + '>' + columns.map(function (c) {
+      return '<td' + (c.wrap ? ' class="wrap-cell"' : '') + '>' + c.render(r) + '</td>';
+    }).join('') + '</tr>';
   }).join('');
   return '<div class="detail-table-wrap"><table class="detail-table"><thead>' + thead + '</thead><tbody>' + tbody + '</tbody></table></div>';
 }
@@ -211,7 +213,7 @@ function detailTableHtml(columns, rows) {
 var SSO_ADJUST_COLUMNS = [
   { label: 'แถวที่ (เดิม)', render: function (r) { return esc_(r.row); } },
   { label: 'Paycode', render: function (r) { return esc_(r.paycode); } },
-  { label: 'Paycode Name', render: function (r) { return esc_(r.paycodeName); } },
+  { label: 'Paycode Name', wrap: true, render: function (r) { return esc_(r.paycodeName); } },
   { label: 'Amount เดิม', render: function (r) { return esc_(fmtAmt(r.amountBefore)); } },
   { label: 'Amount ใหม่', render: function (r) { return esc_(fmtAmt(r.amountAfter)); } },
   { label: 'หมายเหตุ', render: function (r) { return noteBadge(r.note); } }
@@ -219,7 +221,7 @@ var SSO_ADJUST_COLUMNS = [
 var SSO_INTRODUCE_COLUMNS = [
   { label: 'แถวที่ (เดิม)', render: function (r) { return esc_(r.row); } },
   { label: 'Paycode', render: function (r) { return esc_(r.paycode); } },
-  { label: 'Paycode Name', render: function (r) { return esc_(r.paycodeName); } },
+  { label: 'Paycode Name', wrap: true, render: function (r) { return esc_(r.paycodeName); } },
   { label: 'Introduce By', render: function (r) { return esc_(r.introduceBy); } },
   { label: 'Amount เดิม', render: function (r) { return esc_(fmtAmt(r.amountBefore)); } },
   { label: 'Amount ใหม่', render: function (r) { return esc_(fmtAmt(r.amountAfter)); } },
