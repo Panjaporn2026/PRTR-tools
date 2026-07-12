@@ -41,18 +41,20 @@
   .stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px;}
   .stat-box{background:#f8fafc;border:1px solid #eceff1;border-radius:8px;padding:14px 10px;text-align:center;}
   .stat-num{font-size:27px;font-weight:700;line-height:1.15;font-variant-numeric:tabular-nums;}
-  .stat-num.c-red{color:#e53935;} .stat-num.c-green{color:#2e7d32;} .stat-num.c-orange{color:#f57c00;} .stat-num.c-blue{color:#c8102e;} .stat-num.c-gray{color:#607d8b;}
+  .stat-num.c-red{color:#e53935;} .stat-num.c-green{color:#2e7d32;} .stat-num.c-orange{color:#f57c00;} .stat-num.c-blue{color:#c8102e;} .stat-num.c-gray{color:#607d8b;} .stat-num.c-purple{color:#6a1b9a;}
   .stat-label{font-size:11.5px;color:#607d8b;margin-top:5px;font-weight:500;line-height:1.5;}
 
+  .data-range-note{font-size:12.5px;color:#37474f;background:#f8fafc;border:1px solid #e0e4ea;border-radius:8px;padding:8px 14px;margin-bottom:12px;}
   .chip-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;}
   .chip{background:#f8fafc;border:1px solid #e0e4ea;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:500;cursor:pointer;color:#37474f;font-family:inherit;transition:.15s;}
   .chip:hover{border-color:#c8102e;background:#fde8ec;}
   .chip.active{background:#c8102e;color:#fff;border-color:#c8102e;font-weight:600;}
   .chip.date-chip.active{background:#1565c0;border-color:#1565c0;}
 
-  .search-row{margin-bottom:12px;}
-  .search-box{width:100%;max-width:420px;border:1px solid #cfd8dc;border-radius:7px;padding:8px 12px;font-size:13px;font-family:inherit;}
+  .search-row{margin-bottom:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  .search-box{flex:1;min-width:200px;max-width:420px;border:1px solid #cfd8dc;border-radius:7px;padding:8px 12px;font-size:13px;font-family:inherit;}
   .search-box:focus{outline:none;border-color:#c8102e;}
+  .search-row .btn-main{margin-top:0;white-space:nowrap;}
 
   .detail-table-wrap{overflow-x:auto;margin-bottom:12px;border:1px solid #e0e4ea;border-radius:8px;}
   table.detail-table{width:100%;border-collapse:collapse;font-size:12px;table-layout:auto;}
@@ -67,6 +69,7 @@
   .badge.c-orange-bg{background:#fff3e0;color:#e65100;}
   .badge.c-blue-bg{background:#e3f2fd;color:#1565c0;}
   .badge.c-gray-bg{background:#eceff1;color:#546e7a;}
+  .badge.c-purple-bg{background:#f3e5f5;color:#6a1b9a;}
   .result-footer{font-size:11.5px;color:#90a4ae;margin:10px 0 14px;font-weight:400;}
 </style>
 </head>
@@ -89,7 +92,7 @@
     1. เข้า <b>getinvoice.net → Send to Buyer</b> ตั้งช่วงวันที่ที่ต้องการ แล้วกด <b>Export</b> เลือกฟอร์แมต <b>Excel</b><br>
     2. อัปโหลดไฟล์ .xlsx ที่ได้มาที่นี่ (รองรับหลายไฟล์ จะรวมข้อมูลให้อัตโนมัติ)<br>
     3. ระบบจะจัดกลุ่มแต่ละใบเป็น 4 หมวดจากคอลัมน์ Status/Action ในไฟล์ export โดยอัตโนมัติ<br>
-    ⚠️ เกณฑ์การจัดกลุ่ม: <b>Error</b> = Status Failure หรือมี Action "bounce" (แม้ Status จะเป็น Success) | <b>ยังไม่ได้ส่ง</b> = Status In Progress/Don't Send | <b>ส่งแล้ว-เปิดอ่านแล้ว/ยังไม่เปิด</b> = Status Success แยกตามว่า Action มีคำว่า "open" หรือไม่
+    ⚠️ เกณฑ์การจัดกลุ่ม: <b>Error</b> = Status Failure หรือมี Action "bounce" (แม้ Status จะเป็น Success) | <b>ยังไม่ได้ส่ง</b> = Status In Progress/Not Send (ระบบยังไม่ส่ง) | <b>เลือกไม่ส่ง</b> = Status Don't Send (พนักงานกดเลือกเองว่าไม่ต้องส่ง แยกจาก "ยังไม่ได้ส่ง") | <b>ส่งแล้ว-เปิดอ่านแล้ว/ยังไม่เปิด</b> = Status Success แยกตามว่า Action มีคำว่า "open" หรือไม่
   </div>
 
   <div class="dz" id="dropzone">

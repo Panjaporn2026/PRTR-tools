@@ -5,11 +5,16 @@
   var BUCKET_DEFS = [
     { key: 'error', label: 'ส่งแล้ว Error / ไม่สำเร็จ', cls: 'c-red' },
     { key: 'not_sent', label: 'ยังไม่ได้ส่ง', cls: 'c-orange' },
+    { key: 'dont_send', label: 'เลือกไม่ส่ง (Don\'t Send)', cls: 'c-purple' },
     { key: 'sent_opened', label: 'ส่งแล้ว — เปิดอ่านแล้ว', cls: 'c-green' },
     { key: 'sent_not_opened', label: 'ส่งแล้ว — ยังไม่เปิดอ่าน', cls: 'c-blue' },
     { key: 'unknown', label: 'ไม่ทราบสถานะ (ตรวจสอบ)', cls: 'c-gray' }
   ];
-  var NOT_SENT_STATUSES = ["In Progress", "Don't Send", "Not Send"];
+  // "In Progress"/"Not Send" = ระบบยังไม่ได้ส่ง (คิวรอ/pending)
+  // "Don't Send" = พนักงานกดเลือกเองว่าไม่ต้องส่ง (deliberate, ไม่ใช่ pending) จึงแยกเป็นคนละหมวด
+  var NOT_SENT_STATUSES = ["In Progress", "Not Send"];
+  var DONT_SEND_STATUSES = ["Don't Send"];
+  var INTERNAL_EMAIL = 'osinvoiceteam@prtr.com';
   var DATE_RANGE_DEFS = [
     { key: 'all', label: 'ทั้งหมด' },
     { key: 'today', label: 'วันนี้', days: 0 },
@@ -17,6 +22,7 @@
     { key: '1m', label: '1 เดือนล่าสุด', days: 30 },
     { key: '2m', label: '2 เดือนล่าสุด', days: 60 }
   ];
+  var STORAGE_KEY = 'invoiceDashboard.v1';
 
   var state = {
     files: [],       // [{name, rows:[record]}]
@@ -86,13 +92,36 @@
     return String(v);
   }
 
-  function classify(status, action) {
+  function splitEmails(emailAddress) {
+    if (!emailAddress) return [];
+    return String(emailAddress).split(/;|\s+and\s+/i).map(function (s) { return s.trim(); }).filter(Boolean);
+  }
+
+  // Action is a comma-separated per-send-event list (open/none/bounce); Email Address is a
+  // ;-separated recipient list. They line up 1:1 only when the counts match (a doc that was
+  // resent produces more action events than recipients) -- pairing is only trusted then.
+  function classify(status, action, emailAddress) {
     var st = (status == null ? '' : String(status)).trim();
     var tokens = (action == null ? '' : String(action)).split(',').map(function (s) { return s.trim(); }).filter(Boolean);
     var hasBounce = tokens.indexOf('bounce') !== -1;
     var hasOpen = tokens.indexOf('open') !== -1;
 
-    if (st === 'Failure' || hasBounce) return 'error';
+    var hasRealOpenDespiteBounce = false;
+    if (hasBounce && hasOpen) {
+      var emails = splitEmails(emailAddress);
+      if (emails.length === tokens.length) {
+        for (var i = 0; i < tokens.length; i++) {
+          if (tokens[i] === 'open' && emails[i].toLowerCase() !== INTERNAL_EMAIL) {
+            hasRealOpenDespiteBounce = true;
+            break;
+          }
+        }
+      }
+    }
+
+    if (st === 'Failure') return 'error';
+    if (hasBounce && !hasRealOpenDespiteBounce) return 'error';
+    if (DONT_SEND_STATUSES.indexOf(st) !== -1) return 'dont_send';
     if (NOT_SENT_STATUSES.indexOf(st) !== -1) return 'not_sent';
     if (st === 'Success') return hasOpen ? 'sent_opened' : 'sent_not_opened';
     return 'unknown';
@@ -130,6 +159,7 @@
           if (!row || row[idx.docNo] == null || row[idx.docNo] === '') continue;
           var status = idx.status >= 0 ? row[idx.status] : null;
           var action = idx.action >= 0 ? row[idx.action] : null;
+          var email = idx.email >= 0 ? row[idx.email] : '';
           records.push({
             docNo: row[idx.docNo],
             type: idx.type >= 0 ? row[idx.type] : '',
@@ -137,12 +167,12 @@
             orderNo: idx.orderNo >= 0 ? row[idx.orderNo] : '',
             total: idx.total >= 0 ? toNumber(row[idx.total]) : 0,
             buyerName: idx.buyerName >= 0 ? row[idx.buyerName] : '',
-            email: idx.email >= 0 ? row[idx.email] : '',
+            email: email,
             status: status,
             sentDate: idx.sentDate >= 0 ? row[idx.sentDate] : null,
             action: action,
             error: idx.error >= 0 ? row[idx.error] : '',
-            bucket: classify(status, action),
+            bucket: classify(status, action, email),
             sourceFile: file.name
           });
         }
@@ -185,7 +215,33 @@
     });
   }
 
-  function rebuildRecords() {
+  function saveToStorage() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ files: state.files, savedAt: new Date().toISOString() }));
+    } catch (e) {
+      // localStorage full/blocked (private mode) -- non-critical, just skip persistence
+    }
+  }
+
+  function loadFromStorage() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      var data = JSON.parse(raw);
+      if (!data || !data.files) return null;
+      data.files.forEach(function (f) {
+        f.rows.forEach(function (r) {
+          if (r.docDate) r.docDate = new Date(r.docDate);
+          if (r.sentDate) r.sentDate = new Date(r.sentDate);
+        });
+      });
+      return data;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function applyFiles() {
     state.records = [];
     state.files.forEach(function (f) { state.records = state.records.concat(f.rows); });
     renderFileList();
@@ -194,6 +250,11 @@
     } else {
       dashboard.style.display = 'none';
     }
+  }
+
+  function rebuildRecords() {
+    applyFiles();
+    saveToStorage();
   }
 
   function handleFiles(fileList) {
@@ -256,6 +317,55 @@
     return { counts: counts, amounts: amounts };
   }
 
+  function getDateRangeLabel(records) {
+    var times = records.filter(function (r) { return r.docDate instanceof Date; }).map(function (r) { return r.docDate.getTime(); });
+    if (!times.length) return null;
+    return toDateLabel(new Date(Math.min.apply(null, times))) + ' – ' + toDateLabel(new Date(Math.max.apply(null, times)));
+  }
+
+  function sortNewestFirst(records) {
+    return records.slice().sort(function (a, b) {
+      var ta = a.docDate instanceof Date ? a.docDate.getTime() : -Infinity;
+      var tb = b.docDate instanceof Date ? b.docDate.getTime() : -Infinity;
+      return tb - ta;
+    });
+  }
+
+  function downloadExcel(filteredSorted, agg, totalCount, totalAmount, rangeLabel) {
+    var bucketLabelMap = {};
+    BUCKET_DEFS.forEach(function (b) { bucketLabelMap[b.key] = b; });
+
+    var summaryAoa = [
+      ['Invoice Send Status Dashboard'],
+      ['สร้างเมื่อ', new Date().toLocaleString('th-TH')],
+      ['ช่วงข้อมูล (Document Date)', rangeLabel || '—'],
+      ['ตัวกรองที่ใช้', 'หมวด: ' + (state.activeBucket === 'all' ? 'ทั้งหมด' : (bucketLabelMap[state.activeBucket] || {}).label) +
+        ' | ช่วงวันที่: ' + (DATE_RANGE_DEFS.filter(function (d) { return d.key === state.dateRange; })[0] || {}).label +
+        (state.searchText ? ' | ค้นหา: ' + state.searchText : '')],
+      [],
+      ['หมวด', 'จำนวน (ใบ)', 'ยอดรวม (บาท)'],
+      ['ทั้งหมด', totalCount, totalAmount]
+    ];
+    BUCKET_DEFS.forEach(function (b) {
+      if (b.key === 'unknown' && !agg.counts.unknown) return;
+      summaryAoa.push([b.label, agg.counts[b.key] || 0, agg.amounts[b.key] || 0]);
+    });
+
+    var detailAoa = [['Document No', 'Type', 'Document Date', 'Buyer Name', 'Email Address', 'Total', 'Status', 'Action', 'หมวด']];
+    filteredSorted.forEach(function (r) {
+      var b = bucketLabelMap[r.bucket];
+      detailAoa.push([r.docNo, r.type, toDateLabel(r.docDate), r.buyerName, r.email, r.total, r.status, r.action, b ? b.label : r.bucket]);
+    });
+
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryAoa), 'สรุป');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(detailAoa), 'รายละเอียด');
+    var now = new Date();
+    var stamp = now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0') +
+      '-' + String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0');
+    XLSX.writeFile(wb, 'invoice-status-dashboard-' + stamp + '.xlsx');
+  }
+
   function renderDashboard() {
     dashboard.style.display = 'block';
     var records = filterByDateRange(state.records);
@@ -271,6 +381,10 @@
       '</div>';
     var dateNote = records.length !== state.records.length ?
       '<div class="result-footer">กรองตาม Document Date: แสดง ' + fmtInt(records.length) + ' จาก ' + fmtInt(state.records.length) + ' แถวทั้งหมดที่อัปโหลด</div>' : '';
+
+    var overallRangeLabel = getDateRangeLabel(state.records);
+    var rangeHtml = overallRangeLabel ?
+      '<div class="data-range-note">📅 ข้อมูลใบแจ้งหนี้ (Document Date) ตั้งแต่ <b>' + esc_(overallRangeLabel) + '</b> — เรียงจากล่าสุดไปเก่าสุด</div>' : '';
 
     var statCardsHtml = '<div class="stat-row">' +
       '<div class="stat-box"><div class="stat-num c-blue">' + fmtInt(totalCount) + '</div>' +
@@ -302,6 +416,7 @@
       }
       return true;
     });
+    filtered = sortNewestFirst(filtered);
 
     var bucketLabelMap = {};
     BUCKET_DEFS.forEach(function (b) { bucketLabelMap[b.key] = b; });
@@ -320,16 +435,26 @@
 
     var moreNote = filtered.length > 500 ? '<div class="result-footer">แสดง 500 จาก ' + filtered.length + ' แถวที่ตรงเงื่อนไข — ใช้ช่องค้นหาเพื่อกรองเพิ่มเติม</div>' : '';
 
+    var downloadHtml = '<button class="btn-main" id="btnDownloadExcel">⬇ ดาวน์โหลด Excel</button>';
+
     dashboard.innerHTML =
+      rangeHtml +
       dateChipsHtml +
       dateNote +
       statCardsHtml +
       chipsHtml +
-      '<div class="search-row">' + searchHtml + '</div>' +
+      '<div class="search-row">' + searchHtml + downloadHtml + '</div>' +
       '<div class="detail-table-wrap"><table class="detail-table"><thead><tr>' +
       '<th>Document No</th><th>Type</th><th>Document Date</th><th>Buyer Name</th><th>Email Address</th>' +
       '<th>Total</th><th>Status</th><th>Action</th><th>หมวด</th></tr></thead><tbody>' +
       tableRowsHtml + '</tbody></table></div>' + moreNote;
+
+    var btnDownload = document.getElementById('btnDownloadExcel');
+    if (btnDownload) {
+      btnDownload.addEventListener('click', function () {
+        downloadExcel(filtered, agg, totalCount, totalAmount, overallRangeLabel);
+      });
+    }
 
     Array.prototype.forEach.call(dashboard.querySelectorAll('.date-chip'), function (btn) {
       btn.addEventListener('click', function () {
@@ -354,4 +479,16 @@
       searchBox.setSelectionRange(searchBox.value.length, searchBox.value.length);
     }
   }
+
+  // ---- Restore last-uploaded data on load, so the dashboard always shows something ----
+  // until the user uploads a newer file (persisted client-side only, via localStorage).
+  (function initFromStorage() {
+    var persisted = loadFromStorage();
+    if (!persisted || !persisted.files || !persisted.files.length) return;
+    state.files = persisted.files;
+    applyFiles();
+    if (persisted.savedAt) {
+      setStatus('แสดงข้อมูลล่าสุดที่เคยอัปโหลดไว้ (บันทึกเมื่อ ' + new Date(persisted.savedAt).toLocaleString('th-TH') + ') — อัปโหลดไฟล์ใหม่เพื่ออัปเดตข้อมูล', 'info');
+    }
+  })();
 })();
