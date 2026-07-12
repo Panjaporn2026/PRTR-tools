@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invoice Send Status Dashboard</title>
+<link rel="icon" type="image/png" href="../assets/favicon-64.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'IBM Plex Sans Thai','Segoe UI',Tahoma,Arial,sans-serif;font-size:13.5px;background:linear-gradient(160deg,#fdf5f6 0%,#f4f5f7 45%,#eef1f4 100%);background-attachment:fixed;color:#1a1a2e;letter-spacing:.1px;min-height:100vh;}
+  .app{max-width:1320px;margin:0 auto;padding:16px;}
+  header.topnav{background:#fff;border-bottom:3px solid #c8102e;padding:14px 24px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:10;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+  .topnav .logo{font-weight:700;font-size:16px;color:#c8102e;text-decoration:none;display:inline-flex;align-items:center;gap:8px;}
+  .topnav .logo img{height:22px;width:auto;}
+  .topnav .crumb{color:#ccc;font-size:14px;}
+  .topnav .crumb-current{font-size:14px;color:#546e7a;}
+  .topnav .back-btn{margin-left:auto;display:inline-flex;align-items:center;gap:6px;background:#fde8ec;color:#c8102e;border:1px solid #f6c6d0;border-radius:20px;padding:7px 16px;font-size:12.5px;font-weight:600;text-decoration:none;transition:.15s;}
+  .topnav .back-btn:hover{background:#c8102e;color:#fff;border-color:#c8102e;}
+  .card{background:#fff;border-radius:10px;border:1px solid #e0e4ea;padding:20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+  h1{font-size:21px;font-weight:700;color:#c8102e;letter-spacing:.1px;}
+  .subtitle{color:#546e7a;font-size:12px;margin-top:3px;font-weight:400;}
+  .usage{background:#e3f2fd;border-radius:8px;padding:12px 14px;font-size:12.5px;color:#0d47a1;line-height:1.8;margin-bottom:14px;}
+  .usage b{color:#1565c0;font-weight:600;}
+  .dz{border:2px dashed #90a4ae;border-radius:8px;background:#f8fafc;text-align:center;padding:22px 12px;cursor:pointer;transition:.15s;min-height:70px;}
+  .dz.drag{border-color:#c8102e;background:#fde8ec;}
+  .dz input[type=file]{display:none;}
+  .dz-hint{font-size:11.5px;color:#607d8b;margin-top:6px;}
+  .status-box{border-radius:6px;padding:8px 14px;font-size:12px;margin:10px 0;}
+  .status-box.info{background:#e3f2fd;color:#1565c0;}
+  .status-box.ok{background:#e8f5e9;color:#2e7d32;}
+  .status-box.err{background:#ffebee;color:#c62828;}
+  .file-row{display:flex;align-items:center;gap:8px;border:1px solid #e0e4ea;border-radius:6px;padding:6px 10px;margin-top:6px;font-size:12px;}
+  .file-row .idx{background:#c8102e;color:#fff;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:10.5px;flex-shrink:0;}
+  .file-row .fname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .file-row .rm{background:none;border:none;color:#e53935;cursor:pointer;font-size:14px;}
+
+  .stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px;}
+  .stat-box{background:#f8fafc;border:1px solid #eceff1;border-radius:8px;padding:14px 10px;text-align:center;}
+  .stat-num{font-size:27px;font-weight:700;line-height:1.15;font-variant-numeric:tabular-nums;}
+  .stat-num.c-red{color:#e53935;} .stat-num.c-green{color:#2e7d32;} .stat-num.c-orange{color:#f57c00;} .stat-num.c-blue{color:#c8102e;} .stat-num.c-gray{color:#607d8b;}
+  .stat-label{font-size:11.5px;color:#607d8b;margin-top:5px;font-weight:500;line-height:1.5;}
+
+  .chip-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;}
+  .chip{background:#f8fafc;border:1px solid #e0e4ea;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:500;cursor:pointer;color:#37474f;font-family:inherit;transition:.15s;}
+  .chip:hover{border-color:#c8102e;background:#fde8ec;}
+  .chip.active{background:#c8102e;color:#fff;border-color:#c8102e;font-weight:600;}
+
+  .search-row{margin-bottom:12px;}
+  .search-box{width:100%;max-width:420px;border:1px solid #cfd8dc;border-radius:7px;padding:8px 12px;font-size:13px;font-family:inherit;}
+  .search-box:focus{outline:none;border-color:#c8102e;}
+
+  .detail-table-wrap{overflow-x:auto;margin-bottom:12px;border:1px solid #e0e4ea;border-radius:8px;}
+  table.detail-table{width:100%;border-collapse:collapse;font-size:12px;table-layout:auto;}
+  table.detail-table thead th{background:#c8102e;color:#fff;padding:7px 7px;text-align:left;font-weight:600;letter-spacing:.2px;position:sticky;top:0;white-space:nowrap;}
+  table.detail-table tbody td{padding:6px 7px;border-top:1px solid #eee;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  table.detail-table tbody td.wrap-cell{white-space:normal;word-break:break-word;max-width:220px;}
+  table.detail-table tbody tr:nth-child(odd){background:#fafbfc;}
+
+  .badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:3px 7px;border-radius:20px;letter-spacing:.1px;white-space:nowrap;}
+  .badge.c-red-bg{background:#ffebee;color:#c62828;}
+  .badge.c-green-bg{background:#e8f5e9;color:#2e7d32;}
+  .badge.c-orange-bg{background:#fff3e0;color:#e65100;}
+  .badge.c-blue-bg{background:#e3f2fd;color:#1565c0;}
+  .badge.c-gray-bg{background:#eceff1;color:#546e7a;}
+  .result-footer{font-size:11.5px;color:#90a4ae;margin:10px 0 14px;font-weight:400;}
+</style>
+</head>
+<body>
+<header class="topnav">
+  <a class="logo" href="../"><img src="../assets/favicon-64.png" alt=""> OSInvoice Tools</a>
+  <span class="crumb">›</span>
+  <span class="crumb-current">Invoice Send Status Dashboard</span>
+  <a class="back-btn" href="../">🏠 หน้าหลัก</a>
+</header>
+<div class="app">
+<div class="card">
+  <h1>📬 Invoice Send Status Dashboard</h1>
+  <div class="subtitle">สรุปสถานะการส่งใบแจ้งหนี้จาก getinvoice.net — ส่งแล้ว / เปิดอ่านแล้วหรือยัง / ยังไม่ได้ส่ง / ส่ง Error</div>
+</div>
+
+<div class="card">
+  <div class="usage">
+    📘 <b>วิธีการใช้งาน</b><br>
+    1. เข้า <b>getinvoice.net → Send to Buyer</b> ตั้งช่วงวันที่ที่ต้องการ แล้วกด <b>Export</b> เลือกฟอร์แมต <b>Excel</b><br>
+    2. อัปโหลดไฟล์ .xlsx ที่ได้มาที่นี่ (รองรับหลายไฟล์ จะรวมข้อมูลให้อัตโนมัติ)<br>
+    3. ระบบจะจัดกลุ่มแต่ละใบเป็น 4 หมวดจากคอลัมน์ Status/Action ในไฟล์ export โดยอัตโนมัติ<br>
+    ⚠️ เกณฑ์การจัดกลุ่ม: <b>Error</b> = Status Failure หรือมี Action "bounce" (แม้ Status จะเป็น Success) | <b>ยังไม่ได้ส่ง</b> = Status In Progress/Don't Send | <b>ส่งแล้ว-เปิดอ่านแล้ว/ยังไม่เปิด</b> = Status Success แยกตามว่า Action มีคำว่า "open" หรือไม่
+  </div>
+
+  <div class="dz" id="dropzone">
+    <label style="cursor:pointer">
+      <div>📄 คลิกหรือลากไฟล์ Excel ที่ Export จาก getinvoice.net มาวาง</div>
+      <div class="dz-hint">.xlsx — รองรับหลายไฟล์</div>
+      <input type="file" id="fileInput" accept=".xlsx" multiple>
+    </label>
+  </div>
+
+  <div id="fileList"></div>
+  <div id="statusBox" class="status-box" style="display:none"></div>
+</div>
+
+<div class="card" id="dashboard" style="display:none"></div>
+
+</div>
+<script src="app.js"></script>
+</body>
+</html>
