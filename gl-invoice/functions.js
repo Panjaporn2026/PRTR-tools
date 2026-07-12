@@ -8,8 +8,8 @@ var SSO_GROUPING = 'E51110102';
 var SSO_PAYCODES = ['T2A3', 'TZ74'];
 var EXPENSE_PAYCODE = 'EXPENSE';
 var EXPENSE_PAYCODE_NAME = 'ค่าใช้จ่าย';
-var EXPENSE_ACCOUNT = '51110122';
-var EXPENSE_GROUPING = 'E51110122';
+var EXPENSE_ACCOUNT = '51110116';
+var EXPENSE_GROUPING = 'E51110116';
 
 var REQUIRED_HEADER_LABELS = ['NAME', 'Paycode Code', 'Paycode Name', 'Account', 'Grouping', 'Amount', 'Introduce By', 'EMP ID'];
 
@@ -217,7 +217,9 @@ function fn3_DuplicateExpense(ctx) {
       setExpenseFields(expenseRow, ctx);
       recolorRowRed(expenseRow, ctx.styles);
       summary.updated++;
-      summary.details.push({ row: expenseRow.rowNum, name: name, empId: empId, action: 'อัพเดท' });
+      summary.details.push({ row: expenseRow.rowNum, name: name, empId: empId,
+        paycodeCode: EXPENSE_PAYCODE, paycodeName: EXPENSE_PAYCODE_NAME,
+        account: EXPENSE_ACCOUNT, grouping: EXPENSE_GROUPING, action: 'อัพเดท' });
     } else {
       newRowsToInsert.push(buildExpenseRowFrom(templateRow, ctx));
       newRowKeys.push({ name: name, empId: empId });
@@ -228,7 +230,9 @@ function fn3_DuplicateExpense(ctx) {
   if (newRowsToInsert.length) {
     var anchorRow = findLastEmployeeRow(ctx.model.rows, ctx.cols.NAME, ctx.sst) || ctx.headerRow;
     newRowKeys.forEach(function (k, i) {
-      summary.details.push({ row: anchorRow + 1 + i, name: k.name, empId: k.empId, action: 'เพิ่มใหม่' });
+      summary.details.push({ row: anchorRow + 1 + i, name: k.name, empId: k.empId,
+        paycodeCode: EXPENSE_PAYCODE, paycodeName: EXPENSE_PAYCODE_NAME,
+        account: EXPENSE_ACCOUNT, grouping: EXPENSE_GROUPING, action: 'เพิ่มใหม่' });
     });
     ctx.model.rows = insertRowsAfter(ctx.model.rows, anchorRow, newRowsToInsert);
   }

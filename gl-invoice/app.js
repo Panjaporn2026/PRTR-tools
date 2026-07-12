@@ -9,7 +9,7 @@ var FUNCTIONS = [
   { id: 'ssoIntroduceBy', label: '2. SSO Introduce by', multi: false,
     desc: 'เงื่อนไขหลัก: Grouping = E51110102 & Paycode = T2A3 หรือ TZ74\n• Introduce By = PRTR → Amount ใหม่ = 0\n• Introduce By = CLNT → ไม่เปลี่ยน\nแถวที่ไม่ตรงเงื่อนไข ไม่เปลี่ยน' },
   { id: 'duplicate', label: '3. Duplicate', multi: false,
-    desc: 'เพิ่ม/อัพเดทแถว EXPENSE ต่อท้ายทุกคน (unique NAME):\nPaycode Code = EXPENSE, Paycode Name = ค่าใช้จ่าย\nAccount = 51110122, Grouping = E51110122, Amount = (ว่าง)\nแถว EXPENSE ทุกแถว — ตัวอักษรสีแดง' },
+    desc: 'เพิ่ม/อัพเดทแถว EXPENSE ต่อท้ายทุกคน (unique NAME):\nPaycode Code = EXPENSE, Paycode Name = ค่าใช้จ่าย\nAccount = 51110116, Grouping = E51110116, Amount = (ว่าง)\nแถว EXPENSE ทุกแถว — ตัวอักษรสีแดง' },
   { id: 'sso750PlusDuplicate', label: '4. SSO PRTR 750 + Duplicate EXPENSE', multi: false,
     desc: 'ขั้นที่ 1: ปรับ Amount เหมือนฟังก์ชัน 1\nขั้นที่ 2: เพิ่ม/อัพเดทแถว EXPENSE เหมือนฟังก์ชัน 3 (สีแดง)' },
   { id: 'ssoIntroduceByPlusDuplicate', label: '5. SSO Introduce by + Duplicate EXPENSE', multi: false,
@@ -229,6 +229,10 @@ var EXPENSE_COLUMNS = [
   { label: 'แถวที่', render: function (r) { return esc_(r.row); } },
   { label: 'ชื่อ', render: function (r) { return esc_(r.name); } },
   { label: 'EMP ID', render: function (r) { return esc_(r.empId); } },
+  { label: 'Paycode Code', render: function (r) { return esc_(r.paycodeCode); } },
+  { label: 'Paycode Name', render: function (r) { return esc_(r.paycodeName); } },
+  { label: 'Account', render: function (r) { return esc_(r.account); } },
+  { label: 'Grouping', render: function (r) { return esc_(r.grouping); } },
   { label: 'การดำเนินการ', render: function (r) { return noteBadge(r.action); } }
 ];
 var REMOVE_SSO_COLUMNS = [
