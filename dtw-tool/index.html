@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PRTR DTW Head/Line Auto-Fill</title>
+  <link rel="icon" type="image/png" href="../rename-lock/favicon-64.png">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://unpkg.com/xlsx-populate/browser/xlsx-populate.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'IBM Plex Sans Thai', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(160deg,#fdf5f6 0%,#f4f5f7 45%,#eef1f4 100%); background-attachment: fixed; color: #1a1a2e;
+      min-height: 100vh; padding: 24px 16px; letter-spacing: .1px;
+    }
+    a { color: #607d8b; text-decoration: none; }
+    a:hover { color: #c8102e; }
+    .wrap { max-width: 760px; margin: 0 auto; }
+    header.topnav { background: #fff; border-bottom: 3px solid #c8102e; padding: 14px 24px; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 10; box-shadow: 0 1px 4px rgba(0,0,0,.06); margin: -24px -16px 24px; }
+    .topnav .logo { font-weight: 700; font-size: 16px; color: #c8102e; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
+    .topnav .crumb { color: #ccc; font-size: 14px; }
+    .topnav .crumb-current { font-size: 14px; color: #546e7a; }
+    .topnav .back-btn { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; background: #fde8ec; color: #c8102e; border: 1px solid #f6c6d0; border-radius: 20px; padding: 7px 16px; font-size: 12.5px; font-weight: 600; text-decoration: none; transition: .15s; }
+    .topnav .back-btn:hover { background: #c8102e; color: #fff; border-color: #c8102e; }
+    h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; color: #c8102e; }
+    .subtitle { font-size: 14px; color: #546e7a; margin-bottom: 24px; }
+
+    .mapping-section { background: #fff; border: 1px solid #e0e4ea; box-shadow: 0 1px 4px rgba(0,0,0,.05); border-radius: 10px; padding: 14px 16px; margin-bottom: 20px; }
+    .mapping-section.disabled { opacity: .5; pointer-events: none; }
+    .mapping-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+    .mapping-header-left { display: flex; align-items: center; gap: 8px; }
+    .mapping-title { font-size: 13px; font-weight: 600; color: #1a1a2e; }
+    .mapping-desc { font-size: 12px; color: #607d8b; margin-top: 2px; }
+    .mapping-drop { border: 1.5px dashed #cfd8dc; border-radius: 8px; background: #f8fafc; padding: 18px 14px; text-align: center; cursor: pointer; font-size: 13px; color: #607d8b; transition: all .2s; }
+    .mapping-drop:hover, .mapping-drop.dragover { border-color: #c8102e; color: #c8102e; background: #fde8ec; }
+    .mapping-status { margin-top: 10px; font-size: 13px; display: none; align-items: center; gap: 8px; padding: 8px 10px; background: #f8fafc; border-radius: 7px; }
+    .mapping-status.show { display: flex; }
+    .ms-ok { color: #2e7d32; } .ms-warn { color: #b45309; } .ms-err { color: #c62828; }
+
+    .file-list { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+    .file-row { background: #f8fafc; border: 1px solid #e0e4ea; border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; gap: 10px; font-size: 13px; }
+    .file-row .row-orig { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #37474f; }
+    .row-remove { background: none; border: none; color: #90a4ae; cursor: pointer; font-size: 16px; line-height: 1; padding: 2px; }
+    .row-remove:hover { color: #e53935; }
+
+    .autoname-cols { margin-top: 10px; }
+    .an-cols-label { font-size: 12px; color: #607d8b; margin-bottom: 6px; }
+    .an-cols-list { display: flex; flex-wrap: wrap; gap: 6px 10px; }
+    .an-col-chip { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #37474f; background: #f8fafc; border: 1px solid #cfd8dc; border-radius: 6px; padding: 4px 9px; cursor: pointer; user-select: none; }
+    .an-col-chip:has(input:checked) { border-color: #c8102e; color: #c8102e; background: #fde8ec; }
+    .an-col-chip input { accent-color: #c8102e; cursor: pointer; }
+
+    table.preview-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 10px; }
+    table.preview-table th, table.preview-table td { border-bottom: 1px solid #e0e4ea; padding: 6px 8px; text-align: left; }
+    table.preview-table th { color: #607d8b; font-weight: 600; background: #f8fafc; }
+    table.preview-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .warn-box { background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px; padding: 10px 12px; font-size: 12.5px; color: #7a5c00; margin-top: 10px; }
+    .warn-box.err { background: #fdecea; border-color: #f5c6c2; color: #7a1a12; }
+    .stat-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px; }
+    .stat-card { background: #f8fafc; border: 1px solid #e0e4ea; border-radius: 8px; padding: 8px 14px; font-size: 12px; color: #607d8b; }
+    .stat-card b { display: block; font-size: 16px; color: #1a1a2e; }
+
+    .pw-field { position: relative; display: flex; max-width: 260px; }
+    .pw-field input { flex: 1; min-width: 0; background: #fff; border: 1px solid #cfd8dc; border-radius: 8px; color: #1a1a2e; font-size: 14px; padding: 9px 36px 9px 12px; outline: none; transition: border-color .2s; }
+    .pw-field input:focus { border-color: #c8102e; }
+    .pw-eye { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #90a4ae; cursor: pointer; font-size: 14px; }
+
+    .action-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+    .btn-main { flex: 1; min-width: 160px; background: #c8102e; border: none; border-radius: 8px; color: #fff; cursor: pointer; font-size: 14px; font-weight: 600; padding: 12px; transition: background .2s; }
+    .btn-main:hover:not(:disabled) { background: #a30d24; }
+    .btn-main:disabled { background: #90a4ae; color: #eceff1; cursor: not-allowed; }
+    .btn-dl { display: none; }
+    .btn-dl.show { display: inline-flex; align-items: center; gap: 6px; background: #2e7d32; border: none; border-radius: 8px; color: #fff; cursor: pointer; font-size: 14px; font-weight: 600; padding: 12px 20px; text-decoration: none; }
+
+    .divider { border: none; border-top: 1px solid #e0e4ea; margin: 20px 0; }
+    .info-row { font-size: 12px; color: #90a4ae; display: flex; gap: 7px; align-items: flex-start; }
+    #statusMsg { font-size: 13px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+<header class="topnav">
+  <a class="logo" href="../"><img src="../rename-lock/favicon-64.png" alt="" style="height:22px"> OSInvoice Tools</a>
+  <span class="crumb">›</span>
+  <span class="crumb-current">DTW Head/Line Auto-Fill</span>
+  <a class="back-btn" href="../">🏠 หน้าหลัก</a>
+</header>
+<div class="wrap">
+  <h1>📑 DTW Head/Line Auto-Fill</h1>
+  <p class="subtitle">กรอกไฟล์ Head/Line สำหรับนำเข้า SAP DTW จาก GL_Invoice โดยอัตโนมัติ พร้อม reconcile กับไฟล์ต้นทางก่อนดาวน์โหลด — รูปแบบไฟล์ template จะไม่ถูกเปลี่ยนแปลงเลย มีแค่การกรอกข้อมูลเท่านั้น</p>
+
+  <!-- Step 1: DTW template -->
+  <div class="mapping-section" id="templateSection">
+    <div class="mapping-header">
+      <div class="mapping-header-left">
+        <div>
+          <div class="mapping-title">1️⃣ ไฟล์ template DTW (Fill in data for DTW.xlsx)</div>
+          <div class="mapping-desc">ไฟล์ที่มีชีต Head/Line/คู่มือ/OUTSOURCE — ระบบจะอ่านตาราง Cost→Income และข้อมูลลูกค้าจากไฟล์นี้ ไม่แก้ไขชีตอื่นนอกจาก Head/Line เลย</div>
+        </div>
+      </div>
+    </div>
+    <div class="mapping-drop" id="templateDrop">📂 คลิกหรือลากไฟล์ template DTW มาวาง</div>
+    <input type="file" id="templateInput" accept=".xlsx" style="display:none">
+    <div class="mapping-status" id="templateStatus"></div>
+  </div>
+
+  <!-- Step 2: GL_Invoice files -->
+  <div class="mapping-section disabled" id="glSection">
+    <div class="mapping-header">
+      <div class="mapping-header-left">
+        <div>
+          <div class="mapping-title">2️⃣ ไฟล์ GL_Invoice (อัปโหลดได้หลายไฟล์ ระบบจะรวมให้)</div>
+          <div class="mapping-desc">ไฟล์รายงานต้นทุนรายเดือน — ถ้ามีหลายไฟล์แยกตามบริษัท อัปโหลดพร้อมกันได้เลย</div>
+        </div>
+      </div>
+    </div>
+    <div class="mapping-drop" id="glDrop">📂 คลิกหรือลากไฟล์ GL_Invoice มาวาง (เลือกได้หลายไฟล์)</div>
+    <input type="file" id="glInput" accept=".xlsx" multiple style="display:none">
+    <div class="mapping-status" id="glStatus"></div>
+    <div class="file-list" id="glFileList"></div>
+  </div>
+
+  <!-- Step 3: Detail of Invoice ground truth -->
+  <div class="mapping-section disabled" id="detailSection">
+    <div class="mapping-header">
+      <div class="mapping-header-left">
+        <div>
+          <div class="mapping-title">3️⃣ ไฟล์ Detail of Invoice / รายงานต้นทุนล่าสุด</div>
+          <div class="mapping-desc">ใช้เป็นข้อมูลต้นทาง (ground truth) สำหรับตรวจสอบสถานะ Pending และ reconcile ยอดก่อนดาวน์โหลด</div>
+        </div>
+      </div>
+    </div>
+    <div class="mapping-drop" id="detailDrop">📂 คลิกหรือลากไฟล์ Detail of Invoice มาวาง</div>
+    <input type="file" id="detailInput" accept=".xlsx" style="display:none">
+    <div class="mapping-status" id="detailStatus"></div>
+  </div>
+
+  <!-- Step 4: option pickers -->
+  <div class="mapping-section disabled" id="optionsSection">
+    <div class="mapping-header">
+      <div class="mapping-header-left">
+        <div>
+          <div class="mapping-title">4️⃣ เลือกเงื่อนไขการแยก Invoice</div>
+          <div class="mapping-desc">เลือกจากคอลัมน์ที่ตรวจพบจริงในไฟล์ GL_Invoice ที่อัปโหลด — ระบบไม่เดาให้เอง</div>
+        </div>
+      </div>
+    </div>
+    <div class="autoname-cols">
+      <div class="an-cols-label">Invoice-grouping key (แยก 1 invoice ต่อค่านี้)</div>
+      <div class="an-cols-list" id="groupingKeyList"></div>
+    </div>
+    <div class="autoname-cols">
+      <div class="an-cols-label">ที่มาของ Reference No. (NumAtCard)</div>
+      <div class="an-cols-list" id="refNoList"></div>
+    </div>
+    <div class="autoname-cols" id="noVatWrap" style="display:none">
+      <div class="an-cols-label">Income account ที่ควรแยกเป็น invoice ไม่มี Vat ต่างหาก (ถ้ามี)</div>
+      <div class="an-cols-list" id="noVatList"></div>
+    </div>
+  </div>
+
+  <!-- Step 5: preview -->
+  <div class="mapping-section disabled" id="previewSection">
+    <div class="mapping-header">
+      <div class="mapping-header-left">
+        <div>
+          <div class="mapping-title">5️⃣ ตรวจสอบก่อนกรอกไฟล์จริง</div>
+          <div class="mapping-desc">ตรวจสอบยอด/คำเตือนทั้งหมดในตารางนี้ก่อนกด "กรอก Head/Line"</div>
+        </div>
+      </div>
+    </div>
+    <button class="btn-main" id="btnPreview" style="margin-bottom:10px">🔍 วิเคราะห์และแสดงตัวอย่าง</button>
+    <div id="previewBody"></div>
+  </div>
+
+  <!-- Step 6: run + download -->
+  <div class="mapping-section disabled" id="runSection">
+    <div class="mapping-header">
+      <div class="mapping-header-left">
+        <div>
+          <div class="mapping-title">6️⃣ กรอกไฟล์ + ล็อกรหัสผ่าน (ถ้าต้องการ)</div>
+          <div class="mapping-desc">ไม่บังคับ — เว้นว่างไว้ได้ถ้าไม่ต้องการล็อกรหัสผ่าน</div>
+        </div>
+      </div>
+    </div>
+    <div class="pw-field">
+      <input type="password" id="pwInput" placeholder="รหัสผ่าน (ไม่บังคับ)">
+      <button class="pw-eye" id="pwEye" type="button">👁</button>
+    </div>
+    <div class="action-row">
+      <button class="btn-main" id="btnRun" disabled>✏️ กรอก Head/Line</button>
+      <a class="btn-dl" id="btnDownload">⬇ ดาวน์โหลดไฟล์</a>
+    </div>
+    <div id="statusMsg"></div>
+  </div>
+
+  <hr class="divider">
+  <div class="info-row">🔒 ทำงานในเบราว์เซอร์ทั้งหมด ไม่มีการอัปโหลดไฟล์ไปที่เซิร์ฟเวอร์ใดๆ</div>
+</div>
+
+<script src="excel.js"></script>
+<script src="sheetmodel.js"></script>
+<script src="lookups.js"></script>
+<script src="glinvoice.js"></script>
+<script src="dtwfill.js"></script>
+<script src="reconcile.js"></script>
+<script src="verify.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
