@@ -408,23 +408,14 @@
       '</div>' : '';
 
     var statCardsHtml = '<div class="stat-row">' +
-      '<div class="stat-box"><div class="stat-num c-blue">' + fmtInt(totalCount) + '</div>' +
-      '<div class="stat-label">ใบแจ้งหนี้ทั้งหมด<br>' + fmtNum(totalAmount) + ' บาท</div></div>' +
+      '<button class="stat-box' + (state.activeBucket === 'all' ? ' active' : '') + '" data-bucket="all">' +
+      '<div class="stat-num c-blue">' + fmtInt(totalCount) + '</div>' +
+      '<div class="stat-label">ใบแจ้งหนี้ทั้งหมด<br>' + fmtNum(totalAmount) + ' บาท</div></button>' +
       BUCKET_DEFS.filter(function (b) { return b.key !== 'unknown' || agg.counts.unknown > 0; }).map(function (b) {
-        return '<div class="stat-box"><div class="stat-num ' + b.cls + '">' + fmtInt(agg.counts[b.key]) + '</div>' +
-          '<div class="stat-label">' + esc_(b.label) + '<br>' + fmtNum(agg.amounts[b.key]) + ' บาท</div></div>';
+        return '<button class="stat-box' + (state.activeBucket === b.key ? ' active' : '') + '" data-bucket="' + b.key + '">' +
+          '<div class="stat-num ' + b.cls + '">' + fmtInt(agg.counts[b.key]) + '</div>' +
+          '<div class="stat-label">' + esc_(b.label) + '<br>' + fmtNum(agg.amounts[b.key]) + ' บาท</div></button>';
       }).join('') +
-      '</div>';
-
-    var chipsHtml = '<div class="chip-row">' +
-      ['all'].concat(BUCKET_DEFS.map(function (b) { return b.key; }))
-        .filter(function (key) { return key === 'all' || key !== 'unknown' || agg.counts.unknown > 0; })
-        .map(function (key) {
-          var label = key === 'all' ? 'ทั้งหมด (' + totalCount + ')' :
-            (function () { var b = BUCKET_DEFS.filter(function (x) { return x.key === key; })[0]; return b.label + ' (' + agg.counts[key] + ')'; })();
-          var active = state.activeBucket === key ? ' active' : '';
-          return '<button class="chip' + active + '" data-bucket="' + key + '">' + esc_(label) + '</button>';
-        }).join('') +
       '</div>';
 
     var searchHtml = '<input type="text" id="searchBox" class="search-box" placeholder="ค้นหา Document No / ชื่อผู้ซื้อ / อีเมล" value="' + esc_(state.searchText) + '">';
@@ -463,7 +454,6 @@
       dateChipsHtml +
       dateNote +
       statCardsHtml +
-      chipsHtml +
       '<div class="search-row">' + searchHtml + downloadHtml + '</div>' +
       '<div class="detail-table-wrap"><table class="detail-table"><thead><tr>' +
       '<th>Document No</th><th>Type</th><th>Document Date</th><th>Buyer Name</th><th>Email Address</th>' +
@@ -483,7 +473,7 @@
         renderDashboard();
       });
     });
-    Array.prototype.forEach.call(dashboard.querySelectorAll('.chip:not(.date-chip)'), function (btn) {
+    Array.prototype.forEach.call(dashboard.querySelectorAll('.stat-box[data-bucket]'), function (btn) {
       btn.addEventListener('click', function () {
         state.activeBucket = btn.getAttribute('data-bucket');
         renderDashboard();

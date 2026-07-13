@@ -39,7 +39,9 @@
   .file-row .rm{background:none;border:none;color:#e53935;cursor:pointer;font-size:14px;}
 
   .stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px;}
-  .stat-box{background:#f8fafc;border:1px solid #eceff1;border-radius:8px;padding:14px 10px;text-align:center;}
+  .stat-box{background:#f8fafc;border:1px solid #eceff1;border-radius:8px;padding:14px 10px;text-align:center;font-family:inherit;cursor:pointer;transition:.15s;width:100%;}
+  .stat-box:hover{border-color:#c8102e;background:#fde8ec;}
+  .stat-box.active{background:#fff;border:2px solid #c8102e;padding:13px 9px;box-shadow:0 2px 6px rgba(200,16,46,.15);}
   .stat-num{font-size:27px;font-weight:700;line-height:1.15;font-variant-numeric:tabular-nums;}
   .stat-num.c-red{color:#e53935;} .stat-num.c-green{color:#2e7d32;} .stat-num.c-orange{color:#f57c00;} .stat-num.c-blue{color:#c8102e;} .stat-num.c-gray{color:#607d8b;} .stat-num.c-purple{color:#6a1b9a;}
   .stat-label{font-size:11.5px;color:#607d8b;margin-top:5px;font-weight:500;line-height:1.5;}
