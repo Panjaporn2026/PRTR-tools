@@ -29,18 +29,25 @@
     records: [],      // merged flat records
     activeBucket: 'all',
     searchText: '',
-    dateRange: 'all'
+    dateRange: 'all',
+    lastLoadedAt: null   // Date -- when the current data was uploaded/read (or restored from a prior upload)
   };
 
-  function startOfDay(d) {
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  // SheetJS (cellDates:true) parses Excel date serials into UTC-midnight Date objects (e.g. "13
+  // Jul 2026" becomes 2026-07-13T00:00:00Z) specifically to dodge DST ambiguity -- so every date
+  // in this file must be read/compared using the UTC getters, never the local ones. Reading with
+  // local getters in a timezone behind UTC (which is most of them) silently displays/filters every
+  // date one day too early (confirmed: a file spanning 1 Jun - 13 Jul showed as 31 May - 12 Jul).
+  function utcMidnightToday() {
+    var now = new Date();
+    return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
   }
 
   function filterByDateRange(records) {
     var def = DATE_RANGE_DEFS.filter(function (d) { return d.key === state.dateRange; })[0];
     if (!def || def.days == null) return records;
-    var cutoff = startOfDay(new Date());
-    cutoff.setDate(cutoff.getDate() - def.days);
+    var cutoff = utcMidnightToday();
+    cutoff.setUTCDate(cutoff.getUTCDate() - def.days);
     return records.filter(function (r) {
       return r.docDate instanceof Date && r.docDate >= cutoff;
     });
@@ -76,6 +83,16 @@
     return -1;
   }
 
+  // SheetJS's cellDates date parsing (at least for this workbook/version) doesn't land exactly on
+  // midnight UTC -- observed consistently ~7 hours short (e.g. "13 Jul 2026" parses to
+  // 2026-07-12T16:59:56Z), which happens to equal this org's UTC+7 offset almost to the second.
+  // Document Date has no meaningful time-of-day component in the source data, so round to the
+  // nearest whole UTC day rather than depend on exactly which direction/magnitude that skew runs.
+  function normalizeToUTCDay(v) {
+    if (!(v instanceof Date) || isNaN(v.getTime())) return v;
+    return new Date(Math.round(v.getTime() / 86400000) * 86400000);
+  }
+
   function toNumber(v) {
     if (v == null || v === '') return 0;
     if (typeof v === 'number') return v;
@@ -86,7 +103,7 @@
   function toDateLabel(v) {
     if (v == null || v === '') return '—';
     if (v instanceof Date) {
-      var d = v.getDate(), m = v.getMonth() + 1, y = v.getFullYear();
+      var d = v.getUTCDate(), m = v.getUTCMonth() + 1, y = v.getUTCFullYear();
       return (d < 10 ? '0' + d : d) + '/' + (m < 10 ? '0' + m : m) + '/' + y;
     }
     return String(v);
@@ -163,7 +180,7 @@
           records.push({
             docNo: row[idx.docNo],
             type: idx.type >= 0 ? row[idx.type] : '',
-            docDate: idx.docDate >= 0 ? row[idx.docDate] : null,
+            docDate: idx.docDate >= 0 ? normalizeToUTCDay(row[idx.docDate]) : null,
             orderNo: idx.orderNo >= 0 ? row[idx.orderNo] : '',
             total: idx.total >= 0 ? toNumber(row[idx.total]) : 0,
             buyerName: idx.buyerName >= 0 ? row[idx.buyerName] : '',
@@ -216,8 +233,9 @@
   }
 
   function saveToStorage() {
+    state.lastLoadedAt = new Date();
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ files: state.files, savedAt: new Date().toISOString() }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ files: state.files, savedAt: state.lastLoadedAt.toISOString() }));
     } catch (e) {
       // localStorage full/blocked (private mode) -- non-critical, just skip persistence
     }
@@ -253,8 +271,8 @@
   }
 
   function rebuildRecords() {
+    saveToStorage(); // sets state.lastLoadedAt -- must happen before applyFiles() renders it
     applyFiles();
-    saveToStorage();
   }
 
   function handleFiles(fileList) {
@@ -383,8 +401,11 @@
       '<div class="result-footer">กรองตาม Document Date: แสดง ' + fmtInt(records.length) + ' จาก ' + fmtInt(state.records.length) + ' แถวทั้งหมดที่อัปโหลด</div>' : '';
 
     var overallRangeLabel = getDateRangeLabel(state.records);
+    var uploadedAtLabel = state.lastLoadedAt instanceof Date ? state.lastLoadedAt.toLocaleString('th-TH') : null;
     var rangeHtml = overallRangeLabel ?
-      '<div class="data-range-note">📅 ข้อมูลใบแจ้งหนี้ (Document Date) ตั้งแต่ <b>' + esc_(overallRangeLabel) + '</b> — เรียงจากล่าสุดไปเก่าสุด</div>' : '';
+      '<div class="data-range-note">📅 ข้อมูลใบแจ้งหนี้ (Document Date) ตั้งแต่ <b>' + esc_(overallRangeLabel) + '</b> — เรียงจากล่าสุดไปเก่าสุด' +
+      (uploadedAtLabel ? '<br>📤 อัปโหลดไฟล์เข้าอ่านเมื่อ: <b>' + esc_(uploadedAtLabel) + '</b>' : '') +
+      '</div>' : '';
 
     var statCardsHtml = '<div class="stat-row">' +
       '<div class="stat-box"><div class="stat-num c-blue">' + fmtInt(totalCount) + '</div>' +
@@ -486,6 +507,7 @@
     var persisted = loadFromStorage();
     if (!persisted || !persisted.files || !persisted.files.length) return;
     state.files = persisted.files;
+    state.lastLoadedAt = persisted.savedAt ? new Date(persisted.savedAt) : null;
     applyFiles();
     if (persisted.savedAt) {
       setStatus('แสดงข้อมูลล่าสุดที่เคยอัปโหลดไว้ (บันทึกเมื่อ ' + new Date(persisted.savedAt).toLocaleString('th-TH') + ') — อัปโหลดไฟล์ใหม่เพื่ออัปเดตข้อมูล', 'info');
