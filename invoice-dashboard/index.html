@@ -43,7 +43,7 @@
   .stat-box:hover{border-color:#c8102e;background:#fde8ec;}
   .stat-box.active{background:#fff;border:2px solid #c8102e;padding:13px 9px;box-shadow:0 2px 6px rgba(200,16,46,.15);}
   .stat-num{font-size:27px;font-weight:700;line-height:1.15;font-variant-numeric:tabular-nums;}
-  .stat-num.c-red{color:#e53935;} .stat-num.c-green{color:#2e7d32;} .stat-num.c-orange{color:#f57c00;} .stat-num.c-blue{color:#c8102e;} .stat-num.c-gray{color:#607d8b;} .stat-num.c-purple{color:#6a1b9a;}
+  .stat-num.c-red{color:#e53935;} .stat-num.c-green{color:#2e7d32;} .stat-num.c-orange{color:#f57c00;} .stat-num.c-blue{color:#c8102e;} .stat-num.c-gray{color:#607d8b;} .stat-num.c-purple{color:#6a1b9a;} .stat-num.c-teal{color:#00838f;}
   .stat-label{font-size:11.5px;color:#607d8b;margin-top:5px;font-weight:500;line-height:1.5;}
 
   .data-range-note{font-size:12.5px;color:#37474f;background:#f8fafc;border:1px solid #e0e4ea;border-radius:8px;padding:8px 14px;margin-bottom:12px;}
@@ -72,6 +72,9 @@
   .badge.c-blue-bg{background:#e3f2fd;color:#1565c0;}
   .badge.c-gray-bg{background:#eceff1;color:#546e7a;}
   .badge.c-purple-bg{background:#f3e5f5;color:#6a1b9a;}
+  .badge.c-teal-bg{background:#e0f2f1;color:#00838f;}
+  .upload-section-title{font-size:12.5px;font-weight:600;color:#37474f;margin:16px 0 6px;}
+  .upload-section-title:first-child{margin-top:0;}
   .result-footer{font-size:11.5px;color:#90a4ae;margin:10px 0 14px;font-weight:400;}
 </style>
 </head>
@@ -93,10 +96,12 @@
     📘 <b>วิธีการใช้งาน</b><br>
     1. เข้า <b>getinvoice.net → Send to Buyer</b> ตั้งช่วงวันที่ที่ต้องการ แล้วกด <b>Export</b> เลือกฟอร์แมต <b>Excel</b><br>
     2. อัปโหลดไฟล์ .xlsx ที่ได้มาที่นี่ (รองรับหลายไฟล์ จะรวมข้อมูลให้อัตโนมัติ)<br>
-    3. ระบบจะจัดกลุ่มแต่ละใบเป็น 4 หมวดจากคอลัมน์ Status/Action ในไฟล์ export โดยอัตโนมัติ<br>
-    ⚠️ เกณฑ์การจัดกลุ่ม: <b>Error</b> = Status Failure หรือมี Action "bounce" (แม้ Status จะเป็น Success) | <b>ยังไม่ได้ส่ง</b> = Status In Progress/Not Send (ระบบยังไม่ส่ง) | <b>เลือกไม่ส่ง</b> = Status Don't Send (พนักงานกดเลือกเองว่าไม่ต้องส่ง แยกจาก "ยังไม่ได้ส่ง") | <b>ส่งแล้ว-เปิดอ่านแล้ว/ยังไม่เปิด</b> = Status Success แยกตามว่า Action มีคำว่า "open" หรือไม่
+    3. ระบบจะจัดกลุ่มแต่ละใบเป็นหมวดจากคอลัมน์ Status/Action ในไฟล์ export โดยอัตโนมัติ<br>
+    ⚠️ เกณฑ์การจัดกลุ่ม: <b>Error</b> = Status Failure หรือมี Action "bounce" (แม้ Status จะเป็น Success) | <b>ยังไม่ได้ส่ง</b> = Status In Progress/Not Send (ระบบยังไม่ส่ง) | <b>เลือกไม่ส่ง</b> = Status Don't Send (พนักงานกดเลือกเองว่าไม่ต้องส่ง แยกจาก "ยังไม่ได้ส่ง") | <b>ส่งแล้ว-เปิดอ่านแล้ว/ยังไม่เปิด</b> = Status Success แยกตามว่า Action มีคำว่า "open" หรือไม่<br>
+    4. <b>(ไม่บังคับ)</b> อัปโหลดไฟล์ <b>Invoice list.xlsx</b> เพิ่ม เพื่อตรวจครบทุกช่องทางตามคอลัมน์ "Send email by": ใบที่ต้องส่งผ่าน Get-invoice จะจับคู่สถานะจากไฟล์ข้อ 1-3 ให้, ใบที่ต้องส่งผ่าน <b>Outlook</b> จะขึ้นเป็นรายการเตือน (ระบบตรวจสอบอัตโนมัติว่าส่งแล้วหรือยังไม่ได้ เพราะไม่มีข้อมูลนี้ในไฟล์)
   </div>
 
+  <div class="upload-section-title">1. ไฟล์ Export จาก getinvoice.net (Send to Buyer)</div>
   <div class="dz" id="dropzone">
     <label style="cursor:pointer">
       <div>📄 คลิกหรือลากไฟล์ Excel ที่ Export จาก getinvoice.net มาวาง</div>
@@ -104,8 +109,18 @@
       <input type="file" id="fileInput" accept=".xlsx" multiple>
     </label>
   </div>
-
   <div id="fileList"></div>
+
+  <div class="upload-section-title">2. ไฟล์ Invoice list.xlsx (ไม่บังคับ — เพื่อตรวจครบทุกช่องทาง รวม Outlook)</div>
+  <div class="dz" id="dropzone2">
+    <label style="cursor:pointer">
+      <div>📋 คลิกหรือลากไฟล์ Invoice list.xlsx มาวาง</div>
+      <div class="dz-hint">.xlsx — รองรับหลายไฟล์</div>
+      <input type="file" id="fileInput2" accept=".xlsx" multiple>
+    </label>
+  </div>
+  <div id="fileList2"></div>
+
   <div id="statusBox" class="status-box" style="display:none"></div>
 </div>
 
