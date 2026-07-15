@@ -127,8 +127,10 @@
   }
 
   // Action is a comma-separated per-send-event list (open/none/bounce); Email Address is a
-  // ;-separated recipient list. They line up 1:1 only when the counts match (a doc that was
-  // resent produces more action events than recipients) -- pairing is only trusted then.
+  // ;-separated recipient list. In real exports the counts almost never match 1:1 (a doc that
+  // was resent logs more action events than recipients), so positional pairing can't be trusted --
+  // instead: if there's an "open" anywhere AND at least one recipient isn't the internal monitoring
+  // address, treat it as a real open even if "bounce" also appears.
   function classify(status, action, emailAddress) {
     var st = (status == null ? '' : String(status)).trim();
     var tokens = (action == null ? '' : String(action)).split(',').map(function (s) { return s.trim(); }).filter(Boolean);
@@ -138,14 +140,7 @@
     var hasRealOpenDespiteBounce = false;
     if (hasBounce && hasOpen) {
       var emails = splitEmails(emailAddress);
-      if (emails.length === tokens.length) {
-        for (var i = 0; i < tokens.length; i++) {
-          if (tokens[i] === 'open' && emails[i].toLowerCase() !== INTERNAL_EMAIL) {
-            hasRealOpenDespiteBounce = true;
-            break;
-          }
-        }
-      }
+      hasRealOpenDespiteBounce = emails.some(function (e) { return e.toLowerCase() !== INTERNAL_EMAIL; });
     }
 
     if (st === 'Failure') return 'error';
