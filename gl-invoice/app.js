@@ -19,7 +19,9 @@ var FUNCTIONS = [
   { id: 'merge', label: '7. Merge', multi: true,
     desc: 'โยนไฟล์ที่ 1 แล้วโยนไฟล์ที่ 2 แล้วโยนไฟล์ที่ 3-6 ตามลำดับ\nระบบจะนำข้อมูล (หลัง header) ของไฟล์ที่ 2-6 ต่อท้ายไฟล์ที่ 1\nHeader ของ output ยึดตามไฟล์ที่ 1 ทั้งหมด รูปแบบของไฟล์ห้ามเปลี่ยนแปลง' },
   { id: 'changeHeader', label: '8. Change Header', multi: false,
-    desc: 'ลบแถวที่ 4 และ 5 ออก + เปลี่ยนชื่อ Column:\n• แถว Header เลื่อนขึ้น 2 แถว\n• Period → Calendar Group\n• Paycode Code → PIN Name' }
+    desc: 'ลบแถวที่ 4 และ 5 ออก + เปลี่ยนชื่อ Column:\n• แถว Header เลื่อนขึ้น 2 แถว\n• Period → Calendar Group\n• Paycode Code → PIN Name' },
+  { id: 'changeHeaderDynamic', label: '9. Change Header (ไฟล์รูปแบบใหม่)', multi: false,
+    desc: 'สำหรับไฟล์รูปแบบใหม่ที่ระบบเพิ่มแถว metadata มา (Start-End Period, Payment Date)\nลบแถว metadata ทั้งหมดตั้งแต่แถวที่ 4 จนถึงก่อนแถว Header (หาอัตโนมัติ) + เปลี่ยนชื่อ Column เหมือนข้อ 8:\n• Period → Calendar Group\n• Paycode Code → PIN Name' }
 ];
 
 var FN_META = {
@@ -30,7 +32,8 @@ var FN_META = {
   ssoIntroduceByPlusDuplicate: { icon: '💰➕', title: 'สรุปผล SSO Introduce by + Duplicate EXPENSE' },
   removeSso: { icon: '🗑️', title: 'สรุปผล Remove SSO — บรรทัดที่ถูกลบ' },
   merge: { icon: '🔗', title: 'สรุปผล Merge — รวมไฟล์' },
-  changeHeader: { icon: '📝', title: 'สรุปผล Change Header' }
+  changeHeader: { icon: '📝', title: 'สรุปผล Change Header' },
+  changeHeaderDynamic: { icon: '📝', title: 'สรุปผล Change Header (ไฟล์รูปแบบใหม่)' }
 };
 
 var state = { fnId: FUNCTIONS[0].id, files: [], resultBytes: null, resultBaseName: null, processedAt: null, sourceLabel: null, extraLineTypes: ['EXPENSE'] };
@@ -349,7 +352,7 @@ function buildResultBody(fn, summary) {
         return '<div class="err-line">⚠ ไฟล์ที่ ' + esc_(r.fileIndex) + ': ' + esc_(r.reason) + '</div>';
       }).join('');
     }
-  } else if (fn.id === 'changeHeader') {
+  } else if (fn.id === 'changeHeader' || fn.id === 'changeHeaderDynamic') {
     html += statRowHtml([
       { value: summary.rowsDeleted, label: 'แถวที่ลบออก', color: 'red' },
       { value: (summary.renamed || []).length, label: 'คอลัมน์ที่เปลี่ยนชื่อ', color: 'blue' }

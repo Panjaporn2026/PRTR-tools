@@ -308,6 +308,42 @@ function fn8_ChangeHeader(ctx) {
   return { newHeaderRow: newHeaderRow, renamed: renamed, details: details, rowsDeleted: 2 };
 }
 
+// ── Function 9: Change Header (ไฟล์รูปแบบใหม่) ──────────────────────────────────────────────────
+// Same end result as function 8 (junk metadata rows between "Period" and the header removed, header
+// lands immediately below Period at row 4; Period->Calendar Group, Paycode Code->PIN Name renamed)
+// but the junk-row range is computed from the header row's own position instead of being hardcoded
+// to rows 4-5 -- needed because the system's GL_Invoice export added two more metadata rows
+// (Start-End Period, Payment Date) between Payroll Group and Project Code SAP, pushing the header
+// from row 6 to row 8. Deleting rows [4, headerRow-1] dynamically also survives any further rows a
+// future export adds, unlike function 8's fixed row 4/5.
+function fn9_ChangeHeaderDynamic(ctx) {
+  var oldHeaderRow = ctx.headerRow;
+  var newHeaderRow = 4;
+  if (oldHeaderRow <= newHeaderRow) {
+    throw new Error('ไม่พบแถว metadata ให้ลบ (header อยู่ที่แถว ' + oldHeaderRow + ' ซึ่งไม่ควรน้อยกว่าแถว ' + (newHeaderRow + 1) + ')');
+  }
+  ctx.model.rows = deleteAndRenumber(
+    ctx.model.rows,
+    function (row) { return row.rowNum >= 4 && row.rowNum <= oldHeaderRow - 1; },
+    oldHeaderRow,
+    newHeaderRow
+  );
+  var headerRowModel = ctx.model.rows.find(function (r) { return r.rowNum === newHeaderRow; });
+  if (!headerRowModel) throw new Error('ไม่พบแถว header หลังจากลบแถว metadata (คาดว่าจะอยู่ที่แถว ' + newHeaderRow + ')');
+
+  var renamed = [];
+  var details = [];
+  [['Period', 'Calendar Group'], ['Paycode Code', 'PIN Name']].forEach(function (pair) {
+    var oldLabel = pair[0], newLabel = pair[1];
+    var colLetter = findColLetterByHeaderText(ctx.aoa, oldHeaderRow, oldLabel);
+    writeTextCell(headerRowModel, colLetter, newLabel);
+    renamed.push(oldLabel + ' -> ' + newLabel);
+    details.push({ column: colLetter, oldLabel: oldLabel, newLabel: newLabel });
+  });
+
+  return { newHeaderRow: newHeaderRow, renamed: renamed, details: details, rowsDeleted: oldHeaderRow - newHeaderRow };
+}
+
 // ── Structural refs + zip assembly (shared by every function) ─────────────────────────────────
 function finalizeAndBuildOutputBytes(ctx, structuralOpts) {
   var sheetXml = serializeSheetRows(ctx.model);
@@ -439,6 +475,10 @@ async function runSingleFileFunction(functionId, buf, selectedLineTypeKeys) {
     var oldHeaderRowForYSplit = ctx.headerRow;
     summary = fn8_ChangeHeader(ctx);
     structuralOpts = buildStructuralOptsAfterRowChange(ctx, summary.newHeaderRow, oldHeaderRowForYSplit);
+  } else if (functionId === 'changeHeaderDynamic') {
+    var oldHeaderRowForYSplit2 = ctx.headerRow;
+    summary = fn9_ChangeHeaderDynamic(ctx);
+    structuralOpts = buildStructuralOptsAfterRowChange(ctx, summary.newHeaderRow, oldHeaderRowForYSplit2);
   } else {
     throw new Error('ไม่รู้จักฟังก์ชัน: ' + functionId);
   }
