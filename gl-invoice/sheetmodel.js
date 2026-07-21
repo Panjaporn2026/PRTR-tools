@@ -85,7 +85,15 @@ function parseSheetRows(sheetXml) {
     var rowInner = rm[2];
     var cellsByCol = {};
     if (rowInner !== undefined) {
-      var cellRe = /<c\s+r="([A-Z]+)\d+"[^>]*(?:\/>|>[\s\S]*?<\/c>)/g, cm;
+      // [^>]* here (greedy) would swallow the "/" of a self-closing cell's "/>" before the
+      // alternation below gets to check for it, so the "/>" branch never matches -- the regex
+      // then falls through to the ">...</c>" branch and swallows every subsequent self-closing
+      // cell up through the next cell that actually HAS a closing tag, losing all the swallowed
+      // cells' own keys (confirmed: real GL_Invoice rows have runs of self-closing blank date
+      // cells, e.g. R/S self-closing then T with a value, all captured as one blob under "R").
+      // [^>]*? (lazy) matches the shortest span first, so it correctly stops right at "/>" --
+      // the same fix already applied to the sibling row-matching regex above for the same reason.
+      var cellRe = /<c\s+r="([A-Z]+)\d+"[^>]*?(?:\/>|>[\s\S]*?<\/c>)/g, cm;
       while ((cm = cellRe.exec(rowInner)) !== null) cellsByCol[cm[1]] = cm[0];
     }
     rows.push({ rowNum: rowNum, attrsRest: attrsRest, cellsByCol: cellsByCol });
