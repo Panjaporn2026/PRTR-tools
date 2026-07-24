@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kick-off Meeting Note Filler</title>
+<link rel="icon" type="image/png" href="../assets/favicon-64.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'IBM Plex Sans Thai','Segoe UI',Tahoma,Arial,sans-serif;font-size:13.5px;background:linear-gradient(160deg,#fdf5f6 0%,#f4f5f7 45%,#eef1f4 100%);background-attachment:fixed;color:#1a1a2e;letter-spacing:.1px;min-height:100vh;}
+  .app{max-width:1100px;margin:0 auto;padding:16px;}
+  header.topnav{background:#fff;border-bottom:3px solid #c8102e;padding:14px 24px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:10;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+  .topnav .logo{font-weight:700;font-size:16px;color:#c8102e;text-decoration:none;display:inline-flex;align-items:center;gap:8px;}
+  .topnav .logo img{height:22px;width:auto;}
+  .topnav .crumb{color:#ccc;font-size:14px;}
+  .topnav .crumb-current{font-size:14px;color:#546e7a;}
+  .topnav .back-btn{margin-left:auto;display:inline-flex;align-items:center;gap:6px;background:#fde8ec;color:#c8102e;border:1px solid #f6c6d0;border-radius:20px;padding:7px 16px;font-size:12.5px;font-weight:600;text-decoration:none;transition:.15s;}
+  .topnav .back-btn:hover{background:#c8102e;color:#fff;border-color:#c8102e;}
+  .card{background:#fff;border-radius:10px;border:1px solid #e0e4ea;padding:20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+  h1{font-size:21px;font-weight:700;color:#c8102e;letter-spacing:.1px;}
+  .subtitle{color:#546e7a;font-size:12px;margin-top:3px;font-weight:400;}
+  .usage{background:#e3f2fd;border-radius:8px;padding:12px 14px;font-size:12.5px;color:#0d47a1;line-height:1.8;margin-bottom:14px;}
+  .usage b{color:#1565c0;font-weight:600;}
+  .dz{border:2px dashed #90a4ae;border-radius:8px;background:#f8fafc;text-align:center;padding:22px 12px;cursor:pointer;transition:.15s;min-height:70px;}
+  .dz.drag{border-color:#c8102e;background:#fde8ec;}
+  .dz input[type=file]{display:none;}
+  .dz-hint{font-size:11.5px;color:#607d8b;margin-top:6px;}
+  .status-box{border-radius:6px;padding:8px 14px;font-size:12px;margin:10px 0;}
+  .status-box.info{background:#e3f2fd;color:#1565c0;}
+  .status-box.ok{background:#e8f5e9;color:#2e7d32;}
+  .status-box.err{background:#ffebee;color:#c62828;}
+
+  .form-section{margin-bottom:18px;}
+  .form-section-title{font-size:13.5px;font-weight:700;color:#c8102e;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #fde8ec;}
+  .form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;}
+  .form-field{display:flex;flex-direction:column;gap:3px;}
+  .form-field.wide{grid-column:1/-1;}
+  .form-field label{font-size:12px;font-weight:600;color:#37474f;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+  .cell-tag{background:#eceff1;color:#546e7a;font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;font-variant-numeric:tabular-nums;}
+  .badge-existing{background:#fff3e0;color:#e65100;font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;}
+  .field-hint{font-size:11px;color:#8d6e00;background:#fff8e1;border-radius:5px;padding:3px 7px;}
+  .field-current{font-size:11px;color:#90a4ae;font-style:italic;}
+  .form-field input[type=text],.form-field select,.form-field textarea{
+    border:1px solid #cfd8dc;border-radius:6px;padding:7px 9px;font-size:12.5px;font-family:inherit;background:#fff;
+  }
+  .form-field input[type=text]:focus,.form-field select:focus,.form-field textarea:focus{outline:none;border-color:#c8102e;}
+  .form-field input[readonly]{background:#f5f5f5;color:#607d8b;}
+  .form-field textarea{resize:vertical;}
+
+  .btn-main{background:#c8102e;color:#fff;border:none;border-radius:7px;padding:10px 20px;font-size:13.5px;font-weight:600;cursor:pointer;margin-top:6px;font-family:inherit;letter-spacing:.2px;transition:.15s;}
+  .btn-main:hover{background:#a30d24;}
+
+  .result-title{font-size:15.5px;font-weight:700;color:#c8102e;margin-bottom:14px;display:flex;align-items:center;gap:8px;letter-spacing:.1px;}
+  .result-sub{font-size:12.5px;font-weight:600;color:#37474f;margin:12px 0 8px;letter-spacing:.2px;}
+  .detail-table-wrap{overflow-x:auto;margin-bottom:12px;border:1px solid #e0e4ea;border-radius:8px;}
+  table.detail-table{width:100%;border-collapse:collapse;font-size:12px;table-layout:auto;}
+  table.detail-table thead th{background:#c8102e;color:#fff;padding:7px 7px;text-align:left;font-weight:600;letter-spacing:.2px;white-space:nowrap;}
+  table.detail-table tbody td{padding:6px 7px;border-top:1px solid #eee;}
+  table.detail-table tbody tr:nth-child(odd){background:#fafbfc;}
+  .result-footer{font-size:11.5px;color:#90a4ae;margin:10px 0 14px;font-weight:400;}
+  .result-actions{display:flex;gap:10px;flex-wrap:wrap;}
+</style>
+</head>
+<body>
+<header class="topnav">
+  <a class="logo" href="../"><img src="../assets/favicon-64.png" alt=""> OSInvoice Tools</a>
+  <span class="crumb">›</span>
+  <span class="crumb-current">Kick-off Meeting Note Filler</span>
+  <a class="back-btn" href="../">🏠 หน้าหลัก</a>
+</header>
+<div class="app">
+<div class="card">
+  <h1>📋 Kick-off Meeting Note Filler</h1>
+  <div class="subtitle">กรอกไฟล์ ★KICK OFF MEETING NOTE.xlsx (ชีต Master for inovice) โดยไม่ทำลาย dropdown</div>
+</div>
+
+<div class="card">
+  <div class="usage">
+    📘 <b>วิธีการใช้งาน</b><br>
+    1. อัปโหลดไฟล์ <b>★KICK OFF MEETING NOTE - &lt;Client&gt;.xlsx</b> (เปล่าหรือกรอกไปแล้วบางส่วนก็ได้)<br>
+    2. เปิดหน้า CRM Backoffice โปรเจคของคุณเองในอีกแท็บ แล้วคัดลอกข้อมูลมากรอกในฟอร์มด้านล่าง<br>
+    3. ช่องที่มีข้อมูลอยู่แล้วในไฟล์ (ไม่ว่างหรือไม่ใช่ "- Select -") จะไม่ถูกเขียนทับ แม้จะกรอกในฟอร์มก็ตาม<br>
+    4. กด "สร้างไฟล์" แล้วดาวน์โหลด — ไฟล์อื่นๆ ในเวิร์กบุ๊ก รวมถึง dropdown ทุกตัว จะไม่ถูกแตะต้องเลย
+  </div>
+
+  <div class="dz" id="dropzone">
+    <label style="cursor:pointer">
+      <div>📄 คลิกหรือลากไฟล์ ★KICK OFF MEETING NOTE.xlsx มาวาง</div>
+      <div class="dz-hint">.xlsx</div>
+      <input type="file" id="fileInput" accept=".xlsx">
+    </label>
+  </div>
+
+  <div id="statusBox" class="status-box" style="display:none"></div>
+</div>
+
+<div class="card" id="formSection" style="display:none"></div>
+<div class="card" id="resultSection" style="display:none"></div>
+
+</div>
+<script src="excel.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
