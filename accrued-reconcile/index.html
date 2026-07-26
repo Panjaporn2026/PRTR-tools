@@ -25,10 +25,16 @@
   .usage{background:#e3f2fd;border-radius:8px;padding:12px 14px;font-size:12px;color:#0d47a1;line-height:1.7;margin-bottom:14px;}
   .usage b{color:#1565c0;font-weight:600;}
 
-  .layout{display:grid;grid-template-columns:280px 1fr;gap:16px;align-items:start;}
+  .layout{display:grid;grid-template-columns:210px 1fr;gap:16px;align-items:start;}
   @media(max-width:760px){.layout{grid-template-columns:1fr;}}
   .sidebar{display:flex;flex-direction:column;min-width:0;}
   .main-col{min-width:0;}
+  .tool-nav-box{background:#fff;border:1px solid #e0e4ea;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.06);padding:14px 10px;}
+  .tool-nav-title{font-size:10.5px;font-weight:700;color:#90a4ae;text-transform:uppercase;letter-spacing:.5px;padding:2px 8px 8px;}
+  .tool-nav{display:flex;flex-direction:column;gap:2px;}
+  .tool-nav-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;color:#37474f;text-decoration:none;font-size:12.5px;font-weight:500;transition:.15s;}
+  .tool-nav-item:hover{background:#f5f5f5;}
+  .tool-nav-item.active{background:#fde8ec;color:#c8102e;font-weight:700;}
 
   .dz-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:14px;}
   .dz{border:2px dashed #90a4ae;border-radius:8px;background:#f8fafc;text-align:center;padding:18px 12px;cursor:pointer;transition:.15s;min-height:90px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;}
@@ -94,6 +100,25 @@
 <div class="card">
   <div class="layout">
     <div class="sidebar">
+      <div class="tool-nav-box">
+        <div class="tool-nav-title">เครื่องมือทั้งหมด</div>
+        <nav class="tool-nav">
+          <a class="tool-nav-item" href="../accrued-income/">📊 Accrued Income Generator</a>
+          <a class="tool-nav-item" href="../fee-table/">📋 Fee Table Filler</a>
+          <a class="tool-nav-item" href="../rename-lock/">🔒 File Rename &amp; Lock</a>
+          <a class="tool-nav-item" href="../cost-center-report/">🏬 Cost Center Report</a>
+          <a class="tool-nav-item" href="../health-reconcile/">🩺 Health Insurance Reconcile</a>
+          <a class="tool-nav-item" href="../gl-invoice/">📊 GL Invoice Processing</a>
+          <a class="tool-nav-item" href="../doi-tools/">🧾 Detail of Invoice Tools</a>
+          <a class="tool-nav-item" href="../dtw-tool/">📑 DTW Head/Line Auto-Fill</a>
+          <a class="tool-nav-item" href="../invoice-dashboard/">📬 Invoice Send Status Dashboard</a>
+          <a class="tool-nav-item" href="../kickoff-tool/">📋 Kick-off Meeting Note Filler</a>
+          <a class="tool-nav-item active" href="../accrued-reconcile/">🧮 Data for Reverse Accrued</a>
+        </nav>
+      </div>
+    </div>
+
+    <div class="main-col">
       <div class="usage">
         📘 <b>วิธีการใช้งาน</b><br>
         1. อัปโหลดไฟล์ JE ต้นฉบับ (.csv) ได้หลายไฟล์ — ระบบจะรวมและกลับด้าน debit/credit ให้อัตโนมัติ<br>
@@ -102,7 +127,7 @@
         4. กดดาวน์โหลด Reverse Income CSV เพื่อนำไปใช้ต่อได้
       </div>
 
-      <div class="dz-row" style="grid-template-columns:1fr;">
+      <div class="dz-row" style="grid-template-columns:1fr 1fr;">
         <div class="dz" id="dropCsv">
           <label style="cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;">
             <span class="dz-icon">📄</span>
@@ -123,15 +148,13 @@
 
       <div id="csvFileList"></div>
 
-      <div class="btn-row">
+      <div class="btn-row" style="flex-direction:row;">
         <button class="btn-main" id="btnRun">🔄 รวมไฟล์และเทียบยอด</button>
         <button class="btn-outline" id="btnDownload">⬇️ ดาวน์โหลด Reverse Income CSV</button>
       </div>
 
       <div id="statusBox" class="status-box" style="display:none"></div>
-    </div>
 
-    <div class="main-col">
       <div id="emptyHint" class="empty-hint">อัปโหลดไฟล์แล้วกด "รวมไฟล์และเทียบยอด" เพื่อดูผลสรุปที่นี่</div>
       <div id="resultSection" style="display:none">
         <div class="stat-row" id="statRow"></div>

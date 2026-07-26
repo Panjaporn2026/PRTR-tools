@@ -24,10 +24,16 @@ h1{font-size:21px;font-weight:700;color:#c8102e;letter-spacing:.1px;}
 h2{font-size:14px;font-weight:700;color:#c8102e;margin-bottom:12px;}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
 @media(max-width:600px){.two-col{grid-template-columns:1fr;}}
-.layout{display:grid;grid-template-columns:280px 1fr;gap:16px;align-items:start;}
+.layout{display:grid;grid-template-columns:210px 1fr;gap:16px;align-items:start;}
 @media(max-width:760px){.layout{grid-template-columns:1fr;}}
 .sidebar{min-width:0;}
 .main-col{min-width:0;}
+.tool-nav-box{background:#fff;border:1px solid #e0e4ea;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.06);padding:14px 10px;}
+.tool-nav-title{font-size:10.5px;font-weight:700;color:#90a4ae;text-transform:uppercase;letter-spacing:.5px;padding:2px 8px 8px;}
+.tool-nav{display:flex;flex-direction:column;gap:2px;}
+.tool-nav-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;color:#37474f;text-decoration:none;font-size:12.5px;font-weight:500;transition:.15s;}
+.tool-nav-item:hover{background:#f5f5f5;}
+.tool-nav-item.active{background:#fde8ec;color:#c8102e;font-weight:700;}
 .ubox{border:2px dashed #90a4ae;border-radius:8px;background:#f8fafc;transition:all .2s;position:relative;overflow:hidden;min-height:110px;}
 .ubox.has-file{border-color:#43a047;background:#f1f8e9;}
 .ubox.drag{border-color:#c8102e;background:#fde8ec;}
@@ -88,6 +94,24 @@ tfoot tr{background:#fde8ec;font-weight:700;}tfoot td{padding:5px 7px;border-top
 <div class="card">
   <div class="layout">
     <div class="sidebar">
+      <div class="tool-nav-box">
+        <div class="tool-nav-title">เครื่องมือทั้งหมด</div>
+        <nav class="tool-nav">
+          <a class="tool-nav-item active" href="../accrued-income/">📊 Accrued Income Generator</a>
+          <a class="tool-nav-item" href="../fee-table/">📋 Fee Table Filler</a>
+          <a class="tool-nav-item" href="../rename-lock/">🔒 File Rename &amp; Lock</a>
+          <a class="tool-nav-item" href="../cost-center-report/">🏬 Cost Center Report</a>
+          <a class="tool-nav-item" href="../health-reconcile/">🩺 Health Insurance Reconcile</a>
+          <a class="tool-nav-item" href="../gl-invoice/">📊 GL Invoice Processing</a>
+          <a class="tool-nav-item" href="../doi-tools/">🧾 Detail of Invoice Tools</a>
+          <a class="tool-nav-item" href="../dtw-tool/">📑 DTW Head/Line Auto-Fill</a>
+          <a class="tool-nav-item" href="../invoice-dashboard/">📬 Invoice Send Status Dashboard</a>
+          <a class="tool-nav-item" href="../kickoff-tool/">📋 Kick-off Meeting Note Filler</a>
+          <a class="tool-nav-item" href="../accrued-reconcile/">🧮 Data for Reverse Accrued</a>
+        </nav>
+      </div>
+    </div>
+    <div class="main-col">
       <div class="notice">ℹ️ อัปโหลดไฟล์ Detail of Invoice แล้วกด Download เพื่อรับไฟล์ Accrue Income ที่กรอกข้อมูลแล้ว — ใช้ Template Accrue Income มาตรฐานในตัว ไม่ต้องแนบเอง</div>
       <h2>📂 อัปโหลดไฟล์</h2>
       <div>
@@ -105,8 +129,6 @@ tfoot tr{background:#fde8ec;font-weight:700;}tfoot td{padding:5px 7px;border-top
       <div id="groupCard" style="display:none;margin-top:16px;">
         <h2>🔀 Group By</h2><div class="gb-grid" id="gbGrid"></div><div class="rc" id="rc"></div>
       </div>
-    </div>
-    <div class="main-col">
       <div id="emptyHint" class="nd">อัปโหลดไฟล์ Detail of Invoice เพื่อดูสรุปข้อมูลและ Preview ที่นี่</div>
       <div id="summaryCard" style="display:none"><h2>📄 สรุปข้อมูล</h2><div class="summary-grid" id="summaryGrid"></div></div>
       <div id="previewCard" style="display:none;margin-top:16px;">

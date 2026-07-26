@@ -52,15 +52,21 @@
     .page-title { font-size: 24px; font-weight: 700; color: var(--primary); margin-bottom: 4px; }
     .page-sub { color: var(--sub); font-size: 14px; margin-bottom: 28px; }
 
-    .layout { display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start; }
+    .layout { display: grid; grid-template-columns: 210px 1fr; gap: 20px; align-items: start; }
     @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } }
     .sidebar { min-width: 0; }
     .main-col { min-width: 0; }
     .empty-hint { text-align: center; color: var(--sub); padding: 40px 16px; background: white; border: 1px solid var(--border); border-radius: 10px; font-size: 13px; }
     .result-card.visible ~ .empty-hint { display: none; }
+    .tool-nav-box { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 14px 10px; }
+    .tool-nav-title { font-size: 10.5px; font-weight: 700; color: var(--sub); text-transform: uppercase; letter-spacing: .5px; padding: 2px 8px 8px; }
+    .tool-nav { display: flex; flex-direction: column; gap: 2px; }
+    .tool-nav-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 7px; color: #37474f; text-decoration: none; font-size: 12.5px; font-weight: 500; transition: .15s; }
+    .tool-nav-item:hover { background: #f5f5f5; }
+    .tool-nav-item.active { background: #fde8ec; color: var(--primary); font-weight: 700; }
 
     /* ── Upload Grid ── */
-    .upload-grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 20px; }
+    .upload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
 
     .upload-box {
       border: 2px dashed var(--border);
@@ -178,6 +184,25 @@
 
   <div class="layout">
     <div class="sidebar">
+      <div class="tool-nav-box">
+        <div class="tool-nav-title">เครื่องมือทั้งหมด</div>
+        <nav class="tool-nav">
+          <a class="tool-nav-item" href="../accrued-income/">📊 Accrued Income Generator</a>
+          <a class="tool-nav-item active" href="../fee-table/">📋 Fee Table Filler</a>
+          <a class="tool-nav-item" href="../rename-lock/">🔒 File Rename &amp; Lock</a>
+          <a class="tool-nav-item" href="../cost-center-report/">🏬 Cost Center Report</a>
+          <a class="tool-nav-item" href="../health-reconcile/">🩺 Health Insurance Reconcile</a>
+          <a class="tool-nav-item" href="../gl-invoice/">📊 GL Invoice Processing</a>
+          <a class="tool-nav-item" href="../doi-tools/">🧾 Detail of Invoice Tools</a>
+          <a class="tool-nav-item" href="../dtw-tool/">📑 DTW Head/Line Auto-Fill</a>
+          <a class="tool-nav-item" href="../invoice-dashboard/">📬 Invoice Send Status Dashboard</a>
+          <a class="tool-nav-item" href="../kickoff-tool/">📋 Kick-off Meeting Note Filler</a>
+          <a class="tool-nav-item" href="../accrued-reconcile/">🧮 Data for Reverse Accrued</a>
+        </nav>
+      </div>
+    </div>
+
+    <div class="main-col">
       <div class="upload-grid">
         <div class="upload-box" id="pdfBox">
           <label for="pdfInput">
@@ -212,9 +237,7 @@
         ⚠️ อ่าน PDF ไม่เจอข้อความ (อาจเป็น PDF สแกน) — กด OCR เพื่อลองอีกครั้ง
         <br><button class="btn-ocr" onclick="runOCR()">🔍 ใช้ OCR อ่านอีกครั้ง</button>
       </div>
-    </div>
 
-    <div class="main-col">
       <div class="result-card" id="resultCard">
         <div class="meta-row" id="metaRow"></div>
         <div id="prtrBanner"></div>
@@ -249,7 +272,7 @@
           🚀 Generate Fee Table
         </button>
       </div>
-      <div class="empty-hint" id="emptyHint">อัปโหลดไฟล์ทั้งสองด้านซ้ายเพื่อดูผลลัพธ์ที่นี่</div>
+      <div class="empty-hint" id="emptyHint">อัปโหลดไฟล์ทั้งสองด้านบนเพื่อดูผลลัพธ์ที่นี่</div>
     </div>
   </div>
 </div>
