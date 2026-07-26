@@ -1,5 +1,5 @@
 // ══════════════════════════════════════════════════════
-//  Accrued Income Reconcile — merges multiple JE export CSVs into one "Reverse Income" CSV
+//  Data for Reverse Accrued — merges multiple JE export CSVs into one "Reverse Income" CSV
 //  (net debit/credit reversed and summed per project+account+ref3+memo), then compares the
 //  resulting income total per project against the "Accrue Income" / "Accrue Minus Income" sheets
 //  read directly from the uploaded Accrued (all).xlsx to flag any project whose numbers don't
