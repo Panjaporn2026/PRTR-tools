@@ -410,6 +410,8 @@
       renderDashboard();
     } else {
       dashboard.style.display = 'none';
+      var mainHint = document.getElementById('mainEmptyHint');
+      if (mainHint) mainHint.style.display = 'block';
     }
   }
 
@@ -577,6 +579,8 @@
 
   function renderDashboard() {
     dashboard.style.display = 'block';
+    var mainHint = document.getElementById('mainEmptyHint');
+    if (mainHint) mainHint.style.display = 'none';
     var enrichedMode = state.invoiceListRecords.length > 0;
     var baseRecords = enrichedMode ? state.enrichedRecords : state.records;
     var bucketDefs = currentBucketDefs();

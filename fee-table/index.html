@@ -48,13 +48,19 @@
     .back-btn:hover{background:var(--primary);color:#fff;border-color:var(--primary);}
 
     /* ── Layout ── */
-    .container { max-width: 900px; margin: 0 auto; padding: 28px 16px 60px; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 28px 16px 60px; }
     .page-title { font-size: 24px; font-weight: 700; color: var(--primary); margin-bottom: 4px; }
     .page-sub { color: var(--sub); font-size: 14px; margin-bottom: 28px; }
 
+    .layout { display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start; }
+    @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } }
+    .sidebar { min-width: 0; }
+    .main-col { min-width: 0; }
+    .empty-hint { text-align: center; color: var(--sub); padding: 40px 16px; background: white; border: 1px solid var(--border); border-radius: 10px; font-size: 13px; }
+    .result-card.visible ~ .empty-hint { display: none; }
+
     /* ── Upload Grid ── */
-    .upload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
-    @media (max-width: 540px) { .upload-grid { grid-template-columns: 1fr; } }
+    .upload-grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 20px; }
 
     .upload-box {
       border: 2px dashed var(--border);
@@ -170,74 +176,81 @@
   <div class="page-title">📊 Fee Table Filler</div>
   <p class="page-sub">อัปโหลดสัญญา PDF + Master Fee Table แล้วระบบจะกรอก fee rate ให้อัตโนมัติ</p>
 
-  <div class="upload-grid">
-    <div class="upload-box" id="pdfBox">
-      <label for="pdfInput">
-        <div class="upload-icon">📄</div>
-        <div class="upload-title">สัญญา PDF</div>
-        <div class="upload-hint" id="pdfHint">
-          คลิกหรือลากไฟล์มาวาง<br>
-          Labor Supplier Contract (OUT-X-XXXX-XXXXX)
+  <div class="layout">
+    <div class="sidebar">
+      <div class="upload-grid">
+        <div class="upload-box" id="pdfBox">
+          <label for="pdfInput">
+            <div class="upload-icon">📄</div>
+            <div class="upload-title">สัญญา PDF</div>
+            <div class="upload-hint" id="pdfHint">
+              คลิกหรือลากไฟล์มาวาง<br>
+              Labor Supplier Contract (OUT-X-XXXX-XXXXX)
+            </div>
+            <input type="file" id="pdfInput" accept=".pdf">
+          </label>
         </div>
-        <input type="file" id="pdfInput" accept=".pdf">
-      </label>
-    </div>
-    <div class="upload-box" id="xlsxBox">
-      <label for="xlsxInput">
-        <div class="upload-icon">📋</div>
-        <div class="upload-title">Master Fee Table</div>
-        <div class="upload-hint" id="xlsxHint">
-          คลิกหรือลากไฟล์มาวาง<br>
-          Master - Fee tebla.xlsx
+        <div class="upload-box" id="xlsxBox">
+          <label for="xlsxInput">
+            <div class="upload-icon">📋</div>
+            <div class="upload-title">Master Fee Table</div>
+            <div class="upload-hint" id="xlsxHint">
+              คลิกหรือลากไฟล์มาวาง<br>
+              Master - Fee tebla.xlsx
+            </div>
+            <input type="file" id="xlsxInput" accept=".xlsx,.xls">
+          </label>
         </div>
-        <input type="file" id="xlsxInput" accept=".xlsx,.xls">
-      </label>
-    </div>
-  </div>
+      </div>
 
-  <div class="status-box" id="statusBox">
-    <div class="status-text" id="statusText">กำลังอ่านสัญญา...</div>
-    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
-  </div>
+      <div class="status-box" id="statusBox">
+        <div class="status-text" id="statusText">กำลังอ่านสัญญา...</div>
+        <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      </div>
 
-  <div class="ocr-notice" id="ocrNotice">
-    ⚠️ อ่าน PDF ไม่เจอข้อความ (อาจเป็น PDF สแกน) — กด OCR เพื่อลองอีกครั้ง
-    <br><button class="btn-ocr" onclick="runOCR()">🔍 ใช้ OCR อ่านอีกครั้ง</button>
-  </div>
-
-  <div class="result-card" id="resultCard">
-    <div class="meta-row" id="metaRow"></div>
-    <div id="prtrBanner"></div>
-    <div class="warn-banner">
-      ⚠️ กรุณาตรวจสอบค่าด้านล่างก่อนกด Generate — สามารถแก้ไขได้ก่อนสร้างไฟล์
-      <div style="margin-top:8px;display:flex;align-items:center;gap:8px;font-size:13px;">
-        <span>จำนวน Conditions:</span>
-        <select id="nColsSelect" onchange="overrideNCols(this.value)" style="border:1px solid #d1d5db;border-radius:5px;padding:3px 8px;font-size:13px;cursor:pointer;">
-          <option value="1">1 (J)</option>
-          <option value="2">2 (J, K)</option>
-          <option value="3">3 (J, K, L)</option>
-          <option value="4">4 (J, K, L, M)</option>
-        </select>
-        <span style="color:#9ca3af;font-size:11px;">← แก้ถ้า OCR อ่านไม่ครบ</span>
+      <div class="ocr-notice" id="ocrNotice">
+        ⚠️ อ่าน PDF ไม่เจอข้อความ (อาจเป็น PDF สแกน) — กด OCR เพื่อลองอีกครั้ง
+        <br><button class="btn-ocr" onclick="runOCR()">🔍 ใช้ OCR อ่านอีกครั้ง</button>
       </div>
     </div>
-    <div class="rate-table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th style="min-width:200px">รายการ</th>
-            <th id="th_J">J</th>
-            <th id="th_K">K</th>
-            <th id="th_L">L</th>
-            <th id="th_M">M</th>
-          </tr>
-        </thead>
-        <tbody id="rateBody"></tbody>
-      </table>
+
+    <div class="main-col">
+      <div class="result-card" id="resultCard">
+        <div class="meta-row" id="metaRow"></div>
+        <div id="prtrBanner"></div>
+        <div class="warn-banner">
+          ⚠️ กรุณาตรวจสอบค่าด้านล่างก่อนกด Generate — สามารถแก้ไขได้ก่อนสร้างไฟล์
+          <div style="margin-top:8px;display:flex;align-items:center;gap:8px;font-size:13px;">
+            <span>จำนวน Conditions:</span>
+            <select id="nColsSelect" onchange="overrideNCols(this.value)" style="border:1px solid #d1d5db;border-radius:5px;padding:3px 8px;font-size:13px;cursor:pointer;">
+              <option value="1">1 (J)</option>
+              <option value="2">2 (J, K)</option>
+              <option value="3">3 (J, K, L)</option>
+              <option value="4">4 (J, K, L, M)</option>
+            </select>
+            <span style="color:#9ca3af;font-size:11px;">← แก้ถ้า OCR อ่านไม่ครบ</span>
+          </div>
+        </div>
+        <div class="rate-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="min-width:200px">รายการ</th>
+                <th id="th_J">J</th>
+                <th id="th_K">K</th>
+                <th id="th_L">L</th>
+                <th id="th_M">M</th>
+              </tr>
+            </thead>
+            <tbody id="rateBody"></tbody>
+          </table>
+        </div>
+        <button class="btn-primary" id="generateBtn" onclick="generateExcel()">
+          🚀 Generate Fee Table
+        </button>
+      </div>
+      <div class="empty-hint" id="emptyHint">อัปโหลดไฟล์ทั้งสองด้านซ้ายเพื่อดูผลลัพธ์ที่นี่</div>
     </div>
-    <button class="btn-primary" id="generateBtn" onclick="generateExcel()">
-      🚀 Generate Fee Table
-    </button>
   </div>
 </div>
 

@@ -24,6 +24,10 @@ h1{font-size:21px;font-weight:700;color:#c8102e;letter-spacing:.1px;}
 h2{font-size:14px;font-weight:700;color:#c8102e;margin-bottom:12px;}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
 @media(max-width:600px){.two-col{grid-template-columns:1fr;}}
+.layout{display:grid;grid-template-columns:280px 1fr;gap:16px;align-items:start;}
+@media(max-width:760px){.layout{grid-template-columns:1fr;}}
+.sidebar{min-width:0;}
+.main-col{min-width:0;}
 .ubox{border:2px dashed #90a4ae;border-radius:8px;background:#f8fafc;transition:all .2s;position:relative;overflow:hidden;min-height:110px;}
 .ubox.has-file{border-color:#43a047;background:#f1f8e9;}
 .ubox.drag{border-color:#c8102e;background:#fde8ec;}
@@ -82,51 +86,57 @@ tfoot tr{background:#fde8ec;font-weight:700;}tfoot td{padding:5px 7px;border-top
   <div class="subtitle">ทำงานได้โดยไม่ต้องโหลด library จากอินเทอร์เน็ต — ใช้ browser API ล้วนๆ</div>
 </div>
 <div class="card">
-  <div class="notice">ℹ️ อัปโหลดไฟล์ Detail of Invoice แล้วกด Download เพื่อรับไฟล์ Accrue Income ที่กรอกข้อมูลแล้ว — ใช้ Template Accrue Income มาตรฐานในตัว ไม่ต้องแนบเอง</div>
-  <h2>📂 อัปโหลดไฟล์</h2>
-  <div>
-    <div style="font-size:11.5px;font-weight:700;color:#c8102e;margin-bottom:6px;">Detail of Invoice <span style="color:#607d8b;font-weight:400;">(เลือกได้หลายไฟล์)</span></div>
-    <div class="ubox" id="bInv">
-      <label><span class="uico">📄</span><span class="utitle">คลิกหรือลากไฟล์มาวาง</span><span class="udesc">Detail of Invoice .xlsx</span>
-        <input type="file" id="fiInv" multiple accept=".xlsx,.xls" onchange="onInvChange(this)">
-      </label>
+  <div class="layout">
+    <div class="sidebar">
+      <div class="notice">ℹ️ อัปโหลดไฟล์ Detail of Invoice แล้วกด Download เพื่อรับไฟล์ Accrue Income ที่กรอกข้อมูลแล้ว — ใช้ Template Accrue Income มาตรฐานในตัว ไม่ต้องแนบเอง</div>
+      <h2>📂 อัปโหลดไฟล์</h2>
+      <div>
+        <div style="font-size:11.5px;font-weight:700;color:#c8102e;margin-bottom:6px;">Detail of Invoice <span style="color:#607d8b;font-weight:400;">(เลือกได้หลายไฟล์)</span></div>
+        <div class="ubox" id="bInv">
+          <label><span class="uico">📄</span><span class="utitle">คลิกหรือลากไฟล์มาวาง</span><span class="udesc">Detail of Invoice .xlsx</span>
+            <input type="file" id="fiInv" multiple accept=".xlsx,.xls" onchange="onInvChange(this)">
+          </label>
+        </div>
+        <div class="chips" id="invChips"></div>
+      </div>
+      <div class="msg err" id="errBox"></div>
+      <div class="msg" id="tplBox" style="background:#e3f2fd;color:#1565c0;display:none;">⏳ กำลังโหลด Template Accrue Income ในตัว...</div>
+      <div class="msg ok" id="okBox"></div>
+      <div id="groupCard" style="display:none;margin-top:16px;">
+        <h2>🔀 Group By</h2><div class="gb-grid" id="gbGrid"></div><div class="rc" id="rc"></div>
+      </div>
     </div>
-    <div class="chips" id="invChips"></div>
-  </div>
-  <div class="msg err" id="errBox"></div>
-  <div class="msg" id="tplBox" style="background:#e3f2fd;color:#1565c0;display:none;">⏳ กำลังโหลด Template Accrue Income ในตัว...</div>
-  <div class="msg ok" id="okBox"></div>
-</div>
-<div class="card" id="summaryCard" style="display:none"><h2>📄 สรุปข้อมูล</h2><div class="summary-grid" id="summaryGrid"></div></div>
-<div class="card" id="groupCard" style="display:none">
-  <h2>🔀 Group By</h2><div class="gb-grid" id="gbGrid"></div><div class="rc" id="rc"></div>
-</div>
-<div class="card" id="previewCard" style="display:none">
-  <h2>👁 Preview</h2>
-  <div style="overflow-x:auto"><table>
-    <thead><tr>
-      <th style="width:28px"><input type="checkbox" id="selAll" onchange="selAll(this.checked)" checked style="cursor:pointer;"></th>
-      <th>บริษัท / Detail</th><th>คน</th><th>Salary</th><th>SSF</th><th>PVF</th><th>Health</th><th>Check up</th><th>Allowance (Fix)</th><th>Other Income</th><th>OT</th><th>Commission</th><th>Incentive</th><th>Bonus</th><th>Non-Fix</th><th>Fee</th><th>Total Inv</th><th></th>
-    </tr></thead>
-    <tbody id="pb"></tbody>
-    <tfoot><tr id="pf" style="display:none">
-      <td></td><td><b>รวมที่เลือก</b></td>
-      <td id="f0" class="n"></td><td id="f1" class="n"></td><td id="f2" class="n"></td><td id="f3" class="n"></td><td id="f4" class="n"></td>
-      <td id="f5" class="n"></td><td id="f6" class="n"></td><td id="f7" class="n"></td><td id="f8" class="n"></td><td id="f9" class="n"></td><td id="f10" class="n"></td><td id="f11" class="n"></td>
-      <td id="f12" class="n"></td><td id="f13" class="n"></td><td></td>
-    </tr></tfoot>
-  </table></div>
-  <div class="ss" id="ss"></div>
-</div>
-<div class="card" id="dlCard" style="display:none">
-  <div class="dlr">
-    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;">
-      <button class="bld" id="btnDl" onclick="downloadExcel()">⬇ Download Accrued Income Form (.xlsx)</button>
-      <span id="sm"></span>
+    <div class="main-col">
+      <div id="emptyHint" class="nd">อัปโหลดไฟล์ Detail of Invoice เพื่อดูสรุปข้อมูลและ Preview ที่นี่</div>
+      <div id="summaryCard" style="display:none"><h2>📄 สรุปข้อมูล</h2><div class="summary-grid" id="summaryGrid"></div></div>
+      <div id="previewCard" style="display:none;margin-top:16px;">
+        <h2>👁 Preview</h2>
+        <div style="overflow-x:auto"><table>
+          <thead><tr>
+            <th style="width:28px"><input type="checkbox" id="selAll" onchange="selAll(this.checked)" checked style="cursor:pointer;"></th>
+            <th>บริษัท / Detail</th><th>คน</th><th>Salary</th><th>SSF</th><th>PVF</th><th>Health</th><th>Check up</th><th>Allowance (Fix)</th><th>Other Income</th><th>OT</th><th>Commission</th><th>Incentive</th><th>Bonus</th><th>Non-Fix</th><th>Fee</th><th>Total Inv</th><th></th>
+          </tr></thead>
+          <tbody id="pb"></tbody>
+          <tfoot><tr id="pf" style="display:none">
+            <td></td><td><b>รวมที่เลือก</b></td>
+            <td id="f0" class="n"></td><td id="f1" class="n"></td><td id="f2" class="n"></td><td id="f3" class="n"></td><td id="f4" class="n"></td>
+            <td id="f5" class="n"></td><td id="f6" class="n"></td><td id="f7" class="n"></td><td id="f8" class="n"></td><td id="f9" class="n"></td><td id="f10" class="n"></td><td id="f11" class="n"></td>
+            <td id="f12" class="n"></td><td id="f13" class="n"></td><td></td>
+          </tr></tfoot>
+        </table></div>
+        <div class="ss" id="ss"></div>
+      </div>
+      <div id="dlCard" style="display:none;margin-top:16px;">
+        <div class="dlr">
+          <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;">
+            <button class="bld" id="btnDl" onclick="downloadExcel()">⬇ Download Accrued Income Form (.xlsx)</button>
+            <span id="sm"></span>
+          </div>
+          <span class="fo" id="fo"></span>
+        </div>
+      </div>
     </div>
-    <span class="fo" id="fo"></span>
   </div>
-</div>
 </div>
 
 <script>
@@ -770,7 +780,7 @@ function render(){
   renderSummary();renderGB();renderPreview();renderDl();
 }
 function removeFile(i){files.splice(i,1);render();}
-function renderSummary(){var card=document.getElementById('summaryCard');if(!files.length){card.style.display='none';return;}card.style.display='block';document.getElementById('summaryGrid').innerHTML=files.map(function(f){return'<div class="sc"><div class="fn">'+esc(f.filename)+'</div><div class="sr"><span class="l">Company</span><span class="v">'+esc(f.company)+'</span></div><div class="sr"><span class="l">Period</span><span class="v">'+esc(f.period)+'</span></div><div class="sr"><span class="l">Project</span><span class="v">'+esc(f.projects.join(', '))+'</span></div><div class="sr"><span class="l">พนักงาน</span><span class="v">'+f.employees.length+' คน'+(f.pendingPO?' <span class="badge">Pending PO: '+f.pendingPO+'</span>':'')+'</span></div></div>';}).join('');}
+function renderSummary(){var eh=document.getElementById('emptyHint');if(eh)eh.style.display=files.length?'none':'block';var card=document.getElementById('summaryCard');if(!files.length){card.style.display='none';return;}card.style.display='block';document.getElementById('summaryGrid').innerHTML=files.map(function(f){return'<div class="sc"><div class="fn">'+esc(f.filename)+'</div><div class="sr"><span class="l">Company</span><span class="v">'+esc(f.company)+'</span></div><div class="sr"><span class="l">Period</span><span class="v">'+esc(f.period)+'</span></div><div class="sr"><span class="l">Project</span><span class="v">'+esc(f.projects.join(', '))+'</span></div><div class="sr"><span class="l">พนักงาน</span><span class="v">'+f.employees.length+' คน'+(f.pendingPO?' <span class="badge">Pending PO: '+f.pendingPO+'</span>':'')+'</span></div></div>';}).join('');}
 function renderGB(){var card=document.getElementById('groupCard');if(!files.length){card.style.display='none';return;}card.style.display='block';var avail={};GROUP_DEFS.forEach(function(g){avail[g.key]=false;});files.forEach(function(f){GROUP_DEFS.forEach(function(g){if(f.available[g.key])avail[g.key]=true;});});document.getElementById('gbGrid').innerHTML=GROUP_DEFS.map(function(g){var en=avail[g.key],ch=groupByState[g.key]&&en;return'<label class="cbi'+(en?'':' dis')+'"><input type="checkbox"'+(en?'':' disabled')+(ch?' checked':'')+' onchange="toggleGroup(\''+g.key+'\',this.checked)">'+g.label+'</label>';}).join('');var rows=getRows();var ag=GROUP_DEFS.filter(function(g){return groupByState[g.key];});document.getElementById('rc').innerHTML=ag.length===0?'จะสร้าง <strong>'+files.length+' row</strong>':'จะสร้าง <strong>'+rows.length+' row</strong> (แยกตาม: '+ag.map(function(g){return g.label;}).join(', ')+')';}
 function toggleGroup(k,v){groupByState[k]=v;rowSelected={};renderGB();renderPreview();renderDl();}
 function selAll(checked){document.querySelectorAll('.rcb').forEach(function(cb){cb.checked=checked;rowSelected[cb.dataset.rk]=checked;cb.closest('tr').classList.toggle('off',!checked);});updateFoot();updateSS();renderDl();}

@@ -250,6 +250,8 @@ async function startProcess() {
 
   renderWritePreview();
   renderCandidates();
+  var mainHint = document.getElementById('mainEmptyHint');
+  if (mainHint) mainHint.style.display = 'none';
   document.getElementById('reviewCard').style.display = 'block';
   setStatus('✅ วิเคราะห์เสร็จแล้ว — ตรวจสอบผลด้านล่างก่อนดาวน์โหลด', 'ok');
 }

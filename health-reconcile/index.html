@@ -10,7 +10,11 @@
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'IBM Plex Sans Thai','Segoe UI',Tahoma,Arial,sans-serif;font-size:13.5px;background:linear-gradient(160deg,#fdf5f6 0%,#f4f5f7 45%,#eef1f4 100%);background-attachment:fixed;color:#1a1a2e;letter-spacing:.1px;min-height:100vh;}
-  .app{max-width:960px;margin:0 auto;padding:16px;}
+  .app{max-width:1300px;margin:0 auto;padding:16px;}
+  .layout{display:grid;grid-template-columns:340px 1fr;gap:16px;align-items:start;}
+  @media(max-width:820px){.layout{grid-template-columns:1fr;}}
+  .sidebar{min-width:0;}
+  .main-col{min-width:0;}
   header.topnav{background:#fff;border-bottom:3px solid #c8102e;padding:14px 24px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:10;box-shadow:0 1px 4px rgba(0,0,0,.06);}
   .topnav .logo{font-weight:700;font-size:16px;color:#c8102e;text-decoration:none;display:inline-flex;align-items:center;gap:8px;}
   .topnav .logo img{height:22px;width:auto;}
@@ -76,54 +80,61 @@
   <div class="subtitle">อ่าน invoice รายเดือน กรอกยอดลง Detail Reconcile ให้อัตโนมัติ และช่วยเพิ่มพนักงานใหม่แบบตรวจสอบก่อนทุกขั้นตอน</div>
 </div>
 
-<div class="card">
-  <div class="warn-note">⚠️ ไม่มีเครื่องมือคำนวณสูตร Excel ในเบราว์เซอร์ — ไฟล์ที่ได้จะถูกตั้งให้คำนวณสูตรใหม่ทั้งหมดทันทีที่เปิดใน Excel (บนเครื่อง ไม่ใช่ Excel Online) กรุณาเปิดตรวจดูคอลัมน์ Actual Cost ของพนักงานใหม่ก่อนใช้งานจริงเสมอ</div>
-  <h2>📂 อัปโหลดไฟล์</h2>
-  <div class="two-col">
-    <div>
-      <div style="font-size:11.5px;font-weight:700;color:#c8102e;margin-bottom:6px;">1. ไฟล์ Reconcile</div>
-      <div class="dz" id="reconcileDrop">
-        <label>
-          <div>📄 คลิกหรือลากไฟล์มาวาง</div>
-          <div class="dz-hint">Data Reconcile health insurance ....xlsx</div>
-          <input type="file" id="reconcileInput" accept=".xlsx">
-        </label>
+<div class="layout">
+  <div class="sidebar">
+    <div class="card">
+      <div class="warn-note">⚠️ ไม่มีเครื่องมือคำนวณสูตร Excel ในเบราว์เซอร์ — ไฟล์ที่ได้จะถูกตั้งให้คำนวณสูตรใหม่ทั้งหมดทันทีที่เปิดใน Excel (บนเครื่อง ไม่ใช่ Excel Online) กรุณาเปิดตรวจดูคอลัมน์ Actual Cost ของพนักงานใหม่ก่อนใช้งานจริงเสมอ</div>
+      <h2>📂 อัปโหลดไฟล์</h2>
+      <div class="two-col" style="grid-template-columns:1fr;">
+        <div>
+          <div style="font-size:11.5px;font-weight:700;color:#c8102e;margin-bottom:6px;">1. ไฟล์ Reconcile</div>
+          <div class="dz" id="reconcileDrop">
+            <label>
+              <div>📄 คลิกหรือลากไฟล์มาวาง</div>
+              <div class="dz-hint">Data Reconcile health insurance ....xlsx</div>
+              <input type="file" id="reconcileInput" accept=".xlsx">
+            </label>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11.5px;font-weight:700;color:#c8102e;margin-bottom:6px;">2. ไฟล์ Invoice รายเดือน (เลือกได้หลายไฟล์)</div>
+          <div class="dz" id="invoiceDrop">
+            <label>
+              <div>📄 คลิกหรือลากไฟล์มาวาง</div>
+              <div class="dz-hint">Invoice MMYY.xlsx</div>
+              <input type="file" id="invoiceInput" accept=".xlsx" multiple>
+            </label>
+          </div>
+        </div>
       </div>
+      <div id="statusBox" class="status-box" style="display:none"></div>
     </div>
-    <div>
-      <div style="font-size:11.5px;font-weight:700;color:#c8102e;margin-bottom:6px;">2. ไฟล์ Invoice รายเดือน (เลือกได้หลายไฟล์)</div>
-      <div class="dz" id="invoiceDrop">
-        <label>
-          <div>📄 คลิกหรือลากไฟล์มาวาง</div>
-          <div class="dz-hint">Invoice MMYY.xlsx</div>
-          <input type="file" id="invoiceInput" accept=".xlsx" multiple>
-        </label>
-      </div>
+
+    <div class="card">
+      <h2>📄 ไฟล์ Invoice ที่โหลดแล้ว</h2>
+      <div id="invoiceList"></div>
+    </div>
+
+    <div class="card">
+      <h2>🗓 เดือนที่อยู่ในขอบเขตรอบนี้</h2>
+      <div id="monthChecklist"></div>
+    </div>
+
+    <div class="card">
+      <button class="btn-main" id="btnStart" onclick="startProcess()" disabled>▶ เริ่มประมวลผล</button>
     </div>
   </div>
-  <div id="statusBox" class="status-box" style="display:none"></div>
-</div>
 
-<div class="card">
-  <h2>📄 ไฟล์ Invoice ที่โหลดแล้ว</h2>
-  <div id="invoiceList"></div>
-</div>
-
-<div class="card">
-  <h2>🗓 เดือนที่อยู่ในขอบเขตรอบนี้</h2>
-  <div id="monthChecklist"></div>
-</div>
-
-<div class="card">
-  <button class="btn-main" id="btnStart" onclick="startProcess()" disabled>▶ เริ่มประมวลผล</button>
-</div>
-
-<div class="card" id="reviewCard" style="display:none">
-  <h2>✔ พนักงานเดิม — ยอดที่จะกรอกลง Invoice</h2>
-  <div id="writePreview"></div>
-  <h2 style="margin-top:18px">🆕 พนักงานใหม่ที่พบ (ไม่ติ๊ก = ไม่เพิ่ม)</h2>
-  <div id="candidateList"></div>
-  <button class="btn-main" style="margin-top:14px" onclick="generateOutput()">⬇ สร้างและดาวน์โหลดไฟล์</button>
+  <div class="main-col">
+    <div class="card empty-hint" id="mainEmptyHint">อัปโหลดไฟล์แล้วกด "เริ่มประมวลผล" เพื่อดูผลตรวจสอบที่นี่</div>
+    <div class="card" id="reviewCard" style="display:none">
+      <h2>✔ พนักงานเดิม — ยอดที่จะกรอกลง Invoice</h2>
+      <div id="writePreview"></div>
+      <h2 style="margin-top:18px">🆕 พนักงานใหม่ที่พบ (ไม่ติ๊ก = ไม่เพิ่ม)</h2>
+      <div id="candidateList"></div>
+      <button class="btn-main" style="margin-top:14px" onclick="generateOutput()">⬇ สร้างและดาวน์โหลดไฟล์</button>
+    </div>
+  </div>
 </div>
 
 </div>

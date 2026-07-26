@@ -164,6 +164,8 @@ function onKeyColumnsChanged() {
     state.incomeAccountsPresent = Array.from(accounts.values()).sort(function (a, b) { return b.amount - a.amount; });
     renderNoVatChecklist();
     enableSection('previewSection');
+    var mainHint = document.getElementById('mainEmptyHint');
+    if (mainHint) mainHint.style.display = 'none';
   } catch (e) {
     setStatus($('glStatus'), '❌ ' + e.message, 'ms-err');
   }

@@ -225,6 +225,7 @@ async function runReconcile() {
     });
     state.tableData = tableData;
 
+    document.getElementById('emptyHint').style.display = 'none';
     document.getElementById('resultSection').style.display = 'block';
     document.getElementById('statRow').innerHTML =
       '<div class="stat-box"><div class="stat-num c-blue">' + matchCount + '/' + allProjects.length + '</div><div class="stat-label">โปรเจคที่ตรงกัน</div></div>' +

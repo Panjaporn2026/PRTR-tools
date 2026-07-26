@@ -215,6 +215,8 @@ async function handleFile(file) {
   setStatus('⏳ กำลังอ่านไฟล์...', 'info');
   formSection.style.display = 'none';
   resultSection.style.display = 'none';
+  var mainHintReset = document.getElementById('mainEmptyHint');
+  if (mainHintReset) mainHintReset.style.display = 'block';
   try {
     var buf = await file.arrayBuffer();
     var wb = await loadWorkbook(buf);
@@ -293,6 +295,8 @@ function renderForm() {
   html += '<button class="btn-main" id="btnGenerate">⬇️ สร้างไฟล์</button>';
   formSection.innerHTML = html;
   formSection.style.display = 'block';
+  var mainHint = document.getElementById('mainEmptyHint');
+  if (mainHint) mainHint.style.display = 'none';
 
   var b2bStartEl = document.getElementById('fld_b2bStart');
   if (b2bStartEl) b2bStartEl.addEventListener('input', updateDerivedDates);

@@ -19,7 +19,12 @@
     }
     a { color: #607d8b; text-decoration: none; }
     a:hover { color: #c8102e; }
-    .wrap { max-width: 760px; margin: 0 auto; }
+    .wrap { max-width: 1240px; margin: 0 auto; }
+    .layout { display: grid; grid-template-columns: 380px 1fr; gap: 20px; align-items: start; }
+    @media (max-width: 880px) { .layout { grid-template-columns: 1fr; } }
+    .sidebar { min-width: 0; }
+    .main-col { min-width: 0; }
+    .empty-hint { text-align: center; color: #90a4ae; padding: 40px 16px; font-size: 12.5px; background: #fff; border: 1px solid #e0e4ea; border-radius: 10px; }
     header.topnav { background: #fff; border-bottom: 3px solid #c8102e; padding: 14px 24px; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 10; box-shadow: 0 1px 4px rgba(0,0,0,.06); margin: -24px -16px 24px; }
     .topnav .logo { font-weight: 700; font-size: 16px; color: #c8102e; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
     .topnav .crumb { color: #ccc; font-size: 14px; }
@@ -92,113 +97,121 @@
   <h1>📑 DTW Head/Line Auto-Fill</h1>
   <p class="subtitle">กรอกไฟล์ Head/Line สำหรับนำเข้า SAP DTW จาก GL_Invoice โดยอัตโนมัติ พร้อม reconcile กับไฟล์ต้นทางก่อนดาวน์โหลด — รูปแบบไฟล์ template จะไม่ถูกเปลี่ยนแปลงเลย มีแค่การกรอกข้อมูลเท่านั้น</p>
 
-  <!-- Step 1: DTW template -->
-  <div class="mapping-section" id="templateSection">
-    <div class="mapping-header">
-      <div class="mapping-header-left">
-        <div>
-          <div class="mapping-title">1️⃣ ไฟล์ template DTW (Fill in data for DTW.xlsx)</div>
-          <div class="mapping-desc">ไฟล์ที่มีชีต Head/Line/คู่มือ/OUTSOURCE — ระบบจะอ่านตาราง Cost→Income และข้อมูลลูกค้าจากไฟล์นี้ ไม่แก้ไขชีตอื่นนอกจาก Head/Line เลย</div>
+  <div class="layout">
+    <div class="sidebar">
+      <!-- Step 1: DTW template -->
+      <div class="mapping-section" id="templateSection">
+        <div class="mapping-header">
+          <div class="mapping-header-left">
+            <div>
+              <div class="mapping-title">1️⃣ ไฟล์ template DTW (Fill in data for DTW.xlsx)</div>
+              <div class="mapping-desc">ไฟล์ที่มีชีต Head/Line/คู่มือ/OUTSOURCE — ระบบจะอ่านตาราง Cost→Income และข้อมูลลูกค้าจากไฟล์นี้ ไม่แก้ไขชีตอื่นนอกจาก Head/Line เลย</div>
+            </div>
+          </div>
+        </div>
+        <div class="mapping-drop" id="templateDrop">📂 คลิกหรือลากไฟล์ template DTW มาวาง</div>
+        <input type="file" id="templateInput" accept=".xlsx" style="display:none">
+        <div class="mapping-status" id="templateStatus"></div>
+      </div>
+
+      <!-- Step 2: GL_Invoice files -->
+      <div class="mapping-section disabled" id="glSection">
+        <div class="mapping-header">
+          <div class="mapping-header-left">
+            <div>
+              <div class="mapping-title">2️⃣ ไฟล์ GL_Invoice (อัปโหลดได้หลายไฟล์ ระบบจะรวมให้)</div>
+              <div class="mapping-desc">ไฟล์รายงานต้นทุนรายเดือน — ถ้ามีหลายไฟล์แยกตามบริษัท อัปโหลดพร้อมกันได้เลย</div>
+            </div>
+          </div>
+        </div>
+        <div class="mapping-drop" id="glDrop">📂 คลิกหรือลากไฟล์ GL_Invoice มาวาง (เลือกได้หลายไฟล์)</div>
+        <input type="file" id="glInput" accept=".xlsx" multiple style="display:none">
+        <div class="mapping-status" id="glStatus"></div>
+        <div class="file-list" id="glFileList"></div>
+      </div>
+
+      <!-- Step 3: Detail of Invoice ground truth -->
+      <div class="mapping-section disabled" id="detailSection">
+        <div class="mapping-header">
+          <div class="mapping-header-left">
+            <div>
+              <div class="mapping-title">3️⃣ ไฟล์ Detail of Invoice / รายงานต้นทุนล่าสุด</div>
+              <div class="mapping-desc">ใช้เป็นข้อมูลต้นทาง (ground truth) สำหรับตรวจสอบสถานะ Pending และ reconcile ยอดก่อนดาวน์โหลด</div>
+            </div>
+          </div>
+        </div>
+        <div class="mapping-drop" id="detailDrop">📂 คลิกหรือลากไฟล์ Detail of Invoice มาวาง</div>
+        <input type="file" id="detailInput" accept=".xlsx" style="display:none">
+        <div class="mapping-status" id="detailStatus"></div>
+      </div>
+
+      <!-- Step 4: option pickers -->
+      <div class="mapping-section disabled" id="optionsSection">
+        <div class="mapping-header">
+          <div class="mapping-header-left">
+            <div>
+              <div class="mapping-title">4️⃣ เลือกเงื่อนไขการแยก Invoice</div>
+              <div class="mapping-desc">เลือกจากคอลัมน์ที่ตรวจพบจริงในไฟล์ GL_Invoice ที่อัปโหลด — ระบบไม่เดาให้เอง</div>
+            </div>
+          </div>
+        </div>
+        <div class="autoname-cols">
+          <div class="an-cols-label">Invoice-grouping key (แยก 1 invoice ต่อค่านี้)</div>
+          <div class="an-cols-list" id="groupingKeyList"></div>
+        </div>
+        <div class="autoname-cols">
+          <div class="an-cols-label">ที่มาของ Reference No. (NumAtCard)</div>
+          <div class="an-cols-list" id="refNoList"></div>
+        </div>
+        <div class="autoname-cols" id="noVatWrap" style="display:none">
+          <div class="an-cols-label">Income account ที่ควรแยกเป็น invoice ไม่มี Vat ต่างหาก (ถ้ามี)</div>
+          <div class="an-cols-list" id="noVatList"></div>
         </div>
       </div>
-    </div>
-    <div class="mapping-drop" id="templateDrop">📂 คลิกหรือลากไฟล์ template DTW มาวาง</div>
-    <input type="file" id="templateInput" accept=".xlsx" style="display:none">
-    <div class="mapping-status" id="templateStatus"></div>
-  </div>
 
-  <!-- Step 2: GL_Invoice files -->
-  <div class="mapping-section disabled" id="glSection">
-    <div class="mapping-header">
-      <div class="mapping-header-left">
-        <div>
-          <div class="mapping-title">2️⃣ ไฟล์ GL_Invoice (อัปโหลดได้หลายไฟล์ ระบบจะรวมให้)</div>
-          <div class="mapping-desc">ไฟล์รายงานต้นทุนรายเดือน — ถ้ามีหลายไฟล์แยกตามบริษัท อัปโหลดพร้อมกันได้เลย</div>
+      <hr class="divider">
+      <div class="info-row">🔒 ทำงานในเบราว์เซอร์ทั้งหมด ไม่มีการอัปโหลดไฟล์ไปที่เซิร์ฟเวอร์ใดๆ</div>
+    </div>
+
+    <div class="main-col">
+      <div class="empty-hint" id="mainEmptyHint">ทำตามขั้นตอน 1-4 ด้านซ้ายให้ครบ เพื่อวิเคราะห์และกรอกไฟล์ที่นี่</div>
+
+      <!-- Step 5: preview -->
+      <div class="mapping-section disabled" id="previewSection">
+        <div class="mapping-header">
+          <div class="mapping-header-left">
+            <div>
+              <div class="mapping-title">5️⃣ ตรวจสอบก่อนกรอกไฟล์จริง</div>
+              <div class="mapping-desc">ตรวจสอบยอด/คำเตือนทั้งหมดในตารางนี้ก่อนกด "กรอก Head/Line"</div>
+            </div>
+          </div>
         </div>
+        <button class="btn-main" id="btnPreview" style="margin-bottom:10px">🔍 วิเคราะห์และแสดงตัวอย่าง</button>
+        <div id="previewBody"></div>
+      </div>
+
+      <!-- Step 6: run + download -->
+      <div class="mapping-section disabled" id="runSection">
+        <div class="mapping-header">
+          <div class="mapping-header-left">
+            <div>
+              <div class="mapping-title">6️⃣ กรอกไฟล์ + ล็อกรหัสผ่าน (ถ้าต้องการ)</div>
+              <div class="mapping-desc">ไม่บังคับ — เว้นว่างไว้ได้ถ้าไม่ต้องการล็อกรหัสผ่าน</div>
+            </div>
+          </div>
+        </div>
+        <div class="pw-field">
+          <input type="password" id="pwInput" placeholder="รหัสผ่าน (ไม่บังคับ)">
+          <button class="pw-eye" id="pwEye" type="button">👁</button>
+        </div>
+        <div class="action-row">
+          <button class="btn-main" id="btnRun" disabled>✏️ กรอก Head/Line</button>
+          <a class="btn-dl" id="btnDownload">⬇ ดาวน์โหลดไฟล์</a>
+        </div>
+        <div id="statusMsg"></div>
       </div>
     </div>
-    <div class="mapping-drop" id="glDrop">📂 คลิกหรือลากไฟล์ GL_Invoice มาวาง (เลือกได้หลายไฟล์)</div>
-    <input type="file" id="glInput" accept=".xlsx" multiple style="display:none">
-    <div class="mapping-status" id="glStatus"></div>
-    <div class="file-list" id="glFileList"></div>
   </div>
-
-  <!-- Step 3: Detail of Invoice ground truth -->
-  <div class="mapping-section disabled" id="detailSection">
-    <div class="mapping-header">
-      <div class="mapping-header-left">
-        <div>
-          <div class="mapping-title">3️⃣ ไฟล์ Detail of Invoice / รายงานต้นทุนล่าสุด</div>
-          <div class="mapping-desc">ใช้เป็นข้อมูลต้นทาง (ground truth) สำหรับตรวจสอบสถานะ Pending และ reconcile ยอดก่อนดาวน์โหลด</div>
-        </div>
-      </div>
-    </div>
-    <div class="mapping-drop" id="detailDrop">📂 คลิกหรือลากไฟล์ Detail of Invoice มาวาง</div>
-    <input type="file" id="detailInput" accept=".xlsx" style="display:none">
-    <div class="mapping-status" id="detailStatus"></div>
-  </div>
-
-  <!-- Step 4: option pickers -->
-  <div class="mapping-section disabled" id="optionsSection">
-    <div class="mapping-header">
-      <div class="mapping-header-left">
-        <div>
-          <div class="mapping-title">4️⃣ เลือกเงื่อนไขการแยก Invoice</div>
-          <div class="mapping-desc">เลือกจากคอลัมน์ที่ตรวจพบจริงในไฟล์ GL_Invoice ที่อัปโหลด — ระบบไม่เดาให้เอง</div>
-        </div>
-      </div>
-    </div>
-    <div class="autoname-cols">
-      <div class="an-cols-label">Invoice-grouping key (แยก 1 invoice ต่อค่านี้)</div>
-      <div class="an-cols-list" id="groupingKeyList"></div>
-    </div>
-    <div class="autoname-cols">
-      <div class="an-cols-label">ที่มาของ Reference No. (NumAtCard)</div>
-      <div class="an-cols-list" id="refNoList"></div>
-    </div>
-    <div class="autoname-cols" id="noVatWrap" style="display:none">
-      <div class="an-cols-label">Income account ที่ควรแยกเป็น invoice ไม่มี Vat ต่างหาก (ถ้ามี)</div>
-      <div class="an-cols-list" id="noVatList"></div>
-    </div>
-  </div>
-
-  <!-- Step 5: preview -->
-  <div class="mapping-section disabled" id="previewSection">
-    <div class="mapping-header">
-      <div class="mapping-header-left">
-        <div>
-          <div class="mapping-title">5️⃣ ตรวจสอบก่อนกรอกไฟล์จริง</div>
-          <div class="mapping-desc">ตรวจสอบยอด/คำเตือนทั้งหมดในตารางนี้ก่อนกด "กรอก Head/Line"</div>
-        </div>
-      </div>
-    </div>
-    <button class="btn-main" id="btnPreview" style="margin-bottom:10px">🔍 วิเคราะห์และแสดงตัวอย่าง</button>
-    <div id="previewBody"></div>
-  </div>
-
-  <!-- Step 6: run + download -->
-  <div class="mapping-section disabled" id="runSection">
-    <div class="mapping-header">
-      <div class="mapping-header-left">
-        <div>
-          <div class="mapping-title">6️⃣ กรอกไฟล์ + ล็อกรหัสผ่าน (ถ้าต้องการ)</div>
-          <div class="mapping-desc">ไม่บังคับ — เว้นว่างไว้ได้ถ้าไม่ต้องการล็อกรหัสผ่าน</div>
-        </div>
-      </div>
-    </div>
-    <div class="pw-field">
-      <input type="password" id="pwInput" placeholder="รหัสผ่าน (ไม่บังคับ)">
-      <button class="pw-eye" id="pwEye" type="button">👁</button>
-    </div>
-    <div class="action-row">
-      <button class="btn-main" id="btnRun" disabled>✏️ กรอก Head/Line</button>
-      <a class="btn-dl" id="btnDownload">⬇ ดาวน์โหลดไฟล์</a>
-    </div>
-    <div id="statusMsg"></div>
-  </div>
-
-  <hr class="divider">
-  <div class="info-row">🔒 ทำงานในเบราว์เซอร์ทั้งหมด ไม่มีการอัปโหลดไฟล์ไปที่เซิร์ฟเวอร์ใดๆ</div>
 </div>
 
 <script src="excel.js"></script>

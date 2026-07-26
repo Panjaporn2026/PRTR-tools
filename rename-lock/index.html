@@ -20,7 +20,11 @@
     }
     a { color: #607d8b; text-decoration: none; }
     a:hover { color: #c8102e; }
-    .wrap { max-width: 760px; margin: 0 auto; }
+    .wrap { max-width: 1200px; margin: 0 auto; }
+    .layout { display: grid; grid-template-columns: 320px 1fr; gap: 20px; align-items: start; }
+    @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
+    .sidebar { min-width: 0; }
+    .main-col { min-width: 0; }
     header.topnav { background: #fff; border-bottom: 3px solid #c8102e; padding: 14px 24px; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 10; box-shadow: 0 1px 4px rgba(0,0,0,.06); margin: -24px -16px 24px; }
     .topnav .logo { font-weight: 700; font-size: 16px; color: #c8102e; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
     .topnav .logo img { height: 22px; width: auto; }
@@ -227,81 +231,87 @@
   <h1>🔒 File Rename & Lock</h1>
   <p class="subtitle">ตั้งชื่อไฟล์ใหม่ และ/หรือ ล็อกรหัสผ่านสำหรับเปิด — รองรับ .xlsx และ .pdf — แก้ไขได้หลายไฟล์พร้อมกัน</p>
 
-  <!-- Mapping section -->
-  <div class="mapping-section">
-    <div class="mapping-header">
-      <div class="mapping-header-left">
-        <div>
-          <div class="mapping-title">📋 นำเข้าชื่อไฟล์จาก Excel</div>
-          <div class="mapping-desc">อัปโหลด Excel ที่มี mapping ชื่อเก่า → ชื่อใหม่ แล้วระบบจะ auto-fill ให้</div>
+  <div class="layout">
+    <div class="sidebar">
+      <!-- Mapping section -->
+      <div class="mapping-section">
+        <div class="mapping-header">
+          <div class="mapping-header-left">
+            <div>
+              <div class="mapping-title">📋 นำเข้าชื่อไฟล์จาก Excel</div>
+              <div class="mapping-desc">อัปโหลด Excel ที่มี mapping ชื่อเก่า → ชื่อใหม่ แล้วระบบจะ auto-fill ให้</div>
+            </div>
+          </div>
+          <button class="btn-tpl" onclick="downloadTemplate()">⬇ ดาวน์โหลด Template</button>
+        </div>
+        <div class="mapping-upload-row">
+          <div class="mapping-drop" id="mappingDrop" onclick="document.getElementById('mappingInput').click()">
+            📂 คลิกหรือลาก Excel mapping มาวาง
+          </div>
+        </div>
+        <input type="file" id="mappingInput" accept=".xlsx" style="display:none">
+        <div class="mapping-status" id="mappingStatus"></div>
+      </div>
+
+      <!-- Naming options from Detail of Invoice content (live -- no separate action button) -->
+      <div class="mapping-section">
+        <div class="mapping-header">
+          <div class="mapping-header-left">
+            <div>
+              <div class="mapping-title">🏷️ ตัวเลือกการตั้งชื่อจาก Detail of Invoice</div>
+              <div class="mapping-desc">ติ๊กเลือกคอลัมน์ที่ต้องการ ระบบจะเติมชื่อไฟล์ใหม่ให้ทันทีสำหรับไฟล์ .xlsx ในรายการด้านล่างที่มีรูปแบบ Detail of Invoice — อ่าน Project Code SAP / เดือนที่จ่าย แล้วตั้งชื่อเป็น "Project Code SAP_Detail of invoice_MMYY" ต่อท้ายด้วยคอลัมน์ที่เลือก</div>
+            </div>
+          </div>
+        </div>
+        <div class="autoname-cols" id="autoNameColsWrap" style="display:none"></div>
+      </div>
+
+      <!-- Drop zone (always visible) -->
+      <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+        <div class="dz-icon">📎</div>
+        <div class="dz-title">คลิกหรือลากไฟล์มาวาง</div>
+        <div class="dz-hint">รองรับ .xlsx และ .pdf · เลือกได้หลายไฟล์พร้อมกัน</div>
+      </div>
+      <input type="file" id="fileInput" accept=".xlsx,.pdf" multiple>
+
+      <!-- Global password -->
+      <div class="global-bar" id="globalBar">
+        <div class="global-bar-top">
+          <label>ใส่รหัสผ่านเดียวกันทุกไฟล์</label>
+          <label class="toggle-sw"><input type="checkbox" id="globalToggle" onchange="toggleGlobal()"><span class="slider"></span></label>
+        </div>
+        <div class="global-pw-row" id="globalPwRow" style="display:none">
+          <div class="pw-field" style="flex:1">
+            <input type="password" id="globalPw" placeholder="รหัสผ่านสำหรับทุกไฟล์">
+            <button class="pw-eye" onclick="toggleGlobalPw()" tabindex="-1">👁</button>
+          </div>
+          <button class="btn-apply" onclick="applyGlobalPw()">ใช้กับทุกไฟล์</button>
         </div>
       </div>
-      <button class="btn-tpl" onclick="downloadTemplate()">⬇ ดาวน์โหลด Template</button>
-    </div>
-    <div class="mapping-upload-row">
-      <div class="mapping-drop" id="mappingDrop" onclick="document.getElementById('mappingInput').click()">
-        📂 คลิกหรือลาก Excel mapping มาวาง
+
+      <hr class="divider">
+      <div class="info-row">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#90a4ae" stroke-width="1.5"/><path d="M8 7v5M8 5v.5" stroke="#90a4ae" stroke-width="1.5" stroke-linecap="round"/></svg>
+        ทำงานในเบราว์เซอร์ทั้งหมด — ไฟล์และรหัสผ่านไม่ถูกส่งออกไปยังเซิร์ฟเวอร์ใดๆ
       </div>
     </div>
-    <input type="file" id="mappingInput" accept=".xlsx" style="display:none">
-    <div class="mapping-status" id="mappingStatus"></div>
-  </div>
 
-  <!-- Naming options from Detail of Invoice content (live -- no separate action button) -->
-  <div class="mapping-section">
-    <div class="mapping-header">
-      <div class="mapping-header-left">
-        <div>
-          <div class="mapping-title">🏷️ ตัวเลือกการตั้งชื่อจาก Detail of Invoice</div>
-          <div class="mapping-desc">ติ๊กเลือกคอลัมน์ที่ต้องการ ระบบจะเติมชื่อไฟล์ใหม่ให้ทันทีสำหรับไฟล์ .xlsx ในรายการด้านล่างที่มีรูปแบบ Detail of Invoice — อ่าน Project Code SAP / เดือนที่จ่าย แล้วตั้งชื่อเป็น "Project Code SAP_Detail of invoice_MMYY" ต่อท้ายด้วยคอลัมน์ที่เลือก</div>
-        </div>
+    <div class="main-col">
+      <!-- File list -->
+      <div class="file-list" id="fileList"></div>
+      <div class="empty-hint" id="emptyHint">ยังไม่มีไฟล์ — ลากหรือคลิกเพื่อเพิ่ม</div>
+
+      <!-- Actions -->
+      <div class="action-row" id="actionRow" style="display:none">
+        <button class="btn-main" id="btnProcess" onclick="processAll()">⚙️ ประมวลผลทั้งหมด</button>
+        <button class="btn-zip" id="btnZip" onclick="downloadZip()">📦 Download ทั้งหมด (ZIP)</button>
+      </div>
+
+      <div class="overall-progress" id="overallProgress">
+        <div class="prog-bar"><div class="prog-fill" id="progFill"></div></div>
+        <div class="prog-label" id="progLabel">กำลังประมวลผล...</div>
       </div>
     </div>
-    <div class="autoname-cols" id="autoNameColsWrap" style="display:none"></div>
-  </div>
-
-  <!-- Drop zone (always visible) -->
-  <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
-    <div class="dz-icon">📎</div>
-    <div class="dz-title">คลิกหรือลากไฟล์มาวาง</div>
-    <div class="dz-hint">รองรับ .xlsx และ .pdf · เลือกได้หลายไฟล์พร้อมกัน</div>
-  </div>
-  <input type="file" id="fileInput" accept=".xlsx,.pdf" multiple>
-
-  <!-- Global password -->
-  <div class="global-bar" id="globalBar">
-    <div class="global-bar-top">
-      <label>ใส่รหัสผ่านเดียวกันทุกไฟล์</label>
-      <label class="toggle-sw"><input type="checkbox" id="globalToggle" onchange="toggleGlobal()"><span class="slider"></span></label>
-    </div>
-    <div class="global-pw-row" id="globalPwRow" style="display:none">
-      <div class="pw-field" style="flex:1">
-        <input type="password" id="globalPw" placeholder="รหัสผ่านสำหรับทุกไฟล์">
-        <button class="pw-eye" onclick="toggleGlobalPw()" tabindex="-1">👁</button>
-      </div>
-      <button class="btn-apply" onclick="applyGlobalPw()">ใช้กับทุกไฟล์</button>
-    </div>
-  </div>
-
-  <!-- File list -->
-  <div class="file-list" id="fileList"></div>
-  <div class="empty-hint" id="emptyHint">ยังไม่มีไฟล์ — ลากหรือคลิกเพื่อเพิ่ม</div>
-
-  <!-- Actions -->
-  <div class="action-row" id="actionRow" style="display:none">
-    <button class="btn-main" id="btnProcess" onclick="processAll()">⚙️ ประมวลผลทั้งหมด</button>
-    <button class="btn-zip" id="btnZip" onclick="downloadZip()">📦 Download ทั้งหมด (ZIP)</button>
-  </div>
-
-  <div class="overall-progress" id="overallProgress">
-    <div class="prog-bar"><div class="prog-fill" id="progFill"></div></div>
-    <div class="prog-label" id="progLabel">กำลังประมวลผล...</div>
-  </div>
-
-  <hr class="divider">
-  <div class="info-row">
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#90a4ae" stroke-width="1.5"/><path d="M8 7v5M8 5v.5" stroke="#90a4ae" stroke-width="1.5" stroke-linecap="round"/></svg>
-    ทำงานในเบราว์เซอร์ทั้งหมด — ไฟล์และรหัสผ่านไม่ถูกส่งออกไปยังเซิร์ฟเวอร์ใดๆ
   </div>
 </div>
 
