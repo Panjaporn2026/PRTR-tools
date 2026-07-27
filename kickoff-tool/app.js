@@ -301,6 +301,10 @@ function renderForm() {
   var b2bStartEl = document.getElementById('fld_b2bStart');
   if (b2bStartEl) b2bStartEl.addEventListener('input', updateDerivedDates);
   document.getElementById('btnGenerate').addEventListener('click', generateFile);
+
+  // If a CRM PDF was already parsed (uploaded before or after the xlsx, order doesn't matter),
+  // apply it now that the form fields actually exist in the DOM.
+  if (crmParsedData) applyCrmDataToForm(crmParsedData);
 }
 
 var MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -462,4 +466,445 @@ function renderResult(bytes, fname, applied, skipped, dvCount) {
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(function () { URL.revokeObjectURL(url); }, 3000);
   });
+}
+
+// ══════════════════════════════════════════════════════
+//  CRM PDF auto-fill — reads a printed/exported "Project Intro Details" PDF from PRTR's
+//  Backoffice CRM and pre-fills this form's inputs the same way a person copy-pasting from the
+//  live CRM page would, following the same label -> Excel-cell mapping as the
+//  prtr-crm-kickoff-invoice Claude Skill (references/field_mapping.md). This never touches the
+//  xlsx directly -- it only sets .value on the already-rendered form fields, so the normal
+//  "only overwrite genuinely blank cells" review/generate flow above is completely unchanged.
+//
+//  pdf.js's getTextContent() returns each page's text with no line breaks and (per real-world
+//  testing against an actual exported CRM PDF) no space between one field's value and the next
+//  field's label either -- e.g. "...Industry :ผลิตภัณฑ์ก่อสร้างContract Type :Outsource...". So
+//  every field's value has to be bounded by searching for the START of the NEXT known label in
+//  the whole document, not a line break or fixed delimiter. CRM_LABELS is deliberately built from
+//  every label observed across a full real 7-page export (not guessed), including labels this
+//  tool never fills, purely so they still work as boundary markers for the ones it does fill.
+// ══════════════════════════════════════════════════════
+
+var crmParsedData = null; // set once a PDF has been parsed; survives xlsx (re)uploads
+
+// Every label text this CRM template prints, in no particular order -- order does not need to
+// match the PDF's own layout, only each label's OWN occurrence position (found independently via
+// indexOf) matters for boundary detection. Longer/more specific labels that share a prefix with a
+// shorter one (e.g. "1st Invoice Month (Please Specify DueDate)" vs "1st Invoice Month") are
+// listed as their own distinct literal strings -- indexOf on the full literal string finds each
+// one's own real occurrence, so there's no ambiguity between the two.
+var CRM_LABELS = [
+  'Date of Issue', 'Sales Manager', 'Recruit Manager', 'HR Manager',
+  'Sap Code', 'SAP Code - Sub Group', 'Business Unit', 'Industry', 'Contract Type', 'Staff Type',
+  'Company Name', 'Tax ID', 'Head Office/Branch No', 'Branch No',
+  'Company Address', 'Company Billing Delivery Address',
+  'Detail of contact person for invoice', 'Detail of contact person for this project',
+  'Full Name', 'Position', 'Email', 'Mobile Phone', 'Company Phone',
+  'Salary Details', 'Payrise After Probation Remark', 'Payrise After Probation', 'Pay Group',
+  'Reimbursement', 'Contact Period', 'Started Date', 'Finished Date', 'Day of Work',
+  'Hours of Work-In', 'Time-In Note', 'Hours of Work-Out', 'Time-Out Note', 'Break Hour(minute)',
+  'Shift Pattern', 'Over Time', 'Continue Service Year (Only TransferCase)', 'Probation Period On Day',
+  'Provident Fund Employer Rate %', 'Provident Fund Employee Rate %', 'Provident Fund Type', 'Provident Fund',
+  'Health Insurance Plan', 'Health Insurance Cost By', 'Accident Insurance Plan', 'Accident Insurance Cost By',
+  'Employee Bond Insurance Plan', 'Employee Bond Insurance Cost By',
+  'Annual Leave Effective Date', 'Annual Leave', 'Business Leave', 'Any Deduction (Absence/Late)',
+  'Other HR Requirement',
+  'Variable Cut-Off Date (OT, Incentive, Commission)', 'Salary Cut-Off Date',
+  'Salary Pay Date', 'Variable Pay Date',
+  'B2B Contract No.', 'B2B Start Date', 'B2B End Date', 'Type of Invoice',
+  'Deposit : Staff Income (No. of Deposit Month)', 'Deposit : Staff Income',
+  '1st Invoice Month (Please Specify DueDate)', '1st Invoice Month',
+  'Date of Client Received Invoice', 'Credit Terms (Please copy from B2B)', 'Client Payment Cycle',
+  'Penalty Accrued', 'Media Pay Via', 'Required P/O', 'PO Type', 'PO Issue By',
+  'Special Instructions', 'Deduction',
+  'Interest Budget(In Days)', 'Estimated Payroll Size (No.Staff)', 'Estimated Payroll Size(Amount)',
+  'Late Payment InterestCharge Amount(%)', 'Charge Type', 'Create By'
+];
+
+// Pure section-header text this template prints between fields -- never followed by a colon (so
+// they can't be found the same way as a real "Label :value" field), but still needed as boundary
+// markers so a real field's value doesn't bleed into this filler text before the next real label
+// (confirmed real-world case: "Staff Type" bled into "Office & OthersClient Company1." because
+// "Client Company" wasn't tracked as a boundary at all).
+var CRM_SECTION_HEADERS = [
+  'Details of Client', 'Client Company', 'Details of Contact Person',
+  'Details of Hiring & Payroll', 'Pre Employee Process',
+  'Details for Invoices Part A', 'Details for Invoices Part B', 'Attach additional files'
+];
+
+async function extractPdfAllText(file) {
+  if (typeof pdfjsLib === 'undefined') throw new Error('โหลด pdf.js ไม่สำเร็จ (ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต)');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  var buf = await file.arrayBuffer();
+  var pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  var text = '';
+  for (var p = 1; p <= pdf.numPages; p++) {
+    var page = await pdf.getPage(p);
+    var content = await page.getTextContent();
+    text += content.items.map(function (i) { return i.str; }).join('');
+  }
+  return text;
+}
+
+// Finds each CRM_LABELS entry's own occurrence within `text`. A label is only accepted where it's
+// immediately followed by (optional whitespace then) a colon -- some labels are literal substrings
+// of a longer label (e.g. "Branch No" inside "Head Office/Branch No", "Deduction" inside "Any
+// Deduction (Absence/Late)"), and a plain indexOf() would lock onto that embedded false match
+// instead of the real standalone "Branch No :" occurrence further down, confirmed against a real
+// exported CRM PDF. Keeps searching past a false match (no colon right after it) for the next
+// occurrence of the same literal string.
+// "Branch No" is also the literal tail of the longer label "Head Office/Branch No" -- and that
+// longer label's OWN colon comes right after "...Branch No" too, so the colon-lookahead check alone
+// can't tell the two apart (confirmed real-world case). The one distinguishing signal available is
+// what comes immediately before the match: the false (embedded) occurrence is always preceded by
+// "/", which a genuine standalone "Branch No" label never is.
+function isEmbeddedBranchNo(text, idx) {
+  return idx > 0 && text[idx - 1] === '/';
+}
+
+function findLabelPositions(text, labels) {
+  var out = [];
+  labels.forEach(function (label) {
+    var searchFrom = 0;
+    while (true) {
+      var idx = text.indexOf(label, searchFrom);
+      if (idx === -1) break;
+      var afterStart = idx + label.length;
+      var colonOk = /^\s*:/.test(text.slice(afterStart, afterStart + 6));
+      var isFalseMatch = label === 'Branch No' && isEmbeddedBranchNo(text, idx);
+      if (colonOk && !isFalseMatch) {
+        out.push({ label: label, start: idx, end: afterStart });
+        break;
+      }
+      searchFrom = idx + 1;
+    }
+  });
+  return out;
+}
+
+// Section headers are boundary-only -- no colon follows them, so a plain first-match indexOf is
+// enough (none of CRM_SECTION_HEADERS is a literal substring of another header or of a CRM_LABELS
+// entry, unlike the value-bearing labels above).
+function findHeaderPositions(text, headers) {
+  var out = [];
+  headers.forEach(function (h) {
+    var idx = text.indexOf(h);
+    if (idx !== -1) out.push({ label: h, start: idx, end: idx + h.length });
+  });
+  return out;
+}
+
+// Full boundary set for one text blob: every value-bearing label this tool cares about, PLUS every
+// pure section-header marker, merged and sorted by position -- extractLabelValue() doesn't care
+// which list a given boundary came from, only where it starts.
+function buildCrmPositions(text) {
+  var positions = findLabelPositions(text, CRM_LABELS).concat(findHeaderPositions(text, CRM_SECTION_HEADERS));
+  positions.sort(function (a, b) { return a.start - b.start; });
+  return positions;
+}
+
+// Value = whatever sits right after "<label>:" (space before/after the colon both optional -- real
+// examples show both "Label :Value" and "Label(...):Value" with no space) up to the start of
+// whichever known label occurs soonest afterward, or end-of-text if none does.
+function extractLabelValue(text, positions, label) {
+  var m = null;
+  for (var i = 0; i < positions.length; i++) { if (positions[i].label === label) { m = positions[i]; break; } }
+  if (!m) return null;
+  var after = text.slice(m.end);
+  var colonM = /^\s*:\s*/.exec(after);
+  if (!colonM) return null;
+  var valueStart = m.end + colonM[0].length;
+  var nextStart = text.length;
+  positions.forEach(function (p) { if (p.start >= valueStart && p.start < nextStart) nextStart = p.start; });
+  return text.slice(valueStart, nextStart).trim();
+}
+
+function crmVal(text, positions, label) {
+  var v = extractLabelValue(text, positions, label);
+  return v == null ? '' : v;
+}
+
+// "Detail of contact person for invoice (...)" and "Detail of contact person for this project"
+// both have their own Full Name/Position/Email/Mobile Phone/Company Phone underneath -- this tool
+// only fills the INVOICE contact's fields, so extraction is scoped to just that section's text
+// rather than matching whichever "Full Name" occurs first globally.
+function sliceBetween(text, startLabel, endLabel) {
+  var s = text.indexOf(startLabel);
+  if (s === -1) return '';
+  var e = endLabel ? text.indexOf(endLabel, s + startLabel.length) : -1;
+  if (e === -1) e = text.length;
+  return text.slice(s, e);
+}
+
+// Values this CRM template prints when a field genuinely has no real answer -- must never be
+// treated as real contact data (confirmed real-world case: the invoice contact section showed
+// "Full Name: As line manager", "Email: XX@bluescope.com" (masked), "Mobile Phone: 000-000-0000").
+function isCrmJunkValue(v) {
+  var t = normText(v).toLowerCase();
+  if (t === '' || t === '-') return true;
+  if (t === 'as line manager') return true;
+  if (/^000-000-0000$/.test(t)) return true;
+  if (/^xx@/i.test(t)) return true;
+  return false;
+}
+
+function pad2(n) { return String(n).length < 2 ? '0' + n : String(n); }
+
+// CRM shows dates as DD/MM/YYYY; the Excel sheet wants DD-MM-YY (see field_mapping.md).
+function reformatCrmDate(v) {
+  var m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(normText(v));
+  if (!m) return null;
+  return pad2(m[1]) + '-' + pad2(m[2]) + '-' + m[3].slice(-2);
+}
+
+// "Normal (Actual)" -> "Normal" -- the dropdown only has the bare word (see field_mapping.md).
+function stripParenthetical(v) {
+  return normText(v).replace(/\s*\([^)]*\)\s*$/, '').trim();
+}
+
+// Splits "89/12 Moo 3, ... District, Province 12150, Thailand" into
+// { building: '...up to district', city: 'Province', zip: '12150' }. Returns null if the address
+// doesn't end in "<words> <5-digit zip>[, Thailand]" the way every real example so far has.
+function splitCrmAddress(v) {
+  var s = normText(v).replace(/,\s*Thailand\s*$/i, '');
+  var m = /^(.*),\s*([A-Za-zก-๙.\s]+?)\s+(\d{5})$/.exec(s);
+  if (!m) return null;
+  return { building: m[1].trim(), city: m[2].trim(), zip: m[3] };
+}
+
+// Best-effort Thai -> English match against the Industry dropdown's fixed 25-item list (see
+// field_mapping.md). Most-specific phrase checked first so e.g. "ผลิตภัณฑ์ก่อสร้าง" (construction
+// PRODUCTS) doesn't fall through to the broader "ก่อสร้าง" (construction, i.e. CONSTRUCTION & REAL
+// ESTATE) match. Returns { value, confident } -- confident:false means "OTHERS" was used as a
+// fallback and the user should double check what CRM actually said.
+var INDUSTRY_TH_MAP = [
+  { pats: ['ผลิตภัณฑ์ก่อสร้าง'], value: 'CONSTRUCTION PRODUCTS' },
+  { pats: ['เกษตร'], value: 'AGRICULTURE PRODUCTS' },
+  { pats: ['ยานยนต์', 'การบิน'], value: 'AUTOMOTIVE & AVIATION' },
+  { pats: ['ธนาคาร', 'การเงิน', 'สถาบันการเงิน'], value: 'BANKING & FINANCIAL SERVICES' },
+  { pats: ['เคมีภัณฑ์', 'พลาสติก', 'กระดาษ'], value: 'CHEMICALS/PLASTICS/PAPER' },
+  { pats: ['ก่อสร้าง', 'อสังหาริมทรัพย์'], value: 'CONSTRUCTION & REAL ESTATE' },
+  { pats: ['อิเล็กทรอนิกส์', 'มือถือ'], value: 'CONSUMER ELECTRONICS/ MOBILE' },
+  { pats: ['สินค้าอุปโภคบริโภค'], value: 'CONSUMER GOODS' },
+  { pats: ['แฟชั่น', 'สิ่งทอ'], value: 'FASHION & TEXTILE' },
+  { pats: ['อาหารและเครื่องดื่ม', 'อาหาร'], value: 'FOOD & BEVERAGE' },
+  { pats: ['สุขภาพ', 'ความงาม', 'เครื่องสำอาง'], value: 'HEALTH/BEAUTY/COSMETIC' },
+  { pats: ['เทคโนโลยีสารสนเทศ', 'ไอที'], value: 'INFORMATION TECHNOLOGY (IT)' },
+  { pats: ['ประกันภัย'], value: 'INSURANCE' },
+  { pats: ['โลจิสติกส์', 'ขนส่ง'], value: 'LOGISTICS/FREIGHT FORWARDING' },
+  { pats: ['เครื่องจักร', 'ชิ้นส่วนอุตสาหกรรม'], value: 'MACHINERY/INDUSTRIAL PARTS & COMPONENTS' },
+  { pats: ['องค์กรไม่แสวงหาผลกำไร'], value: 'NON-PROFIT ORGANIZATION' },
+  { pats: ['น้ำมัน', 'พลังงาน', 'ก๊าซ'], value: 'OIL & GAS/ ENERGY' },
+  { pats: ['อีคอมเมิร์ซ', 'ออนไลน์'], value: 'ONLINE & E-COMMERCE' },
+  { pats: ['เภสัชกรรม', 'ยา'], value: 'PHARMACEUTICAL' },
+  { pats: ['โทรคมนาคม'], value: 'TELECOMMUNICATION' },
+  { pats: ['ท่องเที่ยว', 'โรงแรม'], value: 'TOURIST & HOSPITALITY' },
+  { pats: ['สาธารณูปโภค', 'รีไซเคิล'], value: 'UTILITIES & RECYCLING' },
+  { pats: ['ค้าส่ง', 'ค้าปลีก'], value: 'WHOLESALE/RETAIL' },
+  { pats: ['บริการ'], value: 'SERVICES' }
+];
+function translateIndustry(thaiText) {
+  var t = normText(thaiText);
+  if (!t) return { value: '', confident: false };
+  for (var i = 0; i < INDUSTRY_TH_MAP.length; i++) {
+    var entry = INDUSTRY_TH_MAP[i];
+    for (var j = 0; j < entry.pats.length; j++) {
+      if (t.indexOf(entry.pats[j]) !== -1) return { value: entry.value, confident: true };
+    }
+  }
+  return { value: 'OTHERS', confident: false };
+}
+
+// ── Main parse: PDF full text -> { values: {key: value}, flags: [message, ...] } ──────────────
+function parseCrmPdfText(text) {
+  var positions = buildCrmPositions(text);
+  var values = {};
+  var flags = [];
+
+  var sap = crmVal(text, positions, 'Sap Code');
+  if (sap) values.sap = sap;
+
+  var salesEmail = crmVal(text, positions, 'Sales Manager');
+  if (salesEmail) { values.salesEmail = salesEmail; flags.push('Sales Manager: CRM มีแค่อีเมล (' + salesEmail + ') ใส่ไว้ในช่อง Email แล้ว — ชื่อจริง/ชื่อเล่นกรุณากรอกเอง'); }
+  var hrEmail = crmVal(text, positions, 'HR Manager');
+  if (hrEmail) { values.hrEmail = hrEmail; flags.push('HR Project Owner: CRM มีแค่อีเมล (' + hrEmail + ') ใส่ไว้ในช่อง Email แล้ว — ชื่อจริง/ชื่อเล่นกรุณากรอกเอง'); }
+  var recruitEmail = crmVal(text, positions, 'Recruit Manager');
+  if (recruitEmail) { values.recruitEmail = recruitEmail; flags.push('Recruitment Project Owner: CRM มีแค่อีเมล (' + recruitEmail + ') ใส่ไว้ในช่อง Email แล้ว — ชื่อจริง/ชื่อเล่นกรุณากรอกเอง'); }
+
+  var companyName = crmVal(text, positions, 'Company Name');
+  if (companyName) values.companyName = companyName;
+  var taxId = crmVal(text, positions, 'Tax ID');
+  if (taxId) values.taxId = taxId;
+  var branch = crmVal(text, positions, 'Head Office/Branch No');
+  if (branch) values.branch = branch;
+
+  var industryRaw = crmVal(text, positions, 'Industry');
+  if (industryRaw) {
+    var ind = translateIndustry(industryRaw);
+    values.industry = ind.value;
+    if (!ind.confident) flags.push('Industry: CRM ระบุ "' + industryRaw + '" ไม่พบตัวเลือกที่ตรงชัดเจน — ใส่ "OTHERS" ไว้ก่อน กรุณาตรวจสอบ/เลือกใหม่');
+  }
+
+  var staffType = crmVal(text, positions, 'Staff Type');
+  if (staffType) values.staffType = staffType;
+
+  var addrRaw = crmVal(text, positions, 'Company Address');
+  if (addrRaw) {
+    var addr = splitCrmAddress(addrRaw);
+    if (addr) { values.addr1 = addr.building; values.addr2 = addr.city; values.addr3 = addr.zip; }
+    else flags.push('Company Address: รูปแบบที่อยู่จาก CRM ไม่ตรงกับที่คาด ("' + addrRaw + '") — กรุณาแยก Building/City/Zip เอง');
+  }
+  flags.push('Billing Delivery Address: ต้องเช็ค "Original Send by" ในหน้า CRM ก่อนว่าต้องส่งเอกสารจริงหรือไม่ — ระบบไม่ auto-fill ช่องนี้ให้');
+
+  // Invoice contact -- scoped to avoid the second "Full Name" (project contact) block below it.
+  var invBlock = sliceBetween(text, 'Detail of contact person for invoice', 'Detail of contact person for this project');
+  if (invBlock) {
+    var invPositions = findLabelPositions(invBlock, ['Full Name', 'Position', 'Email', 'Mobile Phone', 'Company Phone']);
+    var fullName = crmVal(invBlock, invPositions, 'Full Name');
+    var position = crmVal(invBlock, invPositions, 'Position');
+    var email = crmVal(invBlock, invPositions, 'Email');
+    var mobile = crmVal(invBlock, invPositions, 'Mobile Phone');
+    var phone = crmVal(invBlock, invPositions, 'Company Phone');
+
+    if (!isCrmJunkValue(fullName)) {
+      var nm = /^Khun\s+(\S+)\s+(.+)$/i.exec(fullName.trim());
+      if (nm) { values.contactFirst = 'Khun ' + nm[1]; values.contactLast = nm[2]; }
+      else { values.contactFirst = fullName.trim(); values.contactLast = '-'; }
+    } else if (fullName) {
+      flags.push('ผู้ติดต่อใบแจ้งหนี้ (First/Last Name): CRM ระบุว่า "' + fullName + '" (ใช้ข้อมูลเดียวกับ Line Manager) — ไม่มีชื่อจริงให้ดึง กรุณากรอกเอง');
+    }
+    if (!isCrmJunkValue(position)) values.contactPosition = position;
+    if (!isCrmJunkValue(email)) values.contactEmail = email;
+    else if (email) flags.push('ผู้ติดต่อใบแจ้งหนี้ (Email): CRM แสดงเป็นอีเมลปกปิด ("' + email + '") — กรุณากรอกอีเมลจริงเอง');
+    if (!isCrmJunkValue(mobile)) values.contactMobile = mobile;
+    if (phone) values.contactPhone = normText(phone); // "-" is itself a valid value for this field
+  }
+
+  // Salary/Variable Cut-Off Date: real CRM export renders these two adjacent date-range cells as
+  // one squished string (e.g. "1-30 1-30") when both fields sit right next to Salary Pay Date with
+  // no other label between them -- split by whitespace into the two positions in that case.
+  var salaryCutoff = crmVal(text, positions, 'Salary Cut-Off Date');
+  var variableCutoff = crmVal(text, positions, 'Variable Cut-Off Date (OT, Incentive, Commission)');
+  if (!salaryCutoff && variableCutoff) {
+    var pair = variableCutoff.split(/\s+/);
+    if (pair.length === 2) { salaryCutoff = pair[0]; variableCutoff = pair[1]; }
+  }
+  if (salaryCutoff) values.salaryCutoff = salaryCutoff;
+  if (variableCutoff) values.variableCutoff = variableCutoff;
+
+  var salaryPayDate = crmVal(text, positions, 'Salary Pay Date');
+  if (salaryPayDate) values.salaryPayDate = salaryPayDate;
+  var variablePayDate = crmVal(text, positions, 'Variable Pay Date');
+  if (variablePayDate) values.variablePayDate = variablePayDate;
+
+  var b2bNo = crmVal(text, positions, 'B2B Contract No.');
+  if (b2bNo) values.b2bNo = b2bNo;
+  var b2bStartRaw = crmVal(text, positions, 'B2B Start Date');
+  var b2bStart = reformatCrmDate(b2bStartRaw);
+  if (b2bStart) values.b2bStart = b2bStart;
+  else if (b2bStartRaw) flags.push('B2B Start Date: รูปแบบวันที่จาก CRM ไม่ตรงที่คาด ("' + b2bStartRaw + '") — กรุณากรอกเอง (DD-MM-YY)');
+  var b2bEndRaw = crmVal(text, positions, 'B2B End Date');
+  var b2bEnd = reformatCrmDate(b2bEndRaw);
+  if (b2bEnd) values.b2bEnd = b2bEnd;
+  else if (b2bEndRaw) flags.push('B2B End Date: รูปแบบวันที่จาก CRM ไม่ตรงที่คาด ("' + b2bEndRaw + '") — กรุณากรอกเอง (DD-MM-YY)');
+
+  var invoiceTypeRaw = crmVal(text, positions, 'Type of Invoice');
+  if (invoiceTypeRaw) values.invoiceType = stripParenthetical(invoiceTypeRaw);
+
+  var firstInvRaw = crmVal(text, positions, '1st Invoice Month');
+  var firstInv = reformatCrmDate(firstInvRaw);
+  if (firstInv) values.firstInvoiceDate = firstInv;
+  else if (firstInvRaw) flags.push('1st Invoice Date: รูปแบบวันที่จาก CRM ไม่ตรงที่คาด ("' + firstInvRaw + '") — กรุณากรอกเอง (DD-MM-YY)');
+  var firstInvDueRaw = crmVal(text, positions, '1st Invoice Month (Please Specify DueDate)');
+  var firstInvDue = reformatCrmDate(firstInvDueRaw);
+  if (firstInvDue) values.firstInvoiceDue = firstInvDue;
+  else if (firstInvDueRaw) flags.push('1st Invoice Due Date: รูปแบบวันที่จาก CRM ไม่ตรงที่คาด ("' + firstInvDueRaw + '") — กรุณากรอกเอง (DD-MM-YY)');
+
+  var paymentTerms = crmVal(text, positions, 'Credit Terms (Please copy from B2B)');
+  if (paymentTerms) values.paymentTerms = paymentTerms;
+  var clientCycle = crmVal(text, positions, 'Client Payment Cycle');
+  if (clientCycle) values.clientCycle = clientCycle;
+
+  var mediaPay = crmVal(text, positions, 'Media Pay Via');
+  if (mediaPay && !isCrmJunkValue(mediaPay)) { values.bank = mediaPay; flags.push('Payment Run - Bank: เดา mapping จาก CRM "Media Pay Via" (' + mediaPay + ') กรุณาตรวจสอบว่าตรงกับตัวเลือกจริง'); }
+
+  var requiredPo = crmVal(text, positions, 'Required P/O');
+  if (requiredPo) values.requiredPo = requiredPo;
+
+  var specialInstructions = crmVal(text, positions, 'Special Instructions');
+  if (specialInstructions) values.specialInstructions = specialInstructions;
+
+  flags.push('Payment Terms (Days): ไม่ auto-fill ตามกฎเสมอ — กรุณาเลือกเองจาก dropdown');
+
+  return { values: values, flags: flags };
+}
+
+// ── Apply parsed CRM data onto the already-rendered form ───────────────────────────────────────
+// Only ever sets a field that's currently blank, so re-uploading a PDF (or uploading it after the
+// user already typed something) never clobbers a manual edit.
+function applyCrmDataToForm(data) {
+  if (!formSection || formSection.style.display === 'none') return; // form not rendered yet
+  var filled = [];
+  Object.keys(data.values).forEach(function (key) {
+    var val = data.values[key];
+    if (val == null || val === '') return;
+    var el = formSection.querySelector('[data-key="' + key + '"]');
+    if (!el) return;
+    if (el.tagName === 'SELECT') {
+      if (el.value) return; // already has a selection
+      var opts = Array.from(el.options);
+      var match = opts.find(function (o) { return o.value.toLowerCase() === String(val).toLowerCase(); }) ||
+        opts.find(function (o) { return o.value && o.value.toLowerCase().indexOf(String(val).toLowerCase()) !== -1; });
+      if (match) { el.value = match.value; filled.push(key); }
+      else data.flags.push((el.previousElementSibling ? '' : '') + 'ไม่พบตัวเลือกที่ตรงกับ "' + val + '" ในช่อง ' + key + ' — กรุณาเลือกเอง');
+    } else {
+      if (el.value) return; // already has a value (user typed, or filled by an earlier PDF)
+      el.value = val;
+      filled.push(key);
+    }
+  });
+
+  var b2bStartEl = document.getElementById('fld_b2bStart');
+  if (b2bStartEl && b2bStartEl.value) updateDerivedDates();
+
+  renderCrmStatus(filled.length, data.flags);
+}
+
+function renderCrmStatus(filledCount, flags) {
+  var box = document.getElementById('crmPdfStatus');
+  if (!box) return;
+  var uniqueFlags = flags.filter(function (f, i) { return flags.indexOf(f) === i; });
+  var html = '📎 <b>อ่าน PDF จาก CRM แล้ว</b> — กรอกอัตโนมัติ ' + filledCount + ' ช่อง';
+  if (uniqueFlags.length) {
+    html += '<ul>' + uniqueFlags.map(function (f) { return '<li>' + esc_(f) + '</li>'; }).join('') + '</ul>';
+  }
+  box.innerHTML = html;
+  box.style.display = 'block';
+}
+
+// ── PDF dropzone wiring ─────────────────────────────────────────────────────────────────────────
+var crmPdfDz = document.getElementById('crmPdfDropzone');
+var crmPdfInput = document.getElementById('crmPdfInput');
+if (crmPdfDz && crmPdfInput) {
+  crmPdfDz.addEventListener('click', function (e) { if (e.target.tagName !== 'INPUT') crmPdfInput.click(); });
+  crmPdfInput.addEventListener('change', function () { if (crmPdfInput.files.length) handleCrmPdf(crmPdfInput.files[0]); });
+  ['dragover', 'dragenter'].forEach(function (ev) { crmPdfDz.addEventListener(ev, function (e) { e.preventDefault(); crmPdfDz.classList.add('drag'); }); });
+  ['dragleave', 'drop'].forEach(function (ev) { crmPdfDz.addEventListener(ev, function (e) { e.preventDefault(); crmPdfDz.classList.remove('drag'); }); });
+  crmPdfDz.addEventListener('drop', function (e) { if (e.dataTransfer.files.length) handleCrmPdf(e.dataTransfer.files[0]); });
+}
+
+async function handleCrmPdf(file) {
+  if (!/\.pdf$/i.test(file.name)) { setStatus('รองรับเฉพาะไฟล์ .pdf สำหรับข้อมูล CRM', 'err'); return; }
+  var box = document.getElementById('crmPdfStatus');
+  if (box) { box.style.display = 'block'; box.innerHTML = '⏳ กำลังอ่าน PDF...'; }
+  try {
+    var text = await extractPdfAllText(file);
+    crmParsedData = parseCrmPdfText(text);
+    applyCrmDataToForm(crmParsedData);
+    if (formSection.style.display === 'none') {
+      if (box) box.innerHTML = '📎 <b>อ่าน PDF สำเร็จ</b> — รออัปโหลดไฟล์ ★KICK OFF MEETING NOTE.xlsx ด้านบนก่อน แล้วข้อมูลจะถูกกรอกให้อัตโนมัติ';
+    }
+  } catch (err) {
+    if (box) box.innerHTML = '❌ อ่าน PDF ไม่สำเร็จ: ' + esc_(err.message);
+  }
 }

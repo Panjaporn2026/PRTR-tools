@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'IBM Plex Sans Thai','Segoe UI',Tahoma,Arial,sans-serif;font-size:13.5px;background:linear-gradient(160deg,#fdf5f6 0%,#f4f5f7 45%,#eef1f4 100%);background-attachment:fixed;color:#1a1a2e;letter-spacing:.1px;min-height:100vh;}
@@ -43,6 +44,10 @@
   .status-box.info{background:#e3f2fd;color:#1565c0;}
   .status-box.ok{background:#e8f5e9;color:#2e7d32;}
   .status-box.err{background:#ffebee;color:#c62828;}
+  .crm-summary{border-radius:6px;padding:10px 14px;font-size:12px;margin:10px 0;background:#f8fafc;border:1px solid #e0e4ea;}
+  .crm-summary b{color:#c8102e;}
+  .crm-summary ul{margin:6px 0 0 18px;padding:0;}
+  .crm-summary li{margin-bottom:3px;}
 
   .form-section{margin-bottom:18px;}
   .form-section-title{font-size:13.5px;font-weight:700;color:#c8102e;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #fde8ec;}
@@ -113,9 +118,10 @@
       <div class="usage">
         📘 <b>วิธีการใช้งาน</b><br>
         1. อัปโหลดไฟล์ <b>★KICK OFF MEETING NOTE - &lt;Client&gt;.xlsx</b> (เปล่าหรือกรอกไปแล้วบางส่วนก็ได้)<br>
-        2. เปิดหน้า CRM Backoffice โปรเจคของคุณเองในอีกแท็บ แล้วคัดลอกข้อมูลมากรอกในฟอร์มด้านล่าง<br>
-        3. ช่องที่มีข้อมูลอยู่แล้วในไฟล์ (ไม่ว่างหรือไม่ใช่ "- Select -") จะไม่ถูกเขียนทับ แม้จะกรอกในฟอร์มก็ตาม<br>
-        4. กด "สร้างไฟล์" แล้วดาวน์โหลด — ไฟล์อื่นๆ ในเวิร์กบุ๊ก รวมถึง dropdown ทุกตัว จะไม่ถูกแตะต้องเลย
+        2. <b>(ไม่บังคับ)</b> แนบไฟล์ PDF ของหน้า CRM Backoffice "Project Intro Details" — ระบบจะอ่านและกรอกฟอร์มด้านล่างให้อัตโนมัติเท่าที่อ่านได้ ช่องที่เหลือกรอกเองตามปกติ<br>
+        3. ตรวจสอบข้อมูลที่กรอกอัตโนมัติให้ถูกต้องก่อนเสมอ โดยเฉพาะช่องที่ระบบ flag ไว้<br>
+        4. ช่องที่มีข้อมูลอยู่แล้วในไฟล์ (ไม่ว่างหรือไม่ใช่ "- Select -") จะไม่ถูกเขียนทับ แม้จะกรอกในฟอร์มก็ตาม<br>
+        5. กด "สร้างไฟล์" แล้วดาวน์โหลด — ไฟล์อื่นๆ ในเวิร์กบุ๊ก รวมถึง dropdown ทุกตัว จะไม่ถูกแตะต้องเลย
       </div>
 
       <div class="dz" id="dropzone">
@@ -126,7 +132,16 @@
         </label>
       </div>
 
+      <div class="dz" id="crmPdfDropzone" style="margin-top:10px">
+        <label style="cursor:pointer">
+          <div>📎 คลิกหรือลากไฟล์ PDF หน้า CRM "Project Intro Details" มาวาง (ไม่บังคับ)</div>
+          <div class="dz-hint">.pdf — auto-fill ฟอร์มเท่าที่อ่านได้</div>
+          <input type="file" id="crmPdfInput" accept=".pdf">
+        </label>
+      </div>
+
       <div id="statusBox" class="status-box" style="display:none"></div>
+      <div id="crmPdfStatus" class="crm-summary" style="display:none"></div>
     </div>
     <div class="card empty-hint" id="mainEmptyHint">อัปโหลดไฟล์ด้านบนเพื่อกรอกฟอร์มที่นี่</div>
     <div class="card" id="formSection" style="display:none"></div>
