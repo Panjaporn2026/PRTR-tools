@@ -362,7 +362,7 @@ function addFiles(fileList) {
   for (const f of fileList) {
     const ext = f.name.split('.').pop().toLowerCase();
     if (ext !== 'xlsx' && ext !== 'pdf') continue;
-    fileEntries.push({ id: nextId++, file: f, newName: '', password: '', doRename: true, status: 'pending', resultBlob: null, resultName: '' });
+    fileEntries.push({ id: nextId++, file: f, newName: '', password: '', doRename: false, status: 'pending', resultBlob: null, resultName: '' });
     added++;
   }
   if (!added) { alert('รองรับเฉพาะไฟล์ .xlsx และ .pdf'); return; }
