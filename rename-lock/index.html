@@ -1177,10 +1177,6 @@ function renderAutoNameCols(columns, values, lineManagerCol) {
   if (!columns.length) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
   const knownNames = new Set(columns.map(c => c.name));
   autoNameSelectedCols.forEach(n => { if (!knownNames.has(n)) autoNameSelectedCols.delete(n); });
-  if (autoNameSelectedCols.size === 0) {
-    const lm = columns.find(c => c.name.trim().toLowerCase() === 'line manager');
-    if (lm) autoNameSelectedCols.add(lm.name);
-  }
   wrap.style.display = 'block';
   wrap.innerHTML =
     '<div class="an-cols-label">เลือกคอลัมน์ที่ต้องการต่อท้ายชื่อไฟล์ (เรียงตามลำดับคอลัมน์ในไฟล์):</div>' +
