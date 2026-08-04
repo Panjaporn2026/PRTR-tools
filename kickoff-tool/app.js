@@ -376,8 +376,20 @@ function fillCellXml(sheetXml, ref, value) {
   return null; // cell ref not found in the sheet at all -- caller treats as skipped
 }
 
+// XML 1.0 forbids most control characters outright (anything outside #x9 | #xA | #xD |
+// [#x20-#xD7FF] | [#xE000-#xFFFD] | [#x10000-#x10FFFF]) -- not just the &/</> that need escaping.
+// A stray NUL or other control byte written into a cell produces a .xlsx whose sheet XML doesn't
+// even parse, which Excel then either refuses to open or silently "repairs" by dropping content
+// (confirmed real-world case: pdf.js's text extraction occasionally emits a literal U+0000 inside
+// an otherwise normal Thai word, e.g. a CRM PDF's "...เลื่อนขึ้น..." -- that one invisible byte was
+// enough to corrupt the whole output file). Strip these before they ever reach the XML, regardless
+// of whether the value came from the CRM PDF auto-fill or was typed/pasted by hand.
+function stripInvalidXmlChars(s) {
+  return String(s == null ? '' : s).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F￾￿]/g, '');
+}
+
 function escXmlText(s) {
-  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return stripInvalidXmlChars(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 // ── Generate output ─────────────────────────────────────────────────────────────────────────
@@ -543,7 +555,10 @@ async function extractPdfAllText(file) {
     var content = await page.getTextContent();
     text += content.items.map(function (i) { return i.str; }).join('');
   }
-  return text;
+  // pdf.js occasionally emits a literal control character (e.g. U+0000) inside an otherwise
+  // normal word when extracting certain Thai glyphs/ligatures -- strip these at the source so
+  // every downstream value (displayed in the form, or later written into the xlsx) is clean.
+  return stripInvalidXmlChars(text);
 }
 
 // Finds each CRM_LABELS entry's own occurrence within `text`. A label is only accepted where it's
