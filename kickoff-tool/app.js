@@ -441,6 +441,14 @@ async function generateFile() {
   }
 }
 
+// Other sheets in this workbook (e.g. "SAP & BP") hold formulas that reference cells on "Master
+// for inovice" -- writing new values into that sheet's raw XML doesn't retouch those formula
+// cells' own cached <v>, so without this fix Excel keeps showing their PRE-edit cached result
+// (0 / "- Select -") until the user manually forces a recalc on every single one (confirmed
+// real-world case: a filled-in Kick-off file's "SAP & BP" sheet still showed stale values).
+// Dropping calcChain.xml (a now-stale calculation-order cache) and forcing fullCalcOnLoad makes
+// Excel recompute every formula in the workbook the moment it opens -- the same fix already used
+// in accrued-income/app.js and doi-tools/index.html for the identical stale-formula symptom.
 async function buildOutputBytes(wb, newSheetXml) {
   var enc = new TextEncoder();
   var sheetPath = wb.sheets[SHEET_NAME];
@@ -448,7 +456,33 @@ async function buildOutputBytes(wb, newSheetXml) {
   var zipFiles = [];
   for (var i = 0; i < names.length; i++) {
     var nm = names[i];
-    var data = (nm === sheetPath) ? enc.encode(newSheetXml) : await decompressEntryBytes(wb.entries[nm], wb.buf);
+    if (nm === 'xl/calcChain.xml') continue;
+    var data;
+    if (nm === sheetPath) {
+      data = enc.encode(newSheetXml);
+    } else if (nm === '[Content_Types].xml') {
+      var ct = await decompressEntry(wb.entries[nm], wb.buf);
+      ct = ct.replace(/<Override[^>]*PartName="\/xl\/calcChain\.xml"[^>]*\/>/, '');
+      data = enc.encode(ct);
+    } else if (nm === 'xl/_rels/workbook.xml.rels') {
+      var rels = await decompressEntry(wb.entries[nm], wb.buf);
+      rels = rels.replace(/<Relationship[^>]*Target="calcChain\.xml"[^>]*\/>/, '');
+      data = enc.encode(rels);
+    } else if (nm === 'xl/workbook.xml') {
+      var wbXml = await decompressEntry(wb.entries[nm], wb.buf);
+      if (/<calcPr\b[^>]*\/>/.test(wbXml)) {
+        wbXml = wbXml.replace(/<calcPr\b([^>]*)\/>/, function (_, attrs) {
+          return /fullCalcOnLoad=/.test(attrs)
+            ? '<calcPr' + attrs.replace(/fullCalcOnLoad="[^"]*"/, 'fullCalcOnLoad="1"') + '/>'
+            : '<calcPr' + attrs + ' fullCalcOnLoad="1"/>';
+        });
+      } else {
+        wbXml = wbXml.replace('</workbook>', '<calcPr fullCalcOnLoad="1"/></workbook>');
+      }
+      data = enc.encode(wbXml);
+    } else {
+      data = await decompressEntryBytes(wb.entries[nm], wb.buf);
+    }
     zipFiles.push({ name: nm, data: data });
   }
   return buildZip(zipFiles);
