@@ -295,7 +295,7 @@ function renderResult(results, masterSheetName) {
       ' (client แถว ' + (r.clientRow + 1) + ' ↔ master แถว ' + (r.masterRow + 1) + ') — ' + r.diffs.length + ' รายการต่าง</div>';
     if (r.diffs.length) {
       html += '<div class="detail-table-wrap"><table class="detail-table"><thead><tr>' +
-        '<th>คอลัมน์</th><th>หมวดหมู่</th><th>Pay Code</th><th>รายละเอียด</th><th>ค่าในไฟล์ Client</th><th>ค่าใน Master</th><th>สถานะ</th></tr></thead><tbody>';
+        '<th>คอลัมน์</th><th>หมวดหมู่</th><th>Pay Code</th><th>รายละเอียด</th><th>ค่าในไฟล์ Users</th><th>ค่าใน Master</th><th>สถานะ</th></tr></thead><tbody>';
       r.diffs.forEach(function (d) {
         var status, badgeClass;
         if (d.note) { status = d.note; badgeClass = 'b-note'; }
@@ -343,7 +343,7 @@ async function downloadSummary() {
       ws.getCell('A3').value = 'พบข้อมูลที่แตกต่าง/เพิ่มเติมจาก Master ทั้งหมด ' + r.diffs.length + ' รายการ (จากทั้งหมด ' + r.totalChecked + ' ช่องที่ตรวจสอบ)';
       ws.getCell('A3').font = { name: 'Arial', size: 10, bold: true };
 
-      var headers = ['คอลัมน์', 'หมวดหมู่ (แถว 2)', 'Pay Code (แถว 3)', 'รายละเอียด (แถว 4)', 'ค่าในไฟล์ Client', 'ค่าใน Master', 'สถานะ / หมายเหตุ'];
+      var headers = ['คอลัมน์', 'หมวดหมู่ (แถว 2)', 'Pay Code (แถว 3)', 'รายละเอียด (แถว 4)', 'ค่าในไฟล์ Users', 'ค่าใน Master', 'สถานะ / หมายเหตุ'];
       var headerRow = ws.getRow(5);
       headers.forEach(function (h, ci) {
         var cell = headerRow.getCell(ci + 1);
