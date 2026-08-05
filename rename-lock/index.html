@@ -413,7 +413,7 @@ function renderList() {
         <button class="row-remove" onclick="removeEntry(${entry.id})" title="ลบ">✕</button>
       </div>
       <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#607d8b;margin-bottom:6px;cursor:pointer;">
-        <input type="checkbox" ${entry.doRename ? 'checked' : ''} onchange="updateEntry(${entry.id},'doRename',this.checked)" style="cursor:pointer;">
+        <input type="checkbox" ${entry.doRename ? 'checked' : ''} onchange="updateEntry(${entry.id},'doRename',this.checked); renderList();" style="cursor:pointer;">
         เปลี่ยนชื่อไฟล์ (ถ้าไม่ติ๊ก จะล็อกแต่คงชื่อไฟล์เดิม)
       </label>
       <div class="row-fields">
