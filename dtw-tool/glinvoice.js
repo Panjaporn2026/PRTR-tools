@@ -44,7 +44,7 @@ function parseGLInvoiceAoa(aoa, sourceLabel) {
   var headerRow = aoa[headerRowNum - 1] || [];
   var colIndexByName = {};
   for (var c = 0; c < headerRow.length; c++) {
-    var label = normText(headerRow[c]);
+    var label = normTextUpper(headerRow[c]);
     if (label) colIndexByName[label] = c;
   }
   var dataRows = aoa.slice(headerRowNum); // 0-based rows after the header
@@ -58,7 +58,7 @@ function parseGLInvoiceAoa(aoa, sourceLabel) {
 function mergeGLInvoiceFiles(parsedFiles) {
   parsedFiles.forEach(function (pf) {
     GL_REQUIRED_COLUMNS.forEach(function (label) {
-      if (!(label in pf.colIndexByName)) {
+      if (!(normTextUpper(label) in pf.colIndexByName)) {
         throw new Error('ไฟล์ "' + pf.sourceLabel + '" ไม่มีคอลัมน์ที่จำเป็น: "' + label + '"');
       }
     });
@@ -72,8 +72,12 @@ function mergeGLInvoiceFiles(parsedFiles) {
       if (!hasAny) return;
       rows.push({
         sourceFile: pf.sourceLabel,
+        // Column-name lookups are case-insensitive (matching findHeaderRow's own case-insensitive
+        // row search) -- real GL_Invoice-family exports vary casing per column across report
+        // sources (e.g. "Name" vs "NAME", "LINE MANAGER" vs "Line Manager"), confirmed against a
+        // real KOHLER_ADMIN HM_GL_INVOICE_QUERY export that has both variants in the same file.
         get: function (colName) {
-          var idx = pf.colIndexByName[colName];
+          var idx = pf.colIndexByName[normTextUpper(colName)];
           return idx == null ? '' : row[idx];
         }
       });
@@ -89,7 +93,8 @@ function detectCandidateKeyColumns(parsedFiles) {
   if (!parsedFiles.length) return [];
   var sets = parsedFiles.map(function (pf) { return new Set(Object.keys(pf.colIndexByName)); });
   return GL_CANDIDATE_KEY_COLUMNS.filter(function (label) {
-    return sets.every(function (s) { return s.has(label); });
+    var upper = normTextUpper(label);
+    return sets.every(function (s) { return s.has(upper); });
   });
 }
 
