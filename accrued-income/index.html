@@ -716,8 +716,17 @@ function parseDetailAoA(filename, aoa) {
   };
   // All columns with "(Fixed)" in name → sum into alwFix; exclude Wage Daily (Fixed) → goes to salary
   var fixedColIdxs=[];
-  var _wdc=0,_dupStart=H.length;
-  for(var _wi=0;_wi<H.length;_wi++){if(norm(H[_wi]).indexOf('wage daily')>=0){_wdc++;if(_wdc>=2){_dupStart=_wi;break;}}}
+  // Some real files repeat an entire block of header labels verbatim later in the same row (e.g.
+  // a whole "Base Salary...Total Invoice Before Vat" block duplicated for an unrelated fee-tier
+  // condition like "PRTR : < 50 HCs") -- confirmed real-world case: a file with no "Wage Daily"
+  // column at all still had "Position (Fixed)" appear twice with different values, and summing
+  // both into alwFix double-counted the second (irrelevant) block. Detect the FIRST header value
+  // that repeats anywhere earlier in the row and treat everything from there onward as duplicate
+  // block, never scanned for column matches -- a generalization of the same idea this code
+  // already applied narrowly to a repeated "Wage Daily" column.
+  var _dupStart=H.length;
+  var _seenHdr={};
+  for(var _wi=0;_wi<H.length;_wi++){var _hn=norm(H[_wi]);if(!_hn)continue;if(_seenHdr[_hn]){_dupStart=_wi;break;}_seenHdr[_hn]=true;}
   for(var fi2=0;fi2<H.length;fi2++){if(norm(H[fi2]).indexOf('(fixed)')>=0&&fi2!==C.wageDailyFixed&&fi2!==C.travelFixed&&fi2<_dupStart&&(clntCols===null||clntCols.has(fi2)))fixedColIdxs.push(fi2);}
   if(!fixedColIdxs.length&&C.alwFix>=0)fixedColIdxs.push(C.alwFix);
   function v(row,ci){if(ci<0||ci>=row.length)return 0;var x=row[ci];if(x===''||x==null)return 0;var n=parseFloat(String(x).replace(/,/g,''));return isNaN(n)?0:n;}
