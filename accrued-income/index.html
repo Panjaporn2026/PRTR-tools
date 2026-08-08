@@ -601,11 +601,14 @@ loadEmbeddedTemplate();
 
 // ── Parse Detail of Invoice (from AoA) ──────
 function norm(v){return v?String(v).replace(/[\r\n]+/g,' ').toLowerCase().trim().replace(/\s+/g,' '):''}
-function findCol(H,kws){
+function findCol(H,kws,excl){
   // 1. Exact match
   for(var k=0;k<kws.length;k++){var kw=kws[k].toLowerCase();for(var i=0;i<H.length;i++){if(norm(H[i])===kw)return i;}}
-  // 2. Word-boundary partial (avoids "PO" matching "Position", etc.)
-  for(var k=0;k<kws.length;k++){var kw=kws[k].toLowerCase().replace(/[.*+?^${}()|[\]\\]/g,'\\$&');var re=new RegExp('(?:^|\\W)'+kw+'(?:\\W|$)');for(var i=0;i<H.length;i++){var h=norm(H[i]);if(h&&re.test(h))return i;}}
+  // 2. Word-boundary partial (avoids "PO" matching "Position", etc.) -- `excl` skips headers that
+  // are really a DIFFERENT field that happens to contain the keyword as a substring, e.g. "Base
+  // Salary" is a separate reference figure (not this period's paid amount) in some real files and
+  // must never be picked up as the "SALARY" column just because no plain "Salary" column exists.
+  for(var k=0;k<kws.length;k++){var kw=kws[k].toLowerCase().replace(/[.*+?^${}()|[\]\\]/g,'\\$&');var re=new RegExp('(?:^|\\W)'+kw+'(?:\\W|$)');for(var i=0;i<H.length;i++){var h=norm(H[i]);if(!h||!re.test(h))continue;if(excl&&excl.some(function(x){return h.indexOf(x.toLowerCase())!==-1;}))continue;return i;}}
   return -1;
 }
 function parseDetailAoA(filename, aoa) {
@@ -653,7 +656,7 @@ function parseDetailAoA(filename, aoa) {
     costCenter:findCol(H,['Cost Center']),cc1:findCol(H,['Cost Center 1']),cc2:findCol(H,['Cost Center 2']),
     cc3:findCol(H,['Cost Center 3']),cc4:findCol(H,['Cost Center 4']),
     lineManager:findCol(H,['Line Manager']),section:findCol(H,['Section','SECTION']),po:findCol(H,['PO','PO Number','PO No']),
-    salary:findCol(H,['SALARY','Salary']),alwFix:findCol(H,['Mobile (Fixed)','Allowance Fix','Allowance (Fix)']),
+    salary:findCol(H,['SALARY','Salary'],['base salary']),alwFix:findCol(H,['Mobile (Fixed)','Allowance Fix','Allowance (Fix)']),
     alwNonFix:findCol(H,['Allowance Non-Fix (TAX)','Allowance Non-Fix','Allowance (Non Fixed)']),
     ot:findCol(H,['Total.OT','Total OT']),netPay:findCol(H,['Net Pay Value','Net Pay']),
     gross:findCol(H,['Gross Income','Gross']),ssf:findCol(H,['SSO Employer','SSF Employer']),
