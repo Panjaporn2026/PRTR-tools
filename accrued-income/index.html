@@ -434,6 +434,7 @@ async function buildOutputXlsx(templateBuf, selectedRows) {
     var chk=+r.checkup||0,uni=+r.uniform||0,evt=+r.eventRoom||0;
     var trn=+r.training||0,oex=+r.otherExp||0,tmp=+r.tempSalary||0;
     var oInc=+r.otherInc||0;
+    var memo=+r.memo||0;
     var accInc=sal+alwF+ot+alwNF+comm+inc+trvF+rimb+bon+awd+sev+chk+uni+evt+trn+oex+tmp+oInc;
     var totAcc=accInc+fee+ssf+pvf+hlth;
     var totInc=accInc+ssf+pvf+hlth+fee;
@@ -444,9 +445,12 @@ async function buildOutputXlsx(templateBuf, selectedRows) {
     var cv={};
     Object.keys(FIELD_GL).forEach(function(fld){var col=COL_BY_GL[FIELD_GL[fld]];if(col)cv[col]=(cv[col]||0)+fieldVals[fld];});
     var numCells=EtoAA.map(function(c){return ncS(c,cv[c]||0,ri);}).join('');
-    // AB/AC/AD (Unearned Reim/Purchase/Payroll) aren't computed by this tool — left blank, same
-    // as an unfilled template row — but still styled so they don't stand out as unformatted.
-    var unearnedBlank=['AB','AC','AD'].map(function(c){return blankS(c,ri);}).join('');
+    // AB (Unearned Reim, GL 21710101A) is filled from the source file's "Memo" column when
+    // present (a column positioned right after Total Invoice Before Vat in real files) — per
+    // explicit user request. AC/AD (Unearned Purchase/Payroll) still aren't computed by this
+    // tool — left blank, same as an unfilled template row — but still styled so they don't stand
+    // out as unformatted.
+    var unearnedBlank=ncS('AB',memo,ri)+['AC','AD'].map(function(c){return blankS(c,ri);}).join('');
     newRows.push('<row r="'+ri+'">'+
       scS('A',monthPayStr(r.period),ri)+scS('B',r.project,ri)+scS('C',r.company,ri)+scS('D',r.detail,ri)+
       numCells+unearnedBlank+
@@ -663,6 +667,7 @@ function parseDetailAoA(filename, aoa) {
     ssfTotal:findCol(H,['SSF EMPLOYER TOTAL','SSO Employer Total']),
     health:findCol(H,['Insurance Employer']),fee:findCol(H,['Service Fee']),
     totalInv:findCol(H,['Total Invoice Before Vat','Total Inoivce Before Vat','Total Invoice Before VAT','Total Invoice Before Tax','Total Invoice']),
+    memo:findCol(H,['Memo']),
     salaryAdjust:findCol(H,['Salary Adjust']),
     wageDailyFixed:findCol(H,['Wage Daily (Fixed)']),
     lateDeduct:findCol(H,['Late, Absence and Early Deduct']),
@@ -750,6 +755,7 @@ function parseDetailAoA(filename, aoa) {
       alwNonFix:v(row,C.alwNonFix)+v(row,C.perdiem)+v(row,C.alwNonFixNTax)+v(row,C.transport)+v(row,C.mobileNoSSO)+v(row,C.food)+v(row,C.overnightShift)+v(row,C.expenseRefund)-v(row,C.mobileSubsidyDeduct)-v(row,C.alwNTaxDD)-v(row,C.alwTaxDD),
       ot:v(row,C.ot)+v(row,C.otAdjust)-v(row,C.otDeduct),netPay:v(row,C.netPay),gross:v(row,C.gross),
       ssf:(C.ssfTotal>=0?v(row,C.ssfTotal):v(row,C.ssf)),health:v(row,C.health),pvf:v(row,C.pvf),fee:v(row,C.fee),totalInv:v(row,C.totalInv),
+      memo:v(row,C.memo),
       commission:v(row,C.commission)-v(row,C.commDeduct),incentive:v(row,C.incentive)+v(row,C.diligent)-v(row,C.diligentDeduct),
       travelFixed:v(row,C.travelFixed)+v(row,C.travelAccom)-v(row,C.travelDD),reimburse:v(row,C.reimburse),
       bonus:v(row,C.bonus)-v(row,C.bonusDeduct),awards:v(row,C.awards)-v(row,C.awardDeductNTax)-v(row,C.awardDeduct),severance:v(row,C.severance),
