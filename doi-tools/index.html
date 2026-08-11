@@ -689,10 +689,15 @@ function toggleAutoNameCol(name, checked) {
 // bound, `sampleValue` alone isn't enough: a payroll amount column that happens to be blank for
 // every employee in a given month can't be detected as "numeric" from an empty sample.
 const AUTO_NAME_NEVER_USEFUL = new Set(['position', 'introduce by', 'location']);
+// Per explicit user request: NAME and Emp ID are always offered as naming/split-key columns even
+// though they're per-employee unique (the general rules below exist specifically to exclude
+// unique-per-row identifiers) -- this enables a genuine one-file-per-employee split/name.
+const AUTO_NAME_ALWAYS_ALLOWED = new Set(['name', 'emp id']);
 function isAutoNameAllowed(name, sampleValue, colIndex, lineManagerCol) {
   const norm = String(name || '').trim().toLowerCase().replace(/\s+/g, ' ');
   if (!norm) return false;
-  if (norm === 'name' || norm === 'name (thai)') return false; // per-employee unique
+  if (AUTO_NAME_ALWAYS_ALLOWED.has(norm)) return true;
+  if (norm === 'name (thai)') return false; // per-employee unique
   if (AUTO_NAME_NEVER_USEFUL.has(norm)) return false;
   if (/\bdate\b/.test(norm)) return false; // Start Date, PO Date, Effective Date (...) -- near-unique per row
   if (/\bno\.?\b/.test(norm)) return false; // No., QT No., Invoice No. -- identifiers, not grouping keys
