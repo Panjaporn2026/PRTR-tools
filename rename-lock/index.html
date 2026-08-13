@@ -321,6 +321,11 @@
         ทำงานในเบราว์เซอร์ทั้งหมด — ไฟล์และรหัสผ่านไม่ถูกส่งออกไปยังเซิร์ฟเวอร์ใดๆ
       </div>
 
+      <!-- Bulk rename toggle -->
+      <div class="bulk-rename-row" id="bulkRenameRow" style="display:none;margin-bottom:10px;">
+        <button class="btn-tpl" onclick="tickRenameForAll()">☑ ติ๊กเปลี่ยนชื่อไฟล์ทั้งหมด</button>
+      </div>
+
       <!-- File list -->
       <div class="file-list" id="fileList"></div>
       <div class="empty-hint" id="emptyHint">ยังไม่มีไฟล์ — ลากหรือคลิกเพื่อเพิ่ม</div>
@@ -379,13 +384,17 @@ function renderList() {
   const bar  = document.getElementById('globalBar');
   const row  = document.getElementById('actionRow');
   const hint = document.getElementById('emptyHint');
+  const bulkRow = document.getElementById('bulkRenameRow');
 
   list.innerHTML = '';
   if (fileEntries.length === 0) {
-    bar.classList.remove('show'); row.style.display = 'none'; hint.classList.add('show'); return;
+    bar.classList.remove('show'); row.style.display = 'none'; hint.classList.add('show');
+    if (bulkRow) bulkRow.style.display = 'none';
+    return;
   }
   hint.classList.remove('show');
   bar.classList.add('show'); row.style.display = 'flex';
+  if (bulkRow) bulkRow.style.display = 'block';
 
   for (const entry of fileEntries) {
     const ext  = entry.file.name.split('.').pop().toLowerCase();
@@ -451,6 +460,14 @@ function removeEntry(id) {
 function updateEntry(id, key, val) {
   const e = fileEntries.find(e => e.id === id);
   if (e) e[key] = val;
+}
+// Bulk-enable "เปลี่ยนชื่อไฟล์" for every file at once -- still a manual, explicit action (not
+// auto-ticked on drop), just faster than clicking each row's checkbox one by one. Safe even for
+// rows with no computed newName yet: processAll() already falls back to the original filename
+// whenever newName is blank, regardless of doRename.
+function tickRenameForAll() {
+  fileEntries.forEach(e => { e.doRename = true; });
+  renderList();
 }
 function togglePwEntry(id) {
   const inp = document.getElementById('pw-' + id);
