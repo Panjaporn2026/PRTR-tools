@@ -31,10 +31,35 @@ async function readFileBuf(file) {
 // SheetJS-based aoa reader for arbitrary, messy real-world exports (GL_Invoice/Detail of
 // Invoice) -- same technique doi-tools/rename-lock's readDetailOfInvoiceMeta already uses for
 // this file family (label/value split cells, Date-typed cells, decoy legend rows).
-function sheetToAoa(buf) {
+//
+// requiredLabels (optional): when given, every sheet in the workbook is checked for a header row
+// containing all these labels, and the (only) matching sheet's aoa is returned -- rather than
+// blindly assuming the data lives on the first sheet. Needed for a real NS BLUESCOPE WK file that
+// had an extra Pivot Table summary sheet ordered BEFORE the actual GL_Invoice data sheet, which
+// made the old always-take-SheetNames[0] logic read the pivot sheet and fail to find any of the
+// required columns. Hard-throws if zero or more than one sheet matches -- never guess which one
+// is the real data sheet.
+function sheetToAoa(buf, requiredLabels) {
   var wb = XLSX.read(buf, { type: 'array', cellDates: true });
-  var ws = wb.Sheets[wb.SheetNames[0]];
-  return XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null });
+  if (!requiredLabels) {
+    var ws = wb.Sheets[wb.SheetNames[0]];
+    return XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null });
+  }
+  var matches = [];
+  wb.SheetNames.forEach(function (name) {
+    var aoa = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: true, defval: null });
+    try {
+      findHeaderRow(aoa, requiredLabels, 30);
+      matches.push({ name: name, aoa: aoa });
+    } catch (e) { /* this sheet doesn't have the required header row -- try the next one */ }
+  });
+  if (matches.length === 0) {
+    throw new Error('ไม่พบชีตที่มีคอลัมน์ครบตามที่ต้องการ (ตรวจสอบทั้งหมด ' + wb.SheetNames.length + ' ชีต: ' + wb.SheetNames.join(', ') + '): ' + requiredLabels.join(', '));
+  }
+  if (matches.length > 1) {
+    throw new Error('พบมากกว่า 1 ชีตที่มีคอลัมน์ครบตามที่ต้องการ (' + matches.map(function (m) { return m.name; }).join(', ') + ') กรุณาตรวจสอบไฟล์');
+  }
+  return matches[0].aoa;
 }
 
 // ── Step 1: DTW template ─────────────────────────────────────────────────────────────────────
@@ -102,7 +127,7 @@ function addGLFiles(files) {
   var errors = [];
   Promise.all(Array.prototype.map.call(files, function (file) {
     return readFileBuf(file).then(function (buf) {
-      var aoa = sheetToAoa(buf);
+      var aoa = sheetToAoa(buf, GL_REQUIRED_COLUMNS);
       return parseGLInvoiceAoa(aoa, file.name);
     }).catch(function (err) { errors.push(file.name + ': ' + err.message); return null; });
   })).then(function (parsed) {
@@ -227,11 +252,13 @@ function renderPreview() {
   var invoices = state.invoices;
   var totalVat = invoices.filter(function (i) { return !i.isNoVat; }).reduce(function (s, i) { return s + i.totalBeforeVat; }, 0);
   var totalNoVat = invoices.filter(function (i) { return i.isNoVat; }).reduce(function (s, i) { return s + i.totalBeforeVat; }, 0);
+  var grandTotal = totalVat + totalNoVat;
 
   var html = '<div class="stat-row">' +
     '<div class="stat-card"><b>' + invoices.length + '</b>จำนวน invoice</div>' +
     '<div class="stat-card"><b>' + totalVat.toLocaleString('en-US', { maximumFractionDigits: 2 }) + '</b>ยอดก่อน Vat (VAT invoices)</div>' +
     '<div class="stat-card"><b>' + totalNoVat.toLocaleString('en-US', { maximumFractionDigits: 2 }) + '</b>ยอดก่อน Vat (no-VAT invoices)</div>' +
+    '<div class="stat-card"><b>' + grandTotal.toLocaleString('en-US', { maximumFractionDigits: 2 }) + '</b>ยอดรวมทั้งหมด (VAT + no-VAT)</div>' +
     (state.unmappedRows && state.unmappedRows.length ? '<div class="stat-card"><b>' + state.unmappedRows.length + '</b>แถวที่ไม่พบใน Cost→Income (ตัดออกแล้ว)</div>' : '') +
     '</div>';
 
