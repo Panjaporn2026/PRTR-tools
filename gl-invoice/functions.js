@@ -17,7 +17,8 @@ var EXPENSE_GROUPING = 'E51110116';
 var LINE_TYPES = {
   EXPENSE: { paycodeCode: EXPENSE_PAYCODE, paycodeName: EXPENSE_PAYCODE_NAME, account: EXPENSE_ACCOUNT, grouping: EXPENSE_GROUPING },
   PROVIDENT_FUND_REFUND: { paycodeCode: 'T208', paycodeName: 'เงินสมทบกองทุนสำรองเลี้ยงชีพนายจ้าง', account: '51110103', grouping: 'E51110103' },
-  ACCIDENT_REFUND: { paycodeCode: 'AC CL D AC', paycodeName: 'หักค่าประกันอุบัติเหตุ ค่าใช้จ่ายลูกค้า', account: '51110104', grouping: 'E51110104' }
+  ACCIDENT_REFUND: { paycodeCode: 'AC CL D AC', paycodeName: 'หักค่าประกันอุบัติเหตุ ค่าใช้จ่ายลูกค้า', account: '51110104', grouping: 'E51110104' },
+  OTHER_INCOME: { paycodeCode: 'OTHER INCOME', paycodeName: 'รายได้อื่นๆ', account: '51110108', grouping: 'E51110108' }
 };
 
 // Paycode Code/Name have an alternate spelling confirmed in a real raw HM_GL_INVOICE_QUERY export
