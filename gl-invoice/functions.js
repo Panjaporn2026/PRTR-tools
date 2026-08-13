@@ -20,7 +20,13 @@ var LINE_TYPES = {
   ACCIDENT_REFUND: { paycodeCode: 'AC CL D AC', paycodeName: 'หักค่าประกันอุบัติเหตุ ค่าใช้จ่ายลูกค้า', account: '51110104', grouping: 'E51110104' }
 };
 
-var REQUIRED_HEADER_LABELS = ['NAME', 'Paycode Code', 'Paycode Name', 'Account', 'Grouping', 'Amount', 'Introduce By', 'EMP ID'];
+// Paycode Code/Name have an alternate spelling confirmed in a real raw HM_GL_INVOICE_QUERY export
+// (NS BLUESCOPE WK, June 2026): that report calls them "PIN Name"/"PIN Number" instead. Both
+// resolve to the exact same logical fields this tool's business rules key off (SSO paycodes,
+// EXPENSE paycode, etc.) -- confirmed by the user, not guessed.
+var PAYCODE_CODE_CANDIDATES = ['Paycode Code', 'PIN Name'];
+var PAYCODE_NAME_CANDIDATES = ['Paycode Name', 'PIN Number'];
+var REQUIRED_HEADER_LABELS = ['NAME', PAYCODE_CODE_CANDIDATES, PAYCODE_NAME_CANDIDATES, 'Account', 'Grouping', 'Amount', 'Introduce By', 'EMP ID'];
 
 function findColLetterByHeaderText(aoa, headerRowNum, label) {
   return colIndexToLetters(findColByHeaderText(aoa, headerRowNum, label));
@@ -43,9 +49,14 @@ async function loadGLInvoiceContext(buf) {
   var aoa = parseGridFromXml(sheetXml, sst);
   var headerRow = findHeaderRow(aoa, REQUIRED_HEADER_LABELS, 20);
   var cols = {};
+  var FIELD_CANDIDATES = {
+    'NAME': ['NAME'], 'EMP ID': ['EMP ID'], 'Introduce By': ['Introduce By'],
+    'Paycode Code': PAYCODE_CODE_CANDIDATES, 'Paycode Name': PAYCODE_NAME_CANDIDATES,
+    'Account': ['Account'], 'Grouping': ['Grouping'], 'Amount': ['Amount']
+  };
   ['NAME', 'EMP ID', 'Introduce By', 'Paycode Code', 'Paycode Name', 'Account', 'Grouping', 'Amount'].forEach(function (label) {
     var key = label.replace(/\s+/g, '');
-    cols[key] = findColLetterByHeaderText(aoa, headerRow, label);
+    cols[key] = colIndexToLetters(findColByAnyHeaderText(aoa, headerRow, FIELD_CANDIDATES[label]));
   });
   var stylesXml = wb.entries['xl/styles.xml'] ? await decompressEntry(wb.entries['xl/styles.xml'], wb.buf) : null;
   var wbXmlRels = wb.entries['xl/_rels/workbook.xml.rels'] ? await decompressEntry(wb.entries['xl/_rels/workbook.xml.rels'], wb.buf) : '';

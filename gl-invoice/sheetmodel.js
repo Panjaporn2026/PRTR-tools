@@ -19,11 +19,17 @@ function normTextUpper(s) {
 
 // ── Header / column discovery (never guess silently: hard error on 0 or >1 match) ─────────────
 
-// Find the 1-based row number, within the first `maxRow` rows of aoa, that contains ALL of the
-// given exact (normalized) header labels as distinct cell values. Throws if zero or more than one
-// row qualifies.
+// Find the 1-based row number, within the first `maxRow` rows of aoa, that contains ALL required
+// header labels as distinct cell values. Throws if zero or more than one row qualifies.
+//
+// Each entry in `requiredLabels` is normally a plain label string, but can also be an array of
+// acceptable ALTERNATIVE labels for the same logical column (checked as OR) -- confirmed
+// real-world need: a raw HM_GL_INVOICE_QUERY export names the same two columns "PIN Name"/
+// "PIN Number" instead of this codebase's usual "Paycode Code"/"Paycode Name".
 function findHeaderRow(aoa, requiredLabels, maxRow) {
-  var requiredUpper = requiredLabels.map(normTextUpper);
+  var requiredGroups = requiredLabels.map(function (l) {
+    return (Array.isArray(l) ? l : [l]).map(normTextUpper);
+  });
   var candidates = [];
   for (var r = 0; r < Math.min(maxRow, aoa.length); r++) {
     var row = aoa[r] || [];
@@ -32,15 +38,31 @@ function findHeaderRow(aoa, requiredLabels, maxRow) {
       var v = normTextUpper(row[c]);
       if (v) foundSet[v] = true;
     }
-    if (requiredUpper.every(function (lbl) { return foundSet[lbl]; })) candidates.push(r + 1);
+    var allPresent = requiredGroups.every(function (group) {
+      return group.some(function (lbl) { return foundSet[lbl]; });
+    });
+    if (allPresent) candidates.push(r + 1);
   }
   if (candidates.length === 0) {
-    throw new Error('ไม่พบแถว header ที่มีคอลัมน์ครบตามที่ต้องการ: ' + requiredLabels.join(', '));
+    var labelsForMsg = requiredLabels.map(function (l) { return Array.isArray(l) ? l.join('/') : l; });
+    throw new Error('ไม่พบแถว header ที่มีคอลัมน์ครบตามที่ต้องการ: ' + labelsForMsg.join(', '));
   }
   if (candidates.length > 1) {
     throw new Error('พบแถว header ที่ตรงเงื่อนไขมากกว่า 1 แถว (แถว ' + candidates.join(', ') + ') กรุณาตรวจสอบไฟล์');
   }
   return candidates[0];
+}
+
+// Tries each candidate label in order (case-insensitive exact match, same rules as
+// findColByHeaderText) and returns the column index of whichever one is actually present in this
+// file. Throws a combined error only if NONE of the candidates match.
+function findColByAnyHeaderText(aoa, headerRowNum, candidates) {
+  var errors = [];
+  for (var i = 0; i < candidates.length; i++) {
+    try { return findColByHeaderText(aoa, headerRowNum, candidates[i]); }
+    catch (e) { errors.push(e.message); }
+  }
+  throw new Error('ไม่พบคอลัมน์ใดๆ ในรายชื่อ "' + candidates.join('" / "') + '" ในแถว header (แถว ' + headerRowNum + ')');
 }
 
 // Find the 0-based column index of an exact header label within a specific 1-based row of aoa.
