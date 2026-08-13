@@ -247,6 +247,35 @@ $('btnPreview').addEventListener('click', function () {
   }
 });
 
+// Preview table sort: click a column header to sort by it (asc), click again to reverse.
+// Sort is display-only -- it never touches state.invoices itself, so re-running/downloading
+// after sorting still uses the original invoice order.
+var PREVIEW_SORT_COLUMNS = {
+  key: { label: 'Key', type: 'text', get: function (i) { return i.groupKey; } },
+  refNo: { label: 'Ref No.', type: 'text', get: function (i) { return i.refNo; } },
+  name: { label: 'ชื่อ', type: 'text', get: function (i) { return i.name; } },
+  type: { label: 'ประเภท', type: 'text', get: function (i) { return i.isNoVat ? 'ไม่มี Vat' : 'มี Vat'; } },
+  amount: { label: 'ยอดก่อน Vat', type: 'num', get: function (i) { return i.totalBeforeVat; } }
+};
+state.previewSort = { col: null, dir: 1 };
+
+function setPreviewSort(col) {
+  if (state.previewSort.col === col) state.previewSort.dir *= -1;
+  else { state.previewSort.col = col; state.previewSort.dir = 1; }
+  renderPreview();
+}
+
+function sortedInvoicesForPreview(invoices) {
+  var sort = state.previewSort;
+  if (!sort.col) return invoices;
+  var col = PREVIEW_SORT_COLUMNS[sort.col];
+  return invoices.slice().sort(function (a, b) {
+    var va = col.get(a), vb = col.get(b);
+    var cmp = col.type === 'num' ? (va - vb) : String(va).localeCompare(String(vb), 'th');
+    return cmp * sort.dir;
+  });
+}
+
 function renderPreview() {
   var body = $('previewBody');
   var invoices = state.invoices;
@@ -272,8 +301,14 @@ function renderPreview() {
     html += '<div class="warn-box">⚠️ ไม่มีข้อมูล Detail of Invoice สำหรับเช็ค Pending/reconcile — ระบบจะกรอกทุก invoice ที่คำนวณได้โดยไม่ตัดใครออก</div>';
   }
 
-  html += '<table class="preview-table"><thead><tr><th>Key</th><th>Ref No.</th><th>ชื่อ</th><th>ประเภท</th><th class="num">ยอดก่อน Vat</th></tr></thead><tbody>';
-  invoices.forEach(function (inv) {
+  html += '<table class="preview-table"><thead><tr>' +
+    Object.keys(PREVIEW_SORT_COLUMNS).map(function (key) {
+      var col = PREVIEW_SORT_COLUMNS[key];
+      var arrow = state.previewSort.col === key ? (state.previewSort.dir === 1 ? ' ▲' : ' ▼') : '';
+      return '<th class="sortable' + (col.type === 'num' ? ' num' : '') + '" onclick="setPreviewSort(\'' + key + '\')">' + col.label + arrow + '</th>';
+    }).join('') +
+    '</tr></thead><tbody>';
+  sortedInvoicesForPreview(invoices).forEach(function (inv) {
     html += '<tr><td>' + esc(inv.groupKey) + '</td><td>' + esc(inv.refNo) + '</td><td>' + esc(inv.name) + '</td><td>' +
       (inv.isNoVat ? 'ไม่มี Vat' : 'มี Vat') + '</td><td class="num">' + inv.totalBeforeVat.toLocaleString('en-US', { maximumFractionDigits: 2 }) + '</td></tr>';
   });

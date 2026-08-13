@@ -68,7 +68,9 @@
     table.preview-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 10px; }
     table.preview-table th, table.preview-table td { border-bottom: 1px solid #e0e4ea; padding: 6px 8px; text-align: left; }
     table.preview-table th { color: #607d8b; font-weight: 600; background: #f8fafc; }
-    table.preview-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    table.preview-table th.num, table.preview-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    table.preview-table th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+    table.preview-table th.sortable:hover { color: #c8102e; }
     .warn-box { background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px; padding: 10px 12px; font-size: 12.5px; color: #7a5c00; margin-top: 10px; }
     .warn-box.err { background: #fdecea; border-color: #f5c6c2; color: #7a1a12; }
     .stat-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px; }
