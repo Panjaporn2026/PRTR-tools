@@ -1299,6 +1299,11 @@ function applyMapping() {
     const baseName = entry.file.name.replace(/\.[^.]+$/, '').toLowerCase();
     if (currentMapping[baseName] !== undefined) {
       entry.newName = currentMapping[baseName];
+      // Unlike the auto-name-from-columns picker (a guessed name the user should review before
+      // committing to), an uploaded old-name -> new-name mapping is already an explicit, specific
+      // instruction for THIS file -- there's no guessing left to confirm, so auto-tick rename for
+      // whichever rows actually matched instead of requiring a manual tick per row too.
+      entry.doRename = true;
       matched++;
     }
   }
