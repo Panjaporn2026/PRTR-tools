@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIEMENS Invoice Merger</title>
+<link rel="icon" type="image/png" href="../assets/favicon-64.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'IBM Plex Sans Thai','Segoe UI',Tahoma,Arial,sans-serif;font-size:13.5px;background:linear-gradient(160deg,#fdf5f6 0%,#f4f5f7 45%,#eef1f4 100%);background-attachment:fixed;color:#1a1a2e;letter-spacing:.1px;min-height:100vh;}
+  .app{max-width:1400px;margin:0 auto;padding:16px;}
+  .layout{display:grid;grid-template-columns:210px 1fr;gap:16px;align-items:start;}
+  @media(max-width:820px){.layout{grid-template-columns:1fr;}}
+  .sidebar{min-width:0;}
+  .main-col{min-width:0;}
+  .tool-nav-box{background:#fff;border:1px solid #e0e4ea;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.06);padding:14px 10px;}
+  .tool-nav-title{font-size:10.5px;font-weight:700;color:#90a4ae;text-transform:uppercase;letter-spacing:.5px;padding:2px 8px 8px;}
+  .tool-nav{display:flex;flex-direction:column;gap:2px;}
+  .tool-nav-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;color:#37474f;text-decoration:none;font-size:12.5px;font-weight:500;transition:.15s;}
+  .tool-nav-item:hover{background:#f5f5f5;}
+  .tool-nav-item.active{background:#fde8ec;color:#c8102e;font-weight:700;}
+  header.topnav{background:#fff;border-bottom:3px solid #c8102e;padding:14px 24px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:10;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+  .topnav .logo{font-weight:700;font-size:16px;color:#c8102e;text-decoration:none;display:inline-flex;align-items:center;gap:8px;}
+  .topnav .logo img{height:22px;width:auto;}
+  .topnav .crumb{color:#ccc;font-size:14px;}
+  .topnav .crumb-current{font-size:14px;color:#546e7a;}
+  .topnav .back-btn{margin-left:auto;display:inline-flex;align-items:center;gap:6px;background:#fde8ec;color:#c8102e;border:1px solid #f6c6d0;border-radius:20px;padding:7px 16px;font-size:12.5px;font-weight:600;text-decoration:none;transition:.15s;}
+  .topnav .back-btn:hover{background:#c8102e;color:#fff;border-color:#c8102e;}
+  .card{background:#fff;border-radius:10px;border:1px solid #e0e4ea;padding:20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+  h1{font-size:21px;font-weight:700;color:#c8102e;letter-spacing:.1px;}
+  .subtitle{color:#546e7a;font-size:12px;margin-top:3px;font-weight:400;}
+  h2{font-size:14px;font-weight:700;color:#37474f;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+  .step-badge{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#c8102e;color:#fff;font-size:11px;font-weight:700;flex:none;}
+  .steps{font-size:12.5px;color:#546e7a;margin:0 0 4px;padding-left:18px;line-height:1.9;}
+  .dz{border:2px dashed #90a4ae;border-radius:8px;background:#f8fafc;text-align:center;padding:18px 12px;cursor:pointer;transition:.15s;min-height:70px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;}
+  .dz.drag{border-color:#c8102e;background:#fde8ec;}
+  .dz input[type=file]{display:none;}
+  .dz-icon{font-size:20px;}
+  .dz-title{font-size:12.5px;font-weight:600;color:#37474f;}
+  .dz-hint{font-size:11px;color:#607d8b;}
+  .dz-hint.set{color:#2e7d32;font-weight:600;word-break:break-all;}
+  .field{margin-top:16px;}
+  .field label{display:block;font-size:12px;color:#546e7a;margin-bottom:6px;line-height:1.5;}
+  .field input{width:100%;background:#f8fafc;border:1px solid #cfd8dc;color:#1a1a2e;padding:10px 12px;border-radius:8px;font-size:13.5px;font-family:inherit;outline:none;}
+  .field input:focus{border-color:#c8102e;}
+  .actions{display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap;}
+  .btn-main{background:#c8102e;color:#fff;border:none;border-radius:7px;padding:11px 22px;font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:.2px;transition:.15s;}
+  .btn-main:hover{background:#a30d24;}
+  .btn-main:disabled{background:#90a4ae;cursor:not-allowed;}
+  .btn-outline{background:#fff;color:#546e7a;border:1px solid #cfd8dc;border-radius:7px;padding:10px 20px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s;}
+  .btn-outline:hover{background:#f5f5f5;border-color:#90a4ae;color:#37474f;}
+  .status-box{border-radius:6px;padding:8px 14px;font-size:12px;margin:10px 0 0;min-height:14px;}
+  .status-box:empty{display:none;}
+  .status-box.info{background:#e3f2fd;color:#1565c0;}
+  .status-box.ok{background:#e8f5e9;color:#2e7d32;}
+  .status-box.err{background:#ffebee;color:#c62828;}
+  .warn-box{background:#fff8e1;border:1px solid #ffe082;color:#8d6e00;border-radius:8px;padding:10px 14px;font-size:12px;margin-top:12px;display:none;line-height:1.6;}
+  .warn-box.show{display:block;}
+  .result{display:none;align-items:center;justify-content:space-between;gap:14px;background:#e8f5e9;border:1px solid #a5d6a7;border-radius:8px;padding:14px 16px;margin-top:14px;}
+  .result.show{display:flex;flex-wrap:wrap;}
+  .result .rinfo{display:flex;flex-direction:column;gap:3px;}
+  .result .rname{font-weight:700;font-size:13.5px;color:#1a1a2e;}
+  .result .rsub{font-size:12px;color:#2e7d32;}
+  .dl-btn{background:#2e7d32;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;flex:none;}
+  .dl-btn:hover{background:#256428;}
+  .footnote{font-size:11px;color:#90a4ae;margin-top:16px;line-height:1.7;}
+</style>
+</head>
+<body>
+<header class="topnav">
+  <a class="logo" href="../"><img src="../assets/favicon-64.png" alt=""> OSInvoice Tools</a>
+  <span class="crumb">›</span>
+  <span class="crumb-current">SIEMENS Invoice Merger</span>
+  <a class="back-btn" href="../">🏠 หน้าหลัก</a>
+</header>
+<div class="app">
+<div class="card">
+  <h1>📎 SIEMENS Invoice Merger</h1>
+  <div class="subtitle">รวมไฟล์ Invoice + PO ของ SIEMENS ให้เป็น PDF เดียว ตามรูปแบบมาตรฐาน PRTR — ทำงานในเบราว์เซอร์ทั้งหมด ไม่มีการอัปโหลดไฟล์ขึ้นเซิร์ฟเวอร์ใดๆ</div>
+</div>
+
+<div class="layout">
+  <div class="sidebar">
+    <div class="tool-nav-box">
+      <div class="tool-nav-title">เครื่องมือทั้งหมด</div>
+      <nav class="tool-nav">
+        <a class="tool-nav-item" href="../accrued-income/">📊 Accrued Income Generator</a>
+        <a class="tool-nav-item" href="../fee-table/">📋 Fee Table Filler</a>
+        <a class="tool-nav-item" href="../fee-table-check/">🔍 Fee Table Rate Check</a>
+        <a class="tool-nav-item" href="../rename-lock/">🔒 File Rename &amp; Lock</a>
+        <a class="tool-nav-item" href="../cost-center-report/">🏬 Cost Center Report</a>
+        <a class="tool-nav-item" href="../health-reconcile/">🩺 Health Insurance Reconcile</a>
+        <a class="tool-nav-item" href="../gl-invoice/">📊 GL Invoice Processing</a>
+        <a class="tool-nav-item" href="../doi-tools/">🧾 Detail of Invoice Tools</a>
+        <a class="tool-nav-item" href="../dtw-tool/">📑 DTW Head/Line Auto-Fill</a>
+        <a class="tool-nav-item" href="../invoice-dashboard/">📬 Invoice Send Status Dashboard</a>
+        <a class="tool-nav-item" href="../kickoff-tool/">📋 Kick-off Meeting Note Filler</a>
+        <a class="tool-nav-item" href="../accrued-reconcile/">🧮 Data for Reverse Accrued</a>
+        <a class="tool-nav-item active" href="../siemens-invoice-merger/">📎 SIEMENS Invoice Merger</a>
+      </nav>
+    </div>
+  </div>
+
+  <div class="main-col">
+    <div class="card">
+      <h2>📘 วิธีใช้</h2>
+      <ol class="steps">
+        <li>เลือกไฟล์ 3 ไฟล์ตามช่องด้านล่าง: Invoice ที่มีลายเซ็น, ไฟล์ PO, และ Invoice ที่ไม่มีลายเซ็น</li>
+        <li>ระบบจะอ่านเลขที่ invoice จากไฟล์ signed invoice แล้วเติมชื่อไฟล์ผลลัพธ์ให้อัตโนมัติ (แก้ไขเองได้ถ้าต้องการ)</li>
+        <li>กด "รวมไฟล์" ระบบจะรวมตามลำดับ: Signed Invoice → PO → Unsigned Invoice → หน้าขาวดำ (ซ้ำ 2 หน้า) และบังคับทุกหน้าให้เป็นขนาด A4 เท่ากัน</li>
+        <li>กดดาวน์โหลดไฟล์ผลลัพธ์เก็บไว้ได้เลย</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h2><span class="step-badge">1</span> Invoice ที่มีลายเซ็นลูกค้า (Signed)</h2>
+      <div class="dz" id="dz-signed">
+        <label style="cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;">
+          <span class="dz-icon">📄</span>
+          <span class="dz-title">คลิกหรือลากไฟล์ PDF มาวางที่นี่</span>
+          <span class="dz-hint" id="file-signed">ยังไม่ได้เลือกไฟล์</span>
+          <input type="file" id="input-signed" accept="application/pdf">
+        </label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="step-badge">2</span> Purchase Order (PO)</h2>
+      <div class="dz" id="dz-po">
+        <label style="cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;">
+          <span class="dz-icon">📄</span>
+          <span class="dz-title">คลิกหรือลากไฟล์ PDF มาวางที่นี่</span>
+          <span class="dz-hint" id="file-po">ยังไม่ได้เลือกไฟล์</span>
+          <input type="file" id="input-po" accept="application/pdf">
+        </label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="step-badge">3</span> Invoice ที่ไม่มีลายเซ็น (Unsigned)</h2>
+      <div class="dz" id="dz-unsigned">
+        <label style="cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;">
+          <span class="dz-icon">📄</span>
+          <span class="dz-title">คลิกหรือลากไฟล์ PDF มาวางที่นี่</span>
+          <span class="dz-hint" id="file-unsigned">ยังไม่ได้เลือกไฟล์</span>
+          <input type="file" id="input-unsigned" accept="application/pdf">
+        </label>
+      </div>
+      <div class="subtitle" style="margin-top:10px">ไฟล์นี้จะถูกใช้สร้างหน้าขาวดำ (แปลงจากหน้าแรก) แนบต่อท้ายอีก 2 หน้าโดยอัตโนมัติ</div>
+    </div>
+
+    <div class="card">
+      <h2><span class="step-badge">4</span> ตั้งชื่อไฟล์ &amp; รวมไฟล์</h2>
+      <div class="field">
+        <label for="outname">ชื่อไฟล์ผลลัพธ์ (ไม่ต้องใส่ .pdf) — ระบบจะเติมเลขที่ invoice ให้อัตโนมัติเมื่อเลือกไฟล์ signed invoice</label>
+        <input type="text" id="outname" placeholder="เช่น 526013741">
+      </div>
+      <div class="actions">
+        <button class="btn-main" id="mergeBtn" disabled>รวมไฟล์</button>
+        <button class="btn-outline" id="resetBtn" type="button">เริ่มใหม่</button>
+      </div>
+      <div class="status-box" id="status"></div>
+      <div class="warn-box" id="warnBox"></div>
+      <div class="result" id="result">
+        <div class="rinfo">
+          <div class="rname" id="resultName">-</div>
+          <div class="rsub">รวมไฟล์เสร็จแล้ว</div>
+        </div>
+        <button class="dl-btn" id="downloadBtn">⬇️ ดาวน์โหลด PDF</button>
+      </div>
+    </div>
+
+    <div class="footnote">
+      ประมวลผลทุกอย่างในเครื่องของคุณ (client-side) ผ่าน pdf-lib.js และ pdf.js — ไม่มีข้อมูลใดถูกส่งออกไปนอกเบราว์เซอร์<br>
+      รูปแบบไฟล์: หน้า 1 = Signed Invoice, หน้า 2-4 = PO (ตามจำนวนหน้าจริงของไฟล์ PO), หน้าถัดมา = Unsigned Invoice, หน้าสุดท้าย 2 หน้า = สำเนาขาวดำของ Unsigned Invoice (หน้าแรก) ซ้ำกัน 2 ชุด
+    </div>
+  </div>
+</div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
