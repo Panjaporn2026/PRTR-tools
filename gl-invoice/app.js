@@ -4,50 +4,32 @@
 // ══════════════════════════════════════════════════════
 
 var FUNCTIONS = [
-  { id: 'sso750', label: '1. SSO PRTR 750', multi: false,
-    desc: 'Grouping = E51110102 & Paycode = T2A3 หรือ TZ74\n• Amount > 750 → Amount ใหม่ = Amount − 750\n• Amount ≤ 750 → Amount ใหม่ = 0\nแถวอื่นๆ ทั้งหมด ไม่เปลี่ยน' },
-  { id: 'ssoIntroduceBy', label: '2. SSO Introduce by', multi: false,
-    desc: 'เงื่อนไขหลัก: Grouping = E51110102 & Paycode = T2A3 หรือ TZ74\n• Introduce By = PRTR → Amount ใหม่ = 0\n• Introduce By = CLNT → ไม่เปลี่ยน\nแถวที่ไม่ตรงเงื่อนไข ไม่เปลี่ยน' },
-  { id: 'duplicate', label: '3. Duplicate', multi: false,
+  { id: 'duplicate', label: '1. Duplicate', multi: false,
     desc: 'เพิ่ม/อัพเดทแถวต่อท้ายทุกคน (unique NAME) ตามที่เลือกไว้ด้านล่าง\nแถวที่เพิ่ม/อัพเดททุกแถว — ตัวอักษรสีแดง\nPaycode Code = EXPENSE, Paycode Name = ค่าใช้จ่าย\nAccount = 51110116, Grouping = E51110116, Amount = (ว่าง)' },
-  { id: 'sso750PlusDuplicate', label: '4. SSO PRTR 750 + Duplicate EXPENSE', multi: false,
-    desc: 'ขั้นที่ 1: ปรับ Amount เหมือนฟังก์ชัน 1\nขั้นที่ 2: เพิ่ม/อัพเดทแถวเหมือนฟังก์ชัน 3 ตามที่เลือกไว้ด้านล่าง (สีแดง)' },
-  { id: 'ssoIntroduceByPlusDuplicate', label: '5. SSO Introduce by + Duplicate EXPENSE', multi: false,
-    desc: 'ขั้นที่ 1: ปรับ Amount เหมือนฟังก์ชัน 2\nขั้นที่ 2: เพิ่ม/อัพเดทแถวเหมือนฟังก์ชัน 3 ตามที่เลือกไว้ด้านล่าง (สีแดง)' },
-  { id: 'removeSso', label: '6. Remove SSO', multi: false,
-    desc: 'Grouping = E51110102 & Paycode = T2A3 หรือ TZ74\n• บรรทัดที่ตรงเงื่อนไข → ลบออกทั้งบรรทัด\n• บรรทัดอื่นทั้งหมด → คงเดิม' },
-  { id: 'merge', label: '7. Merge', multi: true,
+  { id: 'merge', label: '2. Merge', multi: true,
     desc: 'โยนไฟล์ที่ 1 แล้วโยนไฟล์ที่ 2 แล้วโยนไฟล์ที่ 3-6 ตามลำดับ\nระบบจะนำข้อมูล (หลัง header) ของไฟล์ที่ 2-6 ต่อท้ายไฟล์ที่ 1\nHeader ของ output ยึดตามไฟล์ที่ 1 ทั้งหมด รูปแบบของไฟล์ห้ามเปลี่ยนแปลง' },
-  { id: 'changeHeader', label: '8. Change Header', multi: false,
-    desc: 'ลบแถวที่ 4 และ 5 ออก + เปลี่ยนชื่อ Column:\n• แถว Header เลื่อนขึ้น 2 แถว\n• Period → Calendar Group\n• Paycode Code → PIN Name' },
-  { id: 'changeHeaderDynamic', label: '9. Change Header (ไฟล์รูปแบบใหม่)', multi: false,
-    desc: 'สำหรับไฟล์รูปแบบใหม่ที่ระบบเพิ่มแถว metadata มา (Start-End Period, Payment Date)\nลบแถว metadata ทั้งหมดตั้งแต่แถวที่ 4 จนถึงก่อนแถว Header (หาอัตโนมัติ) + เปลี่ยนชื่อ Column เหมือนข้อ 8:\n• Period → Calendar Group\n• Paycode Code → PIN Name' }
+  { id: 'changeHeaderDynamic', label: '3. Change Header (ไฟล์รูปแบบใหม่)', multi: false,
+    desc: 'สำหรับไฟล์รูปแบบใหม่ที่ระบบเพิ่มแถว metadata มา (Start-End Period, Payment Date)\nลบแถว metadata ทั้งหมดตั้งแต่แถวที่ 4 จนถึงก่อนแถว Header (หาอัตโนมัติ) + เปลี่ยนชื่อ Column:\n• Period → Calendar Group\n• Paycode Code → PIN Name' }
 ];
 
 var FN_META = {
-  sso750: { icon: '💰', title: 'สรุปผล SSO PRTR 750' },
-  ssoIntroduceBy: { icon: '💰', title: 'สรุปผล SSO Introduce by' },
   duplicate: { icon: '➕', title: 'สรุปผล Duplicate — แถวที่เพิ่ม/อัพเดท' },
-  sso750PlusDuplicate: { icon: '💰➕', title: 'สรุปผล SSO PRTR 750 + Duplicate EXPENSE' },
-  ssoIntroduceByPlusDuplicate: { icon: '💰➕', title: 'สรุปผล SSO Introduce by + Duplicate EXPENSE' },
-  removeSso: { icon: '🗑️', title: 'สรุปผล Remove SSO — บรรทัดที่ถูกลบ' },
   merge: { icon: '🔗', title: 'สรุปผล Merge — รวมไฟล์' },
-  changeHeader: { icon: '📝', title: 'สรุปผล Change Header' },
   changeHeaderDynamic: { icon: '📝', title: 'สรุปผล Change Header (ไฟล์รูปแบบใหม่)' }
 };
 
 var state = { fnId: FUNCTIONS[0].id, files: [], resultBytes: null, resultBaseName: null, processedAt: null, sourceLabel: null, extraLineTypes: ['EXPENSE'] };
 
-// Selectable line types for the Duplicate step (functions 3/4/5). EXPENSE is first and checked by
-// default (matches the tool's original always-on behavior); the other two are opt-in, unchecked
-// by default since most months don't need them.
+// Selectable line types for the Duplicate step. EXPENSE is first and checked by default (matches
+// the tool's original always-on behavior); the other three are opt-in, unchecked by default since
+// most months don't need them.
 var EXTRA_LINE_TYPE_OPTIONS = [
   { key: 'EXPENSE', label: 'ค่าใช้จ่าย (EXPENSE)', sub: 'Paycode EXPENSE · Account 51110116 · Grouping E51110116', checkedByDefault: true },
   { key: 'PROVIDENT_FUND_REFUND', label: 'คืนเงินสมทบกองทุนสำรองเลี้ยงชีพนายจ้าง', sub: 'Paycode T208 · Account 51110103 · Grouping E51110103' },
   { key: 'ACCIDENT_REFUND', label: 'หักค่าประกันอุบัติเหตุ ค่าใช้จ่ายลูกค้า (คืนค่าประกันซื่อสัตย์)', sub: 'Paycode AC CL D AC · Account 51110104 · Grouping E51110104' },
   { key: 'OTHER_INCOME', label: 'Other Income', sub: 'Paycode OTHER INCOME · Account 51110108 · Grouping E51110108' }
 ];
-var FN_IDS_WITH_EXTRA_LINE_OPTIONS = ['duplicate', 'sso750PlusDuplicate', 'ssoIntroduceByPlusDuplicate'];
+var FN_IDS_WITH_EXTRA_LINE_OPTIONS = ['duplicate'];
 
 function dbg(msg) { console.log(msg); }
 function setStatus(msg, cls) {
@@ -57,7 +39,6 @@ function setStatus(msg, cls) {
   el.style.display = msg ? 'block' : 'none';
 }
 function esc_(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
-function fmtAmt(v) { return (v == null || v === '') ? '-' : Number(v).toFixed(2); }
 
 function currentFn() { return FUNCTIONS.find(function (f) { return f.id === state.fnId; }); }
 
@@ -247,23 +228,6 @@ function detailTableHtml(columns, rows) {
   return '<div class="detail-table-wrap"><table class="detail-table"><thead>' + thead + '</thead><tbody>' + tbody + '</tbody></table></div>';
 }
 
-var SSO_ADJUST_COLUMNS = [
-  { label: 'แถวที่ (เดิม)', render: function (r) { return esc_(r.row); } },
-  { label: 'Paycode', render: function (r) { return esc_(r.paycode); } },
-  { label: 'Paycode Name', wrap: true, render: function (r) { return esc_(r.paycodeName); } },
-  { label: 'Amount เดิม', render: function (r) { return esc_(fmtAmt(r.amountBefore)); } },
-  { label: 'Amount ใหม่', render: function (r) { return esc_(fmtAmt(r.amountAfter)); } },
-  { label: 'หมายเหตุ', render: function (r) { return noteBadge(r.note); } }
-];
-var SSO_INTRODUCE_COLUMNS = [
-  { label: 'แถวที่ (เดิม)', render: function (r) { return esc_(r.row); } },
-  { label: 'Paycode', render: function (r) { return esc_(r.paycode); } },
-  { label: 'Paycode Name', wrap: true, render: function (r) { return esc_(r.paycodeName); } },
-  { label: 'Introduce By', render: function (r) { return esc_(r.introduceBy); } },
-  { label: 'Amount เดิม', render: function (r) { return esc_(fmtAmt(r.amountBefore)); } },
-  { label: 'Amount ใหม่', render: function (r) { return esc_(fmtAmt(r.amountAfter)); } },
-  { label: 'หมายเหตุ', render: function (r) { return noteBadge(r.note); } }
-];
 var EXPENSE_COLUMNS = [
   { label: 'แถวที่', render: function (r) { return esc_(r.row); } },
   { label: 'ชื่อ', render: function (r) { return esc_(r.name); } },
@@ -273,13 +237,6 @@ var EXPENSE_COLUMNS = [
   { label: 'Account', render: function (r) { return esc_(r.account); } },
   { label: 'Grouping', render: function (r) { return esc_(r.grouping); } },
   { label: 'การดำเนินการ', render: function (r) { return noteBadge(r.action); } }
-];
-var REMOVE_SSO_COLUMNS = [
-  { label: 'แถวที่ (เดิม)', render: function (r) { return esc_(r.row); } },
-  { label: 'Paycode', render: function (r) { return esc_(r.paycode); } },
-  { label: 'Paycode Name', render: function (r) { return esc_(r.paycodeName); } },
-  { label: 'Amount เดิม', render: function (r) { return esc_(fmtAmt(r.amount)); } },
-  { label: 'หมายเหตุ', render: function (r) { return noteBadge(r.note); } }
 ];
 var MERGE_COLUMNS = [
   { label: 'ไฟล์ที่', render: function (r) { return esc_(r.fileIndex); } },
@@ -295,52 +252,12 @@ var CHANGE_HEADER_COLUMNS = [
 
 function buildResultBody(fn, summary) {
   var html = '';
-  if (fn.id === 'sso750') {
-    html += statRowHtml([
-      { value: summary.matched, label: 'พบแถวที่ตรงเงื่อนไข', color: 'blue' },
-      { value: summary.reduced, label: 'ลด Amount (> 750)', color: 'green' },
-      { value: summary.zeroed, label: 'ปรับเป็น 0 (≤ 750)', color: 'orange' }
-    ]);
-    html += detailTableHtml(SSO_ADJUST_COLUMNS, summary.details);
-  } else if (fn.id === 'ssoIntroduceBy') {
-    html += statRowHtml([
-      { value: summary.matched, label: 'พบแถวที่ตรงเงื่อนไข', color: 'blue' },
-      { value: summary.zeroedPRTR, label: 'ปรับเป็น 0 (Introduce By = PRTR)', color: 'red' },
-      { value: summary.unchangedCLNT, label: 'ไม่เปลี่ยน (CLNT)', color: 'green' }
-    ]);
-    html += detailTableHtml(SSO_INTRODUCE_COLUMNS, summary.details);
-  } else if (fn.id === 'duplicate') {
+  if (fn.id === 'duplicate') {
     html += statRowHtml([
       { value: summary.added, label: 'เพิ่มแถวใหม่', color: 'green' },
       { value: summary.updated, label: 'อัพเดทแถวเดิม', color: 'blue' }
     ]);
     html += detailTableHtml(EXPENSE_COLUMNS, summary.details);
-  } else if (fn.id === 'sso750PlusDuplicate' || fn.id === 'ssoIntroduceByPlusDuplicate') {
-    var isPrtr = fn.id === 'sso750PlusDuplicate';
-    html += statRowHtml(isPrtr ? [
-      { value: summary.matched, label: 'พบแถวที่ตรงเงื่อนไข SSO', color: 'blue' },
-      { value: summary.reduced, label: 'ลด Amount (> 750)', color: 'green' },
-      { value: summary.zeroed, label: 'ปรับเป็น 0 (≤ 750)', color: 'orange' }
-    ] : [
-      { value: summary.matched, label: 'พบแถวที่ตรงเงื่อนไข SSO', color: 'blue' },
-      { value: summary.zeroedPRTR, label: 'ปรับเป็น 0 (PRTR)', color: 'red' },
-      { value: summary.unchangedCLNT, label: 'ไม่เปลี่ยน (CLNT)', color: 'green' }
-    ]);
-    html += '<div class="result-sub">ผลปรับ SSO</div>';
-    html += detailTableHtml(isPrtr ? SSO_ADJUST_COLUMNS : SSO_INTRODUCE_COLUMNS, summary.ssoDetails);
-    html += statRowHtml([
-      { value: summary.added, label: 'เพิ่มแถวใหม่ (Duplicate)', color: 'green' },
-      { value: summary.updated, label: 'อัพเดทแถวเดิม (Duplicate)', color: 'blue' }
-    ]);
-    html += '<div class="result-sub">แถวที่เพิ่ม/อัพเดท</div>';
-    html += detailTableHtml(EXPENSE_COLUMNS, summary.expenseDetails);
-  } else if (fn.id === 'removeSso') {
-    html += statRowHtml([
-      { value: summary.removed, label: 'บรรทัดที่ลบออก', color: 'red' },
-      { value: summary.countT2A3, label: 'Paycode T2A3', color: 'green' },
-      { value: summary.countTZ74, label: 'Paycode TZ74', color: 'orange' }
-    ]);
-    html += detailTableHtml(REMOVE_SSO_COLUMNS, summary.details);
   } else if (fn.id === 'merge') {
     html += statRowHtml([
       { value: summary.filesAppended, label: 'ไฟล์ที่รวมสำเร็จ', color: 'blue' },
@@ -353,7 +270,7 @@ function buildResultBody(fn, summary) {
         return '<div class="err-line">⚠ ไฟล์ที่ ' + esc_(r.fileIndex) + ': ' + esc_(r.reason) + '</div>';
       }).join('');
     }
-  } else if (fn.id === 'changeHeader' || fn.id === 'changeHeaderDynamic') {
+  } else if (fn.id === 'changeHeaderDynamic') {
     html += statRowHtml([
       { value: summary.rowsDeleted, label: 'แถวที่ลบออก', color: 'red' },
       { value: (summary.renamed || []).length, label: 'คอลัมน์ที่เปลี่ยนชื่อ', color: 'blue' }

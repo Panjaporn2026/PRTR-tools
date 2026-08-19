@@ -1,17 +1,16 @@
 // ══════════════════════════════════════════════════════
-//  The 8 GL Invoice transform functions, plus the shared load/save orchestration around them.
-//  Business rules confirmed verbatim by the user; column positions and the header row itself are
-//  found dynamically (never hardcoded) since column letters and row numbers drift file-to-file.
+//  The GL Invoice transform functions (Duplicate / Merge / Change Header), plus the shared
+//  load/save orchestration around them. Business rules confirmed verbatim by the user; column
+//  positions and the header row itself are found dynamically (never hardcoded) since column
+//  letters and row numbers drift file-to-file.
 // ══════════════════════════════════════════════════════
 
-var SSO_GROUPING = 'E51110102';
-var SSO_PAYCODES = ['T2A3', 'TZ74'];
 var EXPENSE_PAYCODE = 'EXPENSE';
 var EXPENSE_PAYCODE_NAME = 'ค่าใช้จ่าย';
 var EXPENSE_ACCOUNT = '51110116';
 var EXPENSE_GROUPING = 'E51110116';
 
-// Duplicate (function 3) line types -- EXPENSE is always added; the other two are opt-in via
+// Duplicate (function 1) line types -- EXPENSE is always added; the other three are opt-in via
 // checkbox (most months don't need them, confirmed by the user), each added/updated per person
 // with the exact same idempotent add-or-update pattern as EXPENSE, just keyed by their own Paycode.
 var LINE_TYPES = {
@@ -27,7 +26,7 @@ var LINE_TYPES = {
 // EXPENSE paycode, etc.) -- confirmed by the user, not guessed.
 var PAYCODE_CODE_CANDIDATES = ['Paycode Code', 'PIN Name'];
 var PAYCODE_NAME_CANDIDATES = ['Paycode Name', 'PIN Number'];
-var REQUIRED_HEADER_LABELS = ['NAME', PAYCODE_CODE_CANDIDATES, PAYCODE_NAME_CANDIDATES, 'Account', 'Grouping', 'Amount', 'Introduce By', 'EMP ID'];
+var REQUIRED_HEADER_LABELS = ['NAME', PAYCODE_CODE_CANDIDATES, PAYCODE_NAME_CANDIDATES, 'Account', 'Grouping', 'Amount', 'EMP ID'];
 
 function findColLetterByHeaderText(aoa, headerRowNum, label) {
   return colIndexToLetters(findColByHeaderText(aoa, headerRowNum, label));
@@ -51,11 +50,11 @@ async function loadGLInvoiceContext(buf) {
   var headerRow = findHeaderRow(aoa, REQUIRED_HEADER_LABELS, 20);
   var cols = {};
   var FIELD_CANDIDATES = {
-    'NAME': ['NAME'], 'EMP ID': ['EMP ID'], 'Introduce By': ['Introduce By'],
+    'NAME': ['NAME'], 'EMP ID': ['EMP ID'],
     'Paycode Code': PAYCODE_CODE_CANDIDATES, 'Paycode Name': PAYCODE_NAME_CANDIDATES,
     'Account': ['Account'], 'Grouping': ['Grouping'], 'Amount': ['Amount']
   };
-  ['NAME', 'EMP ID', 'Introduce By', 'Paycode Code', 'Paycode Name', 'Account', 'Grouping', 'Amount'].forEach(function (label) {
+  ['NAME', 'EMP ID', 'Paycode Code', 'Paycode Name', 'Account', 'Grouping', 'Amount'].forEach(function (label) {
     var key = label.replace(/\s+/g, '');
     cols[key] = colIndexToLetters(findColByAnyHeaderText(aoa, headerRow, FIELD_CANDIDATES[label]));
   });
@@ -69,82 +68,6 @@ async function loadGLInvoiceContext(buf) {
     sheetName: sheetNameM ? sheetNameM[1] : null,
     model: parseSheetRows(sheetXml)
   };
-}
-
-// Re-derives aoa + model from the context's CURRENT sheetXml -- call this between chained stages
-// (functions 4/5) so the next stage never operates on a stale row-number snapshot.
-function reparseContext(ctx) {
-  ctx.sheetXml = serializeSheetRows(ctx.model);
-  ctx.aoa = parseGridFromXml(ctx.sheetXml, ctx.sst);
-  ctx.model = parseSheetRows(ctx.sheetXml);
-}
-
-function matchesSSOCondition(row, cols, sst) {
-  var grouping = normTextUpper(getCellValue(row.cellsByCol[cols.Grouping], sst));
-  var paycode = normTextUpper(getCellValue(row.cellsByCol[cols.PaycodeCode], sst));
-  return grouping === SSO_GROUPING && SSO_PAYCODES.indexOf(paycode) >= 0;
-}
-
-function writeAmount(row, cols, newAmount) {
-  var addr = cols.Amount + row.rowNum;
-  var styleIdx = getCellStyleIndex(row.cellsByCol[cols.Amount]);
-  row.cellsByCol[cols.Amount] = buildLiteralNumberCell(addr, styleIdx, newAmount);
-}
-
-// Reads the identifying fields of a row that a summary detail table needs to display, BEFORE
-// any write touches it -- paycode/paycodeName never change in functions 1/2/6, so reading them
-// here is always safe regardless of write order.
-function rowDetailBase(row, ctx) {
-  return {
-    row: row.rowNum,
-    paycode: getCellValue(row.cellsByCol[ctx.cols.PaycodeCode], ctx.sst),
-    paycodeName: getCellValue(row.cellsByCol[ctx.cols.PaycodeName], ctx.sst)
-  };
-}
-
-// ── Function 1: SSO PRTR 750 ───────────────────────────────────────────────────────────────────
-function fn1_SsoPrtr750(ctx) {
-  var summary = { matched: 0, reduced: 0, zeroed: 0, countT2A3: 0, countTZ74: 0, details: [] };
-  ctx.model.rows.forEach(function (row) {
-    if (row.rowNum <= ctx.headerRow) return;
-    if (!matchesSSOCondition(row, ctx.cols, ctx.sst)) return;
-    summary.matched++;
-    var detail = rowDetailBase(row, ctx);
-    if (normTextUpper(detail.paycode) === 'T2A3') summary.countT2A3++; else summary.countTZ74++;
-    var amt = getCellValue(row.cellsByCol[ctx.cols.Amount], ctx.sst);
-    amt = typeof amt === 'number' ? amt : 0;
-    detail.amountBefore = amt;
-    if (amt > 750) { writeAmount(row, ctx.cols, amt - 750); summary.reduced++; detail.amountAfter = amt - 750; detail.note = 'ลด 750'; }
-    else { writeAmount(row, ctx.cols, 0); summary.zeroed++; detail.amountAfter = 0; detail.note = 'ปรับเป็น 0'; }
-    summary.details.push(detail);
-  });
-  return summary;
-}
-
-// ── Function 2: SSO Introduce by ───────────────────────────────────────────────────────────────
-function fn2_SsoIntroduceBy(ctx) {
-  var summary = { matched: 0, zeroedPRTR: 0, unchangedCLNT: 0, unchangedOther: 0, countT2A3: 0, countTZ74: 0, details: [] };
-  ctx.model.rows.forEach(function (row) {
-    if (row.rowNum <= ctx.headerRow) return;
-    if (!matchesSSOCondition(row, ctx.cols, ctx.sst)) return;
-    summary.matched++;
-    var detail = rowDetailBase(row, ctx);
-    if (normTextUpper(detail.paycode) === 'T2A3') summary.countT2A3++; else summary.countTZ74++;
-    var introduceBy = normTextUpper(getCellValue(row.cellsByCol[ctx.cols.IntroduceBy], ctx.sst));
-    var amt = getCellValue(row.cellsByCol[ctx.cols.Amount], ctx.sst);
-    detail.introduceBy = introduceBy;
-    detail.amountBefore = typeof amt === 'number' ? amt : 0;
-    if (introduceBy === 'PRTR') {
-      writeAmount(row, ctx.cols, 0); summary.zeroedPRTR++;
-      detail.amountAfter = 0; detail.note = 'ปรับเป็น 0 (PRTR)';
-    } else if (introduceBy === 'CLNT') {
-      summary.unchangedCLNT++; detail.amountAfter = detail.amountBefore; detail.note = 'ไม่เปลี่ยน (CLNT)';
-    } else {
-      summary.unchangedOther++; detail.amountAfter = detail.amountBefore; detail.note = 'ไม่เปลี่ยน';
-    }
-    summary.details.push(detail);
-  });
-  return summary;
 }
 
 // ── Function 3: Duplicate (add-or-update a fixed line per person, idempotent) ───────────────────
@@ -268,66 +191,13 @@ function fn3_DuplicateLines(ctx, lineTypeKeys) {
   return summary;
 }
 
-// ── Function 6: Remove SSO ─────────────────────────────────────────────────────────────────────
-function fn6_RemoveSso(ctx) {
-  var before = ctx.model.rows.length;
-  var details = [], countT2A3 = 0, countTZ74 = 0;
-  // Capture each matching row's detail BEFORE it's deleted -- deleteAndRenumber discards it.
-  ctx.model.rows.forEach(function (row) {
-    if (row.rowNum <= ctx.headerRow || !matchesSSOCondition(row, ctx.cols, ctx.sst)) return;
-    var detail = rowDetailBase(row, ctx);
-    detail.amount = getCellValue(row.cellsByCol[ctx.cols.Amount], ctx.sst);
-    detail.note = 'ลบออกแล้ว';
-    if (normTextUpper(detail.paycode) === 'T2A3') countT2A3++; else countTZ74++;
-    details.push(detail);
-  });
-  ctx.model.rows = deleteAndRenumber(
-    ctx.model.rows,
-    function (row) { return row.rowNum > ctx.headerRow && matchesSSOCondition(row, ctx.cols, ctx.sst); },
-    ctx.headerRow + 1,
-    ctx.headerRow + 1
-  );
-  return { removed: before - ctx.model.rows.length, countT2A3: countT2A3, countTZ74: countTZ74, details: details };
-}
-
-// ── Function 8: Change Header ──────────────────────────────────────────────────────────────────
-// Deletes rows 4 and 5, shifting the header (and everything below it) up by 2; renames two header
-// cells found by exact text match (not fixed column letter): Period->Calendar Group,
-// Paycode Code->PIN Name. Row/column extent + freeze pane are updated by the caller afterward
-// (needs the NEW header row number, which this function returns).
-function fn8_ChangeHeader(ctx) {
-  var oldHeaderRow = ctx.headerRow;
-  ctx.model.rows = deleteAndRenumber(
-    ctx.model.rows,
-    function (row) { return row.rowNum === 4 || row.rowNum === 5; },
-    oldHeaderRow, // everything from the old header row onward shifts
-    oldHeaderRow - 2
-  );
-  var newHeaderRow = oldHeaderRow - 2;
-  var headerRowModel = ctx.model.rows.find(function (r) { return r.rowNum === newHeaderRow; });
-  if (!headerRowModel) throw new Error('ไม่พบแถว header หลังจากลบแถว 4-5 (คาดว่าจะอยู่ที่แถว ' + newHeaderRow + ')');
-
-  var renamed = [];
-  var details = [];
-  [['Period', 'Calendar Group'], ['Paycode Code', 'PIN Name']].forEach(function (pair) {
-    var oldLabel = pair[0], newLabel = pair[1];
-    var colLetter = findColLetterByHeaderText(ctx.aoa, oldHeaderRow, oldLabel);
-    writeTextCell(headerRowModel, colLetter, newLabel);
-    renamed.push(oldLabel + ' -> ' + newLabel);
-    details.push({ column: colLetter, oldLabel: oldLabel, newLabel: newLabel });
-  });
-
-  return { newHeaderRow: newHeaderRow, renamed: renamed, details: details, rowsDeleted: 2 };
-}
-
 // ── Function 9: Change Header (ไฟล์รูปแบบใหม่) ──────────────────────────────────────────────────
-// Same end result as function 8 (junk metadata rows between "Period" and the header removed, header
-// lands immediately below Period at row 4; Period->Calendar Group, Paycode Code->PIN Name renamed)
-// but the junk-row range is computed from the header row's own position instead of being hardcoded
-// to rows 4-5 -- needed because the system's GL_Invoice export added two more metadata rows
-// (Start-End Period, Payment Date) between Payroll Group and Project Code SAP, pushing the header
-// from row 6 to row 8. Deleting rows [4, headerRow-1] dynamically also survives any further rows a
-// future export adds, unlike function 8's fixed row 4/5.
+// Junk metadata rows between "Period" and the header are removed, header lands immediately below
+// Period at row 4; Period->Calendar Group, Paycode Code->PIN Name renamed. The junk-row range is
+// computed from the header row's own position rather than being hardcoded -- needed because the
+// system's GL_Invoice export added two more metadata rows (Start-End Period, Payment Date) between
+// Payroll Group and Project Code SAP, pushing the header from row 6 to row 8. Deleting rows
+// [4, headerRow-1] dynamically survives any further rows a future export adds.
 function fn9_ChangeHeaderDynamic(ctx) {
   var oldHeaderRow = ctx.headerRow;
   var newHeaderRow = 4;
@@ -441,52 +311,18 @@ function applyCalcChainFix(zipFiles, enc) {
 
 // ── Top-level entry points, one per function id ────────────────────────────────────────────────
 // selectedLineTypeKeys: array of LINE_TYPES keys the user checked in the UI (e.g. ['EXPENSE',
-// 'PROVIDENT_FUND_REFUND']) for the 3 functions that run the Duplicate step. EXPENSE is checked by default in
-// the UI but is a real, uncheckable-off-by-force choice here -- an empty array is valid and just
-// means no Duplicate rows get added/updated this run.
+// 'PROVIDENT_FUND_REFUND']) for the Duplicate function. EXPENSE is checked by default in the UI
+// but is a real, uncheckable-off-by-force choice here -- an empty array is valid and just means no
+// Duplicate rows get added/updated this run.
 async function runSingleFileFunction(functionId, buf, selectedLineTypeKeys) {
   var ctx = await loadGLInvoiceContext(buf);
   var summary;
   var structuralOpts = null;
   var lineTypeKeys = selectedLineTypeKeys || [];
 
-  if (functionId === 'sso750') {
-    summary = fn1_SsoPrtr750(ctx);
-  } else if (functionId === 'ssoIntroduceBy') {
-    summary = fn2_SsoIntroduceBy(ctx);
-  } else if (functionId === 'duplicate') {
+  if (functionId === 'duplicate') {
     summary = fn3_DuplicateLines(ctx, lineTypeKeys);
     structuralOpts = buildStructuralOptsAfterAppend(ctx);
-  } else if (functionId === 'sso750PlusDuplicate') {
-    var s1 = fn1_SsoPrtr750(ctx);
-    reparseContext(ctx);
-    var s3a = fn3_DuplicateLines(ctx, lineTypeKeys);
-    // Deliberately NOT a flat Object.assign -- both stages have their own "details"/"errors" keys,
-    // which would silently clobber stage 1's per-row Amount-adjustment details with stage 3's.
-    summary = {
-      matched: s1.matched, reduced: s1.reduced, zeroed: s1.zeroed, countT2A3: s1.countT2A3, countTZ74: s1.countTZ74,
-      added: s3a.added, updated: s3a.updated, errors: s3a.errors,
-      ssoDetails: s1.details, expenseDetails: s3a.details
-    };
-    structuralOpts = buildStructuralOptsAfterAppend(ctx);
-  } else if (functionId === 'ssoIntroduceByPlusDuplicate') {
-    var s2 = fn2_SsoIntroduceBy(ctx);
-    reparseContext(ctx);
-    var s3b = fn3_DuplicateLines(ctx, lineTypeKeys);
-    summary = {
-      matched: s2.matched, zeroedPRTR: s2.zeroedPRTR, unchangedCLNT: s2.unchangedCLNT, unchangedOther: s2.unchangedOther,
-      countT2A3: s2.countT2A3, countTZ74: s2.countTZ74,
-      added: s3b.added, updated: s3b.updated, errors: s3b.errors,
-      ssoDetails: s2.details, expenseDetails: s3b.details
-    };
-    structuralOpts = buildStructuralOptsAfterAppend(ctx);
-  } else if (functionId === 'removeSso') {
-    summary = fn6_RemoveSso(ctx);
-    structuralOpts = buildStructuralOptsAfterRowChange(ctx, ctx.headerRow);
-  } else if (functionId === 'changeHeader') {
-    var oldHeaderRowForYSplit = ctx.headerRow;
-    summary = fn8_ChangeHeader(ctx);
-    structuralOpts = buildStructuralOptsAfterRowChange(ctx, summary.newHeaderRow, oldHeaderRowForYSplit);
   } else if (functionId === 'changeHeaderDynamic') {
     var oldHeaderRowForYSplit2 = ctx.headerRow;
     summary = fn9_ChangeHeaderDynamic(ctx);
