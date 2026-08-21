@@ -8,6 +8,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://unpkg.com/xlsx-populate/browser/xlsx-populate.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -958,6 +959,18 @@ async function aesEncryptStream(content, encKey, objNum, genNum) {
 
 async function processPdf(buffer, password) {
   if (!password) return new Uint8Array(buffer);
+  // Normalize through pdf-lib first. Everything below only understands classic PDF structure --
+  // literal "N M obj ... endobj" objects plus a plain "trailer<<...>>" block -- but many real-world
+  // PDFs (anything from a modern Acrobat/exporter, and notably any PDF this portal itself produces
+  // via pdf-lib's default useObjectStreams:true, e.g. SIEMENS Invoice Merger's output) use PDF 1.5+
+  // cross-reference STREAMS with most objects compressed inside /Type /ObjStm containers instead.
+  // Those compressed objects never appear as top-level "obj" text, so the old regex-based rewriter
+  // silently dropped/mis-referenced them (most critically /Root, since a bare xref-stream PDF has
+  // no separate trailer dict at all) -- producing a PDF Acrobat rejects with "the root object is
+  // missing or invalid". Re-saving via pdf-lib with useObjectStreams:false guarantees a classic-
+  // format PDF (real trailer, no ObjStm) that the rest of this function can safely reparse.
+  const normalizedDoc = await PDFLib.PDFDocument.load(buffer, { ignoreEncryption: true, updateMetadata: false });
+  buffer = await normalizedDoc.save({ useObjectStreams: false });
   const bytes=new Uint8Array(buffer);
   const latin1=new TextDecoder('latin1');
   const text=latin1.decode(bytes);
@@ -989,9 +1002,9 @@ async function processPdf(buffer, password) {
       const dictPart=objContent.slice(0,streamStart);
       const isXrefStream=/\/Type\s*\/XRef/.test(dictPart);
       if(isXrefStream){
-        const raw=new Uint8Array(objContent.length);
-        for(let i=0;i<objContent.length;i++) raw[i]=objContent.charCodeAt(i);
-        parts.push(raw);
+        // Slice straight from the original bytes (never via charCodeAt on the decoded string --
+        // see note below) since this raw copy-through must be byte-perfect.
+        parts.push(bytes.slice(obj.start,obj.start+objContent.length));
       } else {
         const afterStream=streamStart+'stream'.length;
         let dataStart=afterStream;
@@ -999,8 +1012,16 @@ async function processPdf(buffer, password) {
         else if(objContent.charCodeAt(dataStart)===10) dataStart+=1;
         let dataEnd=streamEnd;
         while(dataEnd>dataStart&&(objContent.charCodeAt(dataEnd-1)===10||objContent.charCodeAt(dataEnd-1)===13)) dataEnd--;
-        const rawStream=new Uint8Array(dataEnd-dataStart);
-        for(let i=dataStart;i<dataEnd;i++) rawStream[i-dataStart]=objContent.charCodeAt(i);
+        // Slice the stream payload straight from the original bytes at the equivalent absolute
+        // offset (obj.start + relative position) instead of rebuilding it via charCodeAt() on the
+        // decoded string. TextDecoder('latin1') is actually windows-1252 per the WHATWG Encoding
+        // Standard, which remaps bytes 0x80-0x9F to OTHER Unicode code points instead of leaving
+        // them as-is -- charCodeAt() then returns that remapped code point, not the original byte,
+        // silently corrupting any stream byte in that range (compressed/binary streams hit this
+        // constantly). A direct Uint8Array.slice() of the source bytes is exact by construction;
+        // string indices are still safe to use as byte offsets since the decode is always 1
+        // byte -> 1 UTF-16 unit, so position math (dataStart/dataEnd) stays valid.
+        const rawStream=bytes.slice(obj.start+dataStart,obj.start+dataEnd);
         const encrypted=await aesEncryptStream(rawStream,encKey,obj.num,obj.gen);
         let newDict=dictPart.replace(/\/Length\s+\d+(\s+\d+\s+R)?/,`/Length ${encrypted.length}`);
         parts.push(enc.encode(newDict+'stream\n'));
@@ -1008,9 +1029,10 @@ async function processPdf(buffer, password) {
         parts.push(enc.encode('\nendstream\nendobj\n'));
       }
     } else {
-      const raw=new Uint8Array(objContent.length);
-      for(let i=0;i<objContent.length;i++) raw[i]=objContent.charCodeAt(i);
-      parts.push(raw); parts.push(enc.encode('\n'));
+      // Same byte-perfect slice as above -- streamless objects (Catalog, Pages, Page, Font dicts,
+      // etc.) can still carry non-ASCII bytes (e.g. UTF-16BE hex-encoded metadata strings), so this
+      // must not go through the lossy charCodeAt() reconstruction either.
+      parts.push(bytes.slice(obj.start,obj.start+objContent.length)); parts.push(enc.encode('\n'));
     }
   }
   const Ohex=bytesToHex(O), Uhex=bytesToHex(U);
