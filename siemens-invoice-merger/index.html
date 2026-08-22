@@ -10,6 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'IBM Plex Sans Thai','Segoe UI',Tahoma,Arial,sans-serif;font-size:13.5px;background:linear-gradient(160deg,#fdf5f6 0%,#f4f5f7 45%,#eef1f4 100%);background-attachment:fixed;color:#1a1a2e;letter-spacing:.1px;min-height:100vh;}
@@ -69,6 +70,32 @@
   .dl-btn{background:#2e7d32;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;flex:none;}
   .dl-btn:hover{background:#256428;}
   .footnote{font-size:11px;color:#90a4ae;margin-top:16px;line-height:1.7;}
+  .file-count-pill{display:inline-block;background:#f8fafc;border:1px solid #e0e4ea;border-radius:999px;padding:4px 12px;font-size:12px;color:#546e7a;margin-top:12px;}
+  table.groups{width:100%;border-collapse:collapse;margin-top:6px;font-size:12.5px;}
+  table.groups th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:#90a4ae;padding:8px 9px;border-bottom:1px solid #e0e4ea;font-weight:700;white-space:nowrap;}
+  table.groups td{padding:9px 9px;border-bottom:1px solid #eee;vertical-align:top;}
+  table.groups tr:last-child td{border-bottom:none;}
+  .inv-key{font-weight:700;font-size:13px;color:#1a1a2e;}
+  .file-chip{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;padding:3px 9px;border-radius:999px;background:#f8fafc;border:1px solid #e0e4ea;margin:2px 4px 2px 0;color:#37474f;}
+  .file-chip.missing{color:#c62828;border-color:#f5c6c2;background:#fdecea;}
+  .file-chip .dot{width:6px;height:6px;border-radius:50%;background:#2e7d32;flex:none;}
+  .file-chip.missing .dot{background:#e53935;}
+  .grp-status{font-size:12px;font-weight:700;}
+  .grp-status.ready{color:#2e7d32;}
+  .grp-status.incomplete{color:#e65100;}
+  .unmatched-box{margin-top:14px;padding:12px 14px;border-radius:8px;background:#f8fafc;border:1px solid #e0e4ea;font-size:12px;color:#546e7a;line-height:1.7;}
+  .progress-row{display:flex;align-items:center;gap:10px;font-size:12.5px;padding:7px 0;border-bottom:1px solid #f0f2f5;}
+  .progress-row:last-child{border-bottom:none;}
+  .progress-row .pname{flex:1;color:#1a1a2e;}
+  .progress-row .pstate{font-size:11.5px;font-weight:700;white-space:nowrap;}
+  .progress-row .pstate.wait{color:#90a4ae;}
+  .progress-row .pstate.run{color:#c8102e;}
+  .progress-row .pstate.done{color:#2e7d32;}
+  .progress-row .pstate.fail{color:#c62828;}
+  .result-summary{display:none;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;background:#e8f5e9;border:1px solid #a5d6a7;border-radius:8px;padding:14px 16px;margin-top:14px;}
+  .result-summary.show{display:flex;}
+  .result-summary .rtext{font-size:13px;color:#1a1a2e;}
+  .result-summary .rtext b{color:#2e7d32;}
 </style>
 </head>
 <body>
@@ -111,74 +138,64 @@
     <div class="card">
       <h2>📘 วิธีใช้</h2>
       <ol class="steps">
-        <li>เลือกไฟล์ 3 ไฟล์ตามช่องด้านล่าง: Invoice ที่มีลายเซ็น, ไฟล์ PO, และ Invoice ที่ไม่มีลายเซ็น</li>
-        <li>ระบบจะอ่านเลขที่ invoice จากไฟล์ signed invoice แล้วเติมชื่อไฟล์ผลลัพธ์ให้อัตโนมัติ (แก้ไขเองได้ถ้าต้องการ)</li>
-        <li>กด "รวมไฟล์" ระบบจะรวมตามลำดับ: Signed Invoice → PO → Unsigned Invoice → หน้าขาวดำ (ซ้ำ 2 หน้า) และบังคับทุกหน้าให้เป็นขนาด A4 เท่ากัน</li>
-        <li>กดดาวน์โหลดไฟล์ผลลัพธ์เก็บไว้ได้เลย</li>
+        <li>ลากไฟล์ PDF ทั้งหมดมาวางพร้อมกันได้เลย (signed invoice, PO, unsigned invoice ของหลายๆ invoice ปนกันได้)</li>
+        <li>ระบบจะอ่านเนื้อหาแต่ละไฟล์ ดึงเลขที่ Invoice และเลขที่ PO เพื่อจับคู่ไฟล์เป็นชุดๆ ให้อัตโนมัติ</li>
+        <li>ตรวจสอบตารางผลการจับคู่ — ชุดที่ครบ 3 ไฟล์และ PO ตรงกันจะพร้อมประมวลผล ชุดที่ไม่ครบจะแจ้งเตือนให้แก้ไข</li>
+        <li>กด "ประมวลผลทั้งหมด" ระบบจะรวมแต่ละชุดตามลำดับ: Signed → PO → Unsigned → หน้าขาวดำ (ซ้ำ 2 หน้า) บังคับ A4 ทุกหน้า แล้วตั้งชื่อไฟล์ตามเลขที่ invoice</li>
+        <li>ดาวน์โหลดผลลัพธ์ทั้งหมดเป็น ZIP ไฟล์เดียว</li>
       </ol>
     </div>
 
     <div class="card">
-      <h2><span class="step-badge">1</span> Invoice ที่มีลายเซ็นลูกค้า (Signed)</h2>
-      <div class="dz" id="dz-signed">
+      <h2><span class="step-badge">1</span> อัปโหลดไฟล์ทั้งหมด</h2>
+      <div class="dz" id="dz-all">
         <label style="cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;">
           <span class="dz-icon">📄</span>
-          <span class="dz-title">คลิกหรือลากไฟล์ PDF มาวางที่นี่</span>
-          <span class="dz-hint" id="file-signed">ยังไม่ได้เลือกไฟล์</span>
-          <input type="file" id="input-signed" accept="application/pdf">
+          <span class="dz-title">คลิกหรือลากไฟล์ PDF ทั้งหมดมาวางที่นี่</span>
+          <span class="dz-hint">รองรับหลายไฟล์พร้อมกัน — signed invoice, PO, unsigned invoice ของหลาย invoice ปนกันได้</span>
+          <input type="file" id="input-all" accept="application/pdf" multiple>
         </label>
       </div>
+      <div class="file-count-pill" id="fileCountPill" style="display:none;"></div>
     </div>
 
-    <div class="card">
-      <h2><span class="step-badge">2</span> Purchase Order (PO)</h2>
-      <div class="dz" id="dz-po">
-        <label style="cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;">
-          <span class="dz-icon">📄</span>
-          <span class="dz-title">คลิกหรือลากไฟล์ PDF มาวางที่นี่</span>
-          <span class="dz-hint" id="file-po">ยังไม่ได้เลือกไฟล์</span>
-          <input type="file" id="input-po" accept="application/pdf">
-        </label>
+    <div class="card" id="groupsCard" style="display:none;">
+      <h2><span class="step-badge">2</span> ผลการจับคู่ไฟล์</h2>
+      <div style="overflow-x:auto;">
+        <table class="groups" id="groupsTable">
+          <thead>
+            <tr>
+              <th>เลขที่ Invoice / Memo</th>
+              <th>PO อ้างอิง</th>
+              <th>ไฟล์ที่พบ</th>
+              <th>สถานะ</th>
+            </tr>
+          </thead>
+          <tbody id="groupsBody"></tbody>
+        </table>
       </div>
+      <div class="unmatched-box" id="unmatchedBox" style="display:none;"></div>
     </div>
 
-    <div class="card">
-      <h2><span class="step-badge">3</span> Invoice ที่ไม่มีลายเซ็น (Unsigned)</h2>
-      <div class="dz" id="dz-unsigned">
-        <label style="cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;">
-          <span class="dz-icon">📄</span>
-          <span class="dz-title">คลิกหรือลากไฟล์ PDF มาวางที่นี่</span>
-          <span class="dz-hint" id="file-unsigned">ยังไม่ได้เลือกไฟล์</span>
-          <input type="file" id="input-unsigned" accept="application/pdf">
-        </label>
-      </div>
-      <div class="subtitle" style="margin-top:10px">ไฟล์นี้จะถูกใช้สร้างหน้าขาวดำ (แปลงจากหน้าแรก) แนบต่อท้ายอีก 2 หน้าโดยอัตโนมัติ</div>
-    </div>
-
-    <div class="card">
-      <h2><span class="step-badge">4</span> ตั้งชื่อไฟล์ &amp; รวมไฟล์</h2>
-      <div class="field">
-        <label for="outname">ชื่อไฟล์ผลลัพธ์ (ไม่ต้องใส่ .pdf) — ระบบจะเติมเลขที่ invoice ให้อัตโนมัติเมื่อเลือกไฟล์ signed invoice</label>
-        <input type="text" id="outname" placeholder="เช่น 526013741">
-      </div>
+    <div class="card" id="processCard" style="display:none;">
+      <h2><span class="step-badge">3</span> ประมวลผล &amp; ดาวน์โหลด</h2>
       <div class="actions">
-        <button class="btn-main" id="mergeBtn" disabled>รวมไฟล์</button>
+        <button class="btn-main" id="processBtn">ประมวลผลทั้งหมด</button>
         <button class="btn-outline" id="resetBtn" type="button">เริ่มใหม่</button>
       </div>
       <div class="status-box" id="status"></div>
       <div class="warn-box" id="warnBox"></div>
-      <div class="result" id="result">
-        <div class="rinfo">
-          <div class="rname" id="resultName">-</div>
-          <div class="rsub">รวมไฟล์เสร็จแล้ว</div>
-        </div>
-        <button class="dl-btn" id="downloadBtn">⬇️ ดาวน์โหลด PDF</button>
+      <div id="progressList" style="margin-top:10px;"></div>
+      <div class="result-summary" id="resultSummary">
+        <div class="rtext" id="resultText">-</div>
+        <button class="dl-btn" id="downloadZipBtn">⬇️ ดาวน์โหลด ZIP</button>
       </div>
     </div>
 
     <div class="footnote">
-      ประมวลผลทุกอย่างในเครื่องของคุณ (client-side) ผ่าน pdf-lib.js และ pdf.js — ไม่มีข้อมูลใดถูกส่งออกไปนอกเบราว์เซอร์<br>
-      รูปแบบไฟล์: หน้า 1 = Signed Invoice, หน้า 2-4 = PO (ตามจำนวนหน้าจริงของไฟล์ PO), หน้าถัดมา = Unsigned Invoice, หน้าสุดท้าย 2 หน้า = สำเนาขาวดำของ Unsigned Invoice (หน้าแรก) ซ้ำกัน 2 ชุด
+      เครื่องมือนี้ประมวลผลทุกอย่างในเครื่องของคุณ (client-side) ผ่าน pdf-lib.js, pdf.js และ JSZip — ไม่มีข้อมูลใดถูกส่งออกไปนอกเบราว์เซอร์<br>
+      รูปแบบไฟล์แต่ละชุด: Signed Invoice → PO (ทุกหน้า) → Unsigned Invoice → สำเนาขาวดำของ Unsigned Invoice (หน้าแรก) ซ้ำกัน 2 หน้า ทุกหน้าถูกบังคับให้เป็นขนาด A4 เท่ากัน<br>
+      การจับคู่ไฟล์อ่านจากเนื้อหาจริงในไฟล์ (เลขที่ Invoice และเลขที่ PO ที่ระบุในหน้า invoice) หากอ่านไม่ได้จะลองจับคู่จากชื่อไฟล์แทน
     </div>
   </div>
 </div>
