@@ -13,7 +13,7 @@ var GL_INCOME_SET = new Set([
   '21710101A', '21710103A', '21710102'
 ]);
 
-var state = { csvFiles: [], xlsxFile: null, mergedRows: null, mergedHeader1: null, mergedHeader2: null, tableData: null };
+var state = { csvFiles: [], xlsxFile: null, mergedRows: null, mergedHeader1: null, mergedHeader2: null, tableData: null, fileJE: null };
 
 function esc_(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function setStatus(msg, cls) {
@@ -62,11 +62,16 @@ function formatMoney(n) { return n.toLocaleString('en-US', { minimumFractionDigi
 // ── Merge JE export CSVs: reverse debit/credit, net by project+account+ref3+memo ─────────────
 // Row shape (post-header): batchnum, oldLineId, account, debit, credit, linememo, project,
 // projcode, ref3. linememo ends in "_MMYY" (or similar) -- extracted as the reversed memo's month
-// tag ("Reverse Income_MMYY").
+// tag ("Reverse Income_MMYY"). Once the Accrued (all).xlsx is loaded, a JE ref (read from that
+// workbook's "JE Accrue" column) is appended: "Reverse Income_MMYY (JExxxxxxx)" — one JE per
+// uploaded CSV file (1 file = 1 JE), not per project, since a single JE can span several
+// projects. Each output row's `fileIdx` (tracked via rowFileIdx / fileProjects below) records
+// which uploaded file it came from so the caller can resolve that file's JE and tag it.
 async function mergeCsvFiles(files) {
   var header1 = null, header2 = null;
   var net = new Map();
   var orderedKeys = [];
+  var fileProjects = files.map(function () { return []; });
 
   for (var fi = 0; fi < files.length; fi++) {
     var text = await readFileAsText(files[fi]);
@@ -79,6 +84,7 @@ async function mergeCsvFiles(files) {
       if (row.every(function (c) { return c.trim() === ''; })) continue;
       while (row.length < 9) row.push('');
       var account = row[2], debitStr = row[3], creditStr = row[4], linememo = row[5], project = row[6], projcode = row[7], ref3 = row[8];
+      if (project && fileProjects[fi].indexOf(project) === -1) fileProjects[fi].push(project);
       var m = /_(\d{4})\s*$/.exec(linememo.trim());
       var monthCode = m ? m[1] : linememo.trim().split('_').pop();
       var newMemo = 'Reverse Income_' + monthCode;
@@ -86,7 +92,7 @@ async function mergeCsvFiles(files) {
       var c = creditStr.trim() ? parseFloat(creditStr) : 0;
       var newDebit = c, newCredit = d;
       var key = [project, projcode, account, ref3, newMemo].join('|||');
-      if (!net.has(key)) { net.set(key, { debit: 0, credit: 0, project: project, projcode: projcode, account: account, ref3: ref3, memo: newMemo }); orderedKeys.push(key); }
+      if (!net.has(key)) { net.set(key, { debit: 0, credit: 0, project: project, projcode: projcode, account: account, ref3: ref3, memo: newMemo, fileIdx: fi }); orderedKeys.push(key); }
       var entry = net.get(key);
       entry.debit += newDebit;
       entry.credit += newCredit;
@@ -94,6 +100,7 @@ async function mergeCsvFiles(files) {
   }
 
   var outRows = [];
+  var outFileIdx = [];
   var lineId = 0;
   orderedKeys.forEach(function (key) {
     var e = net.get(key);
@@ -102,9 +109,10 @@ async function mergeCsvFiles(files) {
     var debitVal = '', creditVal = '';
     if (netAmt >= 0) debitVal = round6(netAmt); else creditVal = round6(-netAmt);
     outRows.push(['1', String(lineId), e.account, debitVal, creditVal, e.memo, e.project, e.projcode, e.ref3]);
+    outFileIdx.push(e.fileIdx);
   });
 
-  return { header1: header1, header2: header2, rows: outRows };
+  return { header1: header1, header2: header2, rows: outRows, rowFileIdx: outFileIdx, fileProjects: fileProjects };
 }
 
 function sumIncomeByProjectFromCsv(mergedRows) {
@@ -139,6 +147,46 @@ function sumIncomeFromSheetGrid(aoa) {
   return byProject;
 }
 
+// Finds the column index of a header cell (searched across the 3 header rows, aoa index 0-2)
+// whose trimmed text matches `label` case-insensitively. Returns -1 if not found — used so the
+// "JE Accrue" lookup below never hardcodes a column position.
+function findHeaderCol(aoa, label) {
+  if (!aoa) return -1;
+  var target = label.trim().toLowerCase();
+  for (var r = 0; r < 3 && r < aoa.length; r++) {
+    var row = aoa[r];
+    if (!row) continue;
+    for (var c = 0; c < row.length; c++) {
+      if (row[c] != null && String(row[c]).trim().toLowerCase() === target) return c;
+    }
+  }
+  return -1;
+}
+
+// Reads the "JE Accrue" column (found dynamically by header text, see findHeaderCol) out of the
+// same Accrue Income / Accrue Minus Income sheet grid, and returns { project: "JExxxxxxx" } —
+// one JE ref per project (first non-empty value found wins). Returns {} if the column isn't
+// present in this sheet, so callers degrade gracefully instead of erroring.
+function sumJEByProjectFromSheetGrid(aoa) {
+  var byProject = {};
+  if (!aoa) return byProject;
+  var jeCol = findHeaderCol(aoa, 'JE Accrue');
+  if (jeCol === -1) return byProject;
+  for (var r = 3; r < aoa.length; r++) {
+    var row = aoa[r];
+    if (!row) continue;
+    var proj = row[1];
+    if (proj == null || String(proj).trim() === '') continue;
+    if (proj === 'Row Labels' || proj === 'Grand Total') continue;
+    if (byProject[proj]) continue;
+    var v = row[jeCol];
+    if (v == null || String(v).trim() === '') continue;
+    var s = String(v).trim();
+    byProject[proj] = /^je/i.test(s) ? s : ('JE' + s);
+  }
+  return byProject;
+}
+
 // ── UI wiring ──────────────────────────────────────────────────────────────────────────────
 function wireDropzone(dzId, inputId, onFiles) {
   var dz = document.getElementById(dzId);
@@ -155,12 +203,19 @@ function renderCsvFileList() {
   if (!state.csvFiles.length) { el.innerHTML = ''; document.getElementById('csvCountLabel').textContent = 'เลือกได้หลายไฟล์'; return; }
   document.getElementById('csvCountLabel').textContent = 'เลือกแล้ว ' + state.csvFiles.length + ' ไฟล์';
   el.innerHTML = state.csvFiles.map(function (f, i) {
-    return '<div class="file-row"><span class="idx">' + (i + 1) + '</span><span class="fname">' + esc_(f.name) + '</span>' +
+    var jeTag = '';
+    if (state.fileJE && state.fileJE.length === state.csvFiles.length) {
+      jeTag = state.fileJE[i]
+        ? '<span style="margin-left:8px;color:#0a7a3d;font-weight:600;">→ ' + esc_(state.fileJE[i]) + '</span>'
+        : '<span style="margin-left:8px;color:#999;">→ ไม่พบ JE</span>';
+    }
+    return '<div class="file-row"><span class="idx">' + (i + 1) + '</span><span class="fname">' + esc_(f.name) + '</span>' + jeTag +
       '<button class="rm" data-i="' + i + '" title="ลบไฟล์">✕</button></div>';
   }).join('');
   Array.prototype.forEach.call(el.querySelectorAll('.rm'), function (btn) {
     btn.addEventListener('click', function () {
       state.csvFiles.splice(parseInt(btn.getAttribute('data-i'), 10), 1);
+      state.fileJE = null;
       renderCsvFileList();
     });
   });
@@ -168,6 +223,7 @@ function renderCsvFileList() {
 
 wireDropzone('dropCsv', 'csvInput', function (files) {
   state.csvFiles = state.csvFiles.concat(Array.prototype.slice.call(files).filter(function (f) { return /\.csv$/i.test(f.name); }));
+  state.fileJE = null;
   renderCsvFileList();
 });
 wireDropzone('dropXlsx', 'xlsxInput', function (files) {
@@ -200,16 +256,38 @@ async function runReconcile() {
       throw new Error('ไม่พบชีต "Accrue Income" หรือ "Accrue Minus Income" ในไฟล์นี้ — ตรวจสอบว่าเป็นไฟล์ Accrued (all).xlsx ที่ถูกต้อง');
     }
     var allByProject = {};
+    var jeByProject = {};
     if (wb.sheets['Accrue Income']) {
       var incomeGrid = (await readSheetGrid(wb, 'Accrue Income')).aoa;
       var s1 = sumIncomeFromSheetGrid(incomeGrid);
       Object.keys(s1).forEach(function (k) { allByProject[k] = (allByProject[k] || 0) + s1[k]; });
+      var je1 = sumJEByProjectFromSheetGrid(incomeGrid);
+      Object.keys(je1).forEach(function (k) { if (!jeByProject[k]) jeByProject[k] = je1[k]; });
     }
     if (wb.sheets['Accrue Minus Income']) {
       var minusGrid = (await readSheetGrid(wb, 'Accrue Minus Income')).aoa;
       var s2 = sumIncomeFromSheetGrid(minusGrid);
       Object.keys(s2).forEach(function (k) { allByProject[k] = (allByProject[k] || 0) + s2[k]; });
+      var je2 = sumJEByProjectFromSheetGrid(minusGrid);
+      Object.keys(je2).forEach(function (k) { if (!jeByProject[k]) jeByProject[k] = je2[k]; });
     }
+
+    // Resolve one JE ref per uploaded CSV file (1 file = 1 JE): take the first non-empty
+    // jeByProject match among the projects that appear in that file. Every merged row inherits
+    // its originating file's JE ref, e.g. "Reverse Income_0326" -> "Reverse Income_0326
+    // (JE1234567)". Files whose projects have no JE match keep the plain memo.
+    var fileJE = merged.fileProjects.map(function (projList) {
+      for (var i = 0; i < projList.length; i++) {
+        if (jeByProject[projList[i]]) return jeByProject[projList[i]];
+      }
+      return null;
+    });
+    state.fileJE = fileJE;
+    state.mergedRows.forEach(function (row, idx) {
+      var je = fileJE[merged.rowFileIdx[idx]];
+      if (je) row[5] = row[5] + ' (' + je + ')';
+    });
+    renderCsvFileList();
 
     var allProjects = Array.from(new Set(Object.keys(revByProject).concat(Object.keys(allByProject)))).sort();
     var tableData = [];
