@@ -77,6 +77,7 @@
   .msg.ok{background:var(--ok-bg);border:1px solid var(--ok-border);color:#3a5a29;}
   .msg.err{background:var(--err-bg);border:1px solid var(--err-border);color:#7a2a26;}
   .msg.info{background:var(--blue-light);border:1px solid #b7c9e8;color:var(--navy);}
+  .msg.warn{background:var(--warn-bg);border:1px solid var(--warn-border);color:#6b551a;}
   .tabs{display:flex;gap:6px;margin-bottom:12px;}
   .tab-btn{background:#fff;border:1px solid var(--border);border-radius:8px 8px 0 0;padding:8px 18px;cursor:pointer;font-size:13px;color:var(--muted);}
   .tab-btn.active{background:var(--blue);color:#fff;border-color:var(--blue);}
@@ -93,6 +94,14 @@
   .hint{font-size:13px;color:var(--muted);margin:0;}
   .step-disabled{opacity:.5;pointer-events:none;}
   .footer-note{text-align:center;color:var(--muted);font-size:12px;margin-top:24px;}
+  details.help{margin-top:14px;border:1px solid var(--border);border-radius:8px;background:#fafcff;}
+  details.help>summary{cursor:pointer;padding:10px 14px;font-size:13.5px;color:var(--navy);font-weight:600;list-style:none;}
+  details.help>summary::-webkit-details-marker{display:none;}
+  details.help[open]>summary{border-bottom:1px solid var(--border);}
+  .help-body{padding:12px 14px 16px;text-align:left;}
+  .help-table{font-size:12.5px;}
+  .help-table th,.help-table td{text-align:left;white-space:normal;}
+  .help-table code{background:#eef3fa;border-radius:4px;padding:1px 5px;font-size:12px;}
 </style>
 </head>
 <body>
@@ -107,6 +116,7 @@
   <div class="wrap">
     <h1>🧾 Fill DTW — GL Manual</h1>
     <p>อัปโหลดไฟล์ต้นทาง (ไฟล์ที่ชื่อมีคำว่า "GL") ได้สูงสุด 10 ไฟล์ แล้วกด Process — ระบบจะรวมข้อมูลทุกไฟล์แล้วเติมชีต Head และ Line ให้อัตโนมัติ โดย DocNum/ParentKey จะเรียงต่อเนื่องกันข้ามไฟล์ พร้อม preview และดาวน์โหลดผลลัพธ์ได้ทันที (ประมวลผลในเบราว์เซอร์ล้วนๆ ไม่มีการอัปโหลดข้อมูลขึ้นเซิร์ฟเวอร์ใดๆ)</p>
+    <p style="margin-top:10px;">✨ <strong>ใหม่:</strong> ข้อมูลบริษัท/ลูกค้าอ่านได้ทั้งจาก metadata block เหนือหัวตาราง <em>และ</em> จากคอลัมน์ในตาราง — ใส่หลายบริษัทในชีตเดียวได้แล้ว</p>
   </div>
 </header>
 
@@ -130,7 +140,7 @@
         <a class="tool-nav-item" href="../accrued-reconcile/">🧮 Data for Reverse Accrued</a>
         <a class="tool-nav-item" href="../siemens-invoice-merger/">📎 SIEMENS Invoice Merger</a>
         <a class="tool-nav-item active" href="../fill-dtw-thaioil/">🧾 Fill DTW — GL Manual</a>
-          <a class="tool-nav-item" href="../print-desk/">🖨️ Print Desk</a>
+        <a class="tool-nav-item" href="../print-desk/">🖨️ Print Desk</a>
       </nav>
     </div>
   </div>
@@ -146,6 +156,26 @@
       <input type="file" id="srcFile" accept=".xlsx" multiple>
       <div id="fileListBox"><p class="hint">ยังไม่ได้เลือกไฟล์ — ลากไฟล์มาวางที่นี่ได้เช่นกัน (สูงสุด 10 ไฟล์)</p></div>
     </div>
+
+    <details class="help">
+      <summary>📌 หลายบริษัทในชีตเดียว — ใส่ข้อมูลบริษัทเป็น "คอลัมน์ในตาราง" ได้ (กดเพื่อดูวิธีใช้)</summary>
+      <div class="help-body">
+        <p class="hint">เดิมข้อมูลบริษัทอ่านจาก metadata block เหนือหัวตารางอย่างเดียว ทำให้ 1 ชีต = 1 บริษัท ตอนนี้เพิ่มทางเลือก: <strong>ถ้าหัวตารางมีคอลัมน์ชื่อตรงกับฟิลด์ด้านล่าง ระบบจะใช้ค่าจากคอลัมน์นั้นเป็นรายแถวแทน</strong> ทำให้ใส่หลายบริษัทในชีตเดียวได้</p>
+        <ul class="hint" style="margin:8px 0 12px 18px;padding:0;">
+          <li>ผสมกันได้ — ฟิลด์ที่ทุกบริษัทเหมือนกัน (เช่น ProjectCode, Bank, Book Year) ปล่อยไว้ใน block ด้านบน แล้วเพิ่มเฉพาะคอลัมน์ที่ต่างกัน (เช่น รหัสลูกค้า / ชื่อลูกค้า / Tax ID / ที่อยู่ลูกค้า / Due date)</li>
+          <li><strong>แถวที่เว้นว่างในคอลัมน์นั้น จะย้อนกลับไปใช้ค่าจาก block ด้านบนอัตโนมัติ</strong> — ไฟล์ฟอร์มเดิมทุกแบบยังทำงานได้เหมือนเดิม 100% ไม่ต้องแก้อะไร</li>
+          <li>วางคอลัมน์เหล่านี้ตรงไหนก็ได้ (ก่อน/หลัง/แทรกกลางคอลัมน์ pay component) ระบบจะไม่นับเป็นยอดเงิน</li>
+          <li>ช่องรหัสที่มีเลข 0 นำหน้า (สาขา 00000, รหัสไปรษณีย์) ควรตั้ง cell เป็น Text — แต่ถ้าเผลอใส่เป็นตัวเลข ระบบจะเติม 0 ให้ครบหลักให้เอง</li>
+          <li>ตรวจผลได้ที่ตาราง "สรุปแยกตามบริษัท/ลูกค้า" ในขั้นตอน Preview ก่อนดาวน์โหลด</li>
+          <li>ไฟล์ที่ไม่มีคอลัมน์ <code>Total Invoice</code> ก็ใช้ได้ — ระบบจะใช้ผลรวมของคอลัมน์ pay component เป็นยอด Inv แล้วขึ้นคำเตือนสีเหลืองว่าข้ามการ reconcile</li>
+          <li>ถ้าไม่มี <code>รหัสสาขาลูกค้า</code> (U_BP_Brch) ที่ไหนเลย ระบบจะใช้ค่าจาก <code>สาขาลูกค้า</code> (PayToCode) แทน พร้อมขึ้นคำเตือน</li>
+        </ul>
+        <table class="help-table">
+          <thead><tr><th style="text-align:left;">ฟิลด์</th><th style="text-align:left;">ชื่อคอลัมน์ที่ใช้ได้ในหัวตาราง</th><th style="text-align:left;">ลงช่องไหนใน DTW</th></tr></thead>
+          <tbody id="fieldRefBody"></tbody>
+        </table>
+      </div>
+    </details>
   </section>
 
   <section>
@@ -163,7 +193,9 @@
       <div class="card"><span class="num" id="cardInv">–</span><span class="label">ใบ Invoice (Head)</span></div>
       <div class="card"><span class="num" id="cardLines">–</span><span class="label">บรรทัด (Line)</span></div>
       <div class="card"><span class="num" id="cardTotal">–</span><span class="label">ยอดรวม (บาท)</span></div>
+      <div class="card"><span class="num" id="cardCompanies">–</span><span class="label">บริษัท/ลูกค้า</span></div>
     </div>
+    <div id="companySummary"></div>
     <div id="fileRangeSummary"></div>
     <div class="tabs">
       <button class="tab-btn active" data-tab="head">Head</button>
@@ -382,6 +414,56 @@ function findHeaderRow(rows) {
   return -1;
 }
 
+// ---------- ฟิลด์ metadata ที่รองรับการอ่าน "จากในตาราง" ต่อแถว (หลายบริษัทในชีตเดียว) ----------
+// เดิม: ข้อมูลบริษัท/ลูกค้าอ่านจาก metadata block เหนือหัวตารางอย่างเดียว → 1 ชีต = 1 บริษัทเท่านั้น
+// ตอนนี้: ถ้าหัวตารางมีคอลัมน์ชื่อตรงกับ label ของฟิลด์ไหน ระบบจะใช้ค่าจากคอลัมน์นั้น "ต่อแถว" แทน
+//         ทำให้ใส่หลายบริษัทในชีตเดียวได้ — แถวที่เว้นว่างในคอลัมน์นั้นจะย้อนไปใช้ค่าจาก block ด้านบนเหมือนเดิม
+// metaKeys = label ที่ยอมรับใน metadata block, cols = ชื่อหัวตารางที่ยอมรับเป็นคอลัมน์ override
+// pad = ถ้าค่าที่อ่านได้เป็น "ตัวเลข" (Excel กินเลข 0 นำหน้าหาย) จะเติม 0 ข้างหน้าให้ครบตามจำนวนหลักนี้
+const META_FIELDS = [
+  {key:'projectCode',   metaKeys:['ProjectCode'],                                                    cols:['ProjectCode'],                                                                                     required:true},
+  {key:'invDate',       metaKeys:['วันที่ Inv'],                                                      cols:['วันที่ Inv','DocDate','Doc Date'],                                                                  required:true,  isDate:true},
+  {key:'dueDate',       metaKeys:['Due date','Due Date'],                                            cols:['Due date','Due Date','DocDueDate'],                                                                required:true,  isDate:true},
+  {key:'cardCode',      metaKeys:['รหัสลูกค้า'],                                                      cols:['รหัสลูกค้า','CardCode'],                                                                            required:true},
+  {key:'cardName',      metaKeys:['ชื่อลูกค้า'],                                                      cols:['ชื่อลูกค้า','CardName','Company','Company Name','Customer Name','ชื่อบริษัท'],                            required:true},
+  {key:'paymentGroup',  metaKeys:['รหัส Group credit term ดูรหัสจากคู่มือ','รหัส Group credit term'],   cols:['รหัส Group credit term ดูรหัสจากคู่มือ','รหัส Group credit term','PaymentGroupCode'],                required:true},
+  {key:'series',        metaKeys:['รหัส Series ดูรหัสจากคู่มือ','รหัส Series'],                         cols:['รหัส Series ดูรหัสจากคู่มือ','รหัส Series','Series'],                                                required:true},
+  {key:'taxId',         metaKeys:['Tax ID'],                                                         cols:['Tax ID','TaxID','FederalTaxID'],                                                                   required:true},
+  {key:'branchCode',    metaKeys:['สาขาลูกค้า'],                                                      cols:['สาขาลูกค้า','PayToCode'],                                                                           required:true,  pad:5},
+  {key:'address',       metaKeys:['ที่อยู่ลูกค้า'],                                                    cols:['ที่อยู่ลูกค้า','Address'],                                                                           required:true},
+  {key:'contactPerson', metaKeys:['Contact Person'],                                                 cols:['Contact Person','U_Contact'],                                                                      required:false},
+  {key:'telephone',     metaKeys:['Telephone'],                                                      cols:['Telephone','U_Telephone'],                                                                         required:false},
+  {key:'email1',        metaKeys:['Email1'],                                                         cols:['Email1','U_Email1'],                                                                               required:false},
+  {key:'bankAccount',   metaKeys:['Bank Account'],                                                   cols:['Bank Account','U_Bank'],                                                                           required:true},
+  {key:'bankName',      metaKeys:['Bank Name'],                                                      cols:['Bank Name','U_BankName'],                                                                          required:true},
+  {key:'bankBranch',    metaKeys:['Bank Branch'],                                                    cols:['Bank Branch','U_BankBranch'],                                                                      required:true},
+  {key:'accType',       metaKeys:['Account Type'],                                                   cols:['Account Type','U_AccType'],                                                                        required:true},
+  {key:'swiftCode',     metaKeys:['Swift Code'],                                                     cols:['Swift Code','U_Swift'],                                                                            required:true},
+  {key:'bpBranch',      metaKeys:['รหัสสาขาลูกค้า'],                                                  cols:['รหัสสาขาลูกค้า','U_BP_Brch'],                                                                        required:false, pad:5, fallbackFrom:'branchCode'},
+  {key:'bookYear',      metaKeys:['Book Year'],                                                      cols:['Book Year','U_BookY'],                                                                             required:true,  pad:4},
+  {key:'zipCode',       metaKeys:['รหัสไปรษณีย์ลูกค้า'],                                               cols:['รหัสไปรษณีย์ลูกค้า','U_KN_ZipCode'],                                                                 required:true,  pad:5}
+];
+
+// แปลงค่าที่อ่านได้ให้อยู่ในรูปที่ใช้งานได้: ตัดช่องว่างหัวท้าย, ค่าว่าง → undefined (เพื่อให้ fallback ทำงาน),
+// และเติม 0 นำหน้าให้ฟิลด์รหัสที่ Excel มักกินศูนย์หาย (เช่น สาขา 00000 ถูกเก็บเป็นเลข 0)
+// ปัดเงินเป็น 2 ตำแหน่งทศนิยมแบบ half-up และล้าง float noise (เช่น 368176.30000000005 → 368176.3)
+// ใช้ epsilon เล็กๆ กันเคสที่ค่าจริงลงท้าย .xx5 แล้ว float เก็บเป็น .xx49999
+function round2(n) {
+  if (typeof n !== 'number' || !isFinite(n)) return n;
+  return Math.round((n + (n >= 0 ? 1 : -1) * 1e-9) * 100) / 100;
+}
+
+function normalizeMetaValue(field, v) {
+  if (v === null || v === undefined) return undefined;
+  if (typeof v === 'string') { const s = v.trim(); return s === '' ? undefined : s; }
+  if (typeof v === 'number' && field && field.pad) {
+    let s = String(v);
+    if (/^\d+$/.test(s) && s.length < field.pad) s = '0'.repeat(field.pad - s.length) + s;
+    return s;
+  }
+  return v;
+}
+
 // ประมวลผลไฟล์ต้นทาง 1 ไฟล์ → คืนค่าเป็น array ของ "invoice object" (ยังไม่ผูก DocNum/ParentKey ตายตัว
 // เพราะ DocNum/ParentKey จะถูกกำหนดแบบต่อเนื่องข้ามไฟล์ทีหลัง ตอนรวมผลจากทุกไฟล์เข้าด้วยกัน)
 function processFile(rows, fileLabel) {
@@ -411,76 +493,66 @@ function processFile(rows, fileLabel) {
         meta[String(key).trim()] = rows[r][metaValueCol];
       }
     }
-    function m(key) {
-      if (!(key in meta)) throw new Error('[' + fileLabel + '] ไม่พบข้อมูล "' + key + '" ใน metadata ของไฟล์ต้นทาง');
-      return meta[key];
-    }
     function mOptional(key) {
       return key in meta ? meta[key] : undefined;
     }
 
-    const projectCode   = m("ProjectCode");
-    const invDate       = m("วันที่ Inv");
-    const dueDate       = m("Due date");
-    validateDateField(invDate, 'วันที่ Inv', fileLabel);
-    validateDateField(dueDate, 'Due date', fileLabel);
-    const cardCode      = m("รหัสลูกค้า");
-    const cardName      = m("ชื่อลูกค้า");
+    const header = rows[headerRowIdx];
+    const glRow = rows[glRowIdx];
+
+    // ---- หาคอลัมน์ override ของข้อมูลบริษัท/metadata ในหัวตาราง (ฟีเจอร์ "หลายบริษัทในชีตเดียว") ----
+    // ถ้าหัวตารางมีคอลัมน์ชื่อตรงกับ label ของฟิลด์ไหน → ฟิลด์นั้นจะอ่านค่าต่อแถวจากคอลัมน์นี้แทน
+    const overrideCols = {};
+    for (let c = 0; c < header.length; c++) {
+      const h = header[c] ? String(header[c]).trim() : '';
+      if (h === '') continue;
+      for (let fi = 0; fi < META_FIELDS.length; fi++) {
+        const f = META_FIELDS[fi];
+        if (overrideCols[f.key] !== undefined) continue;
+        if (f.cols.indexOf(h) !== -1) { overrideCols[f.key] = c; break; }
+      }
+    }
+    const overrideKeys = Object.keys(overrideCols);
+    const warnings = [];   // คำเตือนที่ไม่ถึงขั้นหยุดการทำงาน แต่ผู้ใช้ควรเห็นก่อนดาวน์โหลด
+
+    // ---- ค่า default ระดับไฟล์/ชีต จาก metadata block ด้านบน (ใช้เป็น fallback ของทุกแถว) ----
+    const baseMeta = {};
+    for (let fi = 0; fi < META_FIELDS.length; fi++) {
+      const f = META_FIELDS[fi];
+      let raw;
+      for (let ki = 0; ki < f.metaKeys.length; ki++) {
+        if (f.metaKeys[ki] in meta) { raw = meta[f.metaKeys[ki]]; break; }
+      }
+      const val = normalizeMetaValue(f, raw);
+      if (val !== undefined) {
+        baseMeta[f.key] = val;
+      } else if (f.required && overrideCols[f.key] === undefined) {
+        throw new Error('[' + fileLabel + '] ไม่พบข้อมูล "' + f.metaKeys[0] + '" — ไม่มีทั้งใน metadata block ด้านบนหัวตาราง และไม่มีคอลัมน์ "' + f.cols[0] + '" ในตาราง (ใส่ได้อย่างใดอย่างหนึ่ง)');
+      }
+    }
+    // ตรวจรูปแบบวันที่ระดับไฟล์ เฉพาะกรณีที่ไม่ได้ override เป็นรายแถว (กรณี override จะตรวจทีละแถวแทน)
+    if (baseMeta.invDate !== undefined && overrideCols.invDate === undefined) validateDateField(baseMeta.invDate, 'วันที่ Inv', fileLabel);
+    if (baseMeta.dueDate !== undefined && overrideCols.dueDate === undefined) validateDateField(baseMeta.dueDate, 'Due date', fileLabel);
+
     // Reference No. เป็น metadata ค่าเดียวใช้กับทุกใบ invoice (ฟอร์ม 1/2) — ถ้าไม่มี field นี้ (ฟอร์ม 3)
     // จะดึง NumAtCard จากคอลัมน์ "NumAtCard" ในตารางข้อมูลแทน (ค่าต่างกันได้ทุกแถว เช่นเลข PO)
     const numAtCardMeta = mOptional("Reference No.");
     // ประเภทเอกสาร / Wording / Month ใช้เฉพาะตอนต้องคำนวณ Comments/OpeningRemarks เอง (ฟอร์ม 1)
-    // ฟอร์ม 2 ที่มีคอลัมน์ Comments/Opening Remarks ในตัว และฟอร์ม 3 ที่มี metadata OpeningRemarks
-    // ค่าเดียวใช้กับทุกใบ จะไม่ต้องมี field เหล่านี้ก็ได้
     const docTypeDescRaw = mOptional("ประเภทเอกสาร");
     const docTypeDesc   = docTypeDescRaw !== undefined ? String(docTypeDescRaw).trim() : '';
     const wordingRaw     = mOptional("Wording");
     const wording       = wordingRaw !== undefined ? String(wordingRaw).trim() : '';
     const monthTxt      = mOptional("Month");
     // ฟอร์ม 3/5: OpeningRemarks เป็น metadata ค่าเดียวใช้กับทุกใบ invoice ในไฟล์นี้ (ต่างจากฟอร์ม 2/4 ที่เป็นคอลัมน์ต่อแถว)
-    // ไฟล์แบบนี้มักไม่มีข้อมูลสำหรับ Comments เลย — ตามที่ยืนยันกับผู้ใช้ ให้เว้น Comments ว่างไว้ในกรณีนี้
-    // label ของ metadata field นี้เขียนได้ 2 แบบในไฟล์จริง: "OpeningRemarks" (ฟอร์ม 3 เช่น TETRA PAK)
-    // หรือ "Opening Remarks" มีช่องว่าง (ฟอร์ม 5 เช่น POLYPLEX) — เช็คทั้งคู่ ถือเป็น field เดียวกัน
     const metaOpeningRemarksRaw = mOptional("OpeningRemarks") !== undefined ? mOptional("OpeningRemarks") : mOptional("Opening Remarks");
     const metaOpeningRemarks = metaOpeningRemarksRaw !== undefined ? String(metaOpeningRemarksRaw) : undefined;
-    // ฟอร์ม 4b/5b: บางไฟล์ (เช่น PRUDENTIAL/POLYPLEX เวอร์ชันใหม่) เปลี่ยนจุดเดิมที่เคยเป็น "Opening Remarks"
-    // (คอลัมน์ต่อแถว หรือ metadata ค่าเดียว) ให้กลายเป็น "U_Email2" แทน — ค่าเดียวกัน ตำแหน่งเดียวกัน
-    // แต่เป้าหมายปลายทางเปลี่ยนจาก Head.OpeningRemarks ไปเป็น Head.U_Email2 แทน (OpeningRemarks จะว่างไว้)
+    // ฟอร์ม 4b/5b: จุดเดิมที่เคยเป็น "Opening Remarks" เปลี่ยนเป็น "U_Email2" — ปลายทางเป็น Head.U_Email2
     const metaEmail2Raw = mOptional("U_Email2");
     const metaEmail2 = metaEmail2Raw !== undefined ? String(metaEmail2Raw) : undefined;
-    const paymentGroup  = m("รหัส Group credit term ดูรหัสจากคู่มือ");
-    const series        = m("รหัส Series ดูรหัสจากคู่มือ");
-    const taxId         = m("Tax ID");
-    const branchCode    = m("สาขาลูกค้า");
-    const address       = m("ที่อยู่ลูกค้า");
-    // Contact Person/Telephone/Email1 เป็น optional — บางไฟล์ (เช่น G-ABLE) ไม่มี field เหล่านี้เลยใน metadata
-    const contactPersonRaw = mOptional("Contact Person");
-    const contactPerson = contactPersonRaw !== undefined ? contactPersonRaw : '';
-    const telephoneRaw  = mOptional("Telephone");
-    const telephone     = telephoneRaw !== undefined ? telephoneRaw : '';
-    const email1Raw     = mOptional("Email1");
-    const email1        = email1Raw !== undefined ? email1Raw : '';
-    const bankAccount   = m("Bank Account");
-    const bankName      = m("Bank Name");
-    const bankBranch    = m("Bank Branch");
-    const accType       = m("Account Type");
-    const swiftCode     = m("Swift Code");
-    const bpBranch      = m("รหัสสาขาลูกค้า");
-    // Book Month ปกติเป็น metadata ค่าเดียวใช้กับทุกใบ invoice แต่บางไฟล์ (เช่น G-ABLE) ย้ายไปเป็นคอลัมน์
-    // "Book Month" ในตารางข้อมูลแทน (ค่าต่างกันได้ทุกแถว เช่น '0126' vs '0226') — เช็ค metadata ก่อน
-    // ถ้าไม่มีค่อยดึงจากคอลัมน์ต่อแถวทีหลัง (ดูจุด bookMonthCol ด้านล่าง)
+    // Book Month ปกติเป็น metadata ค่าเดียวใช้กับทุกใบ แต่บางไฟล์ (เช่น G-ABLE) ย้ายไปเป็นคอลัมน์ต่อแถว
     const bookMonthMeta = mOptional("Book Month");
-    const bookYear      = m("Book Year");
-    const zipCode       = m("รหัสไปรษณีย์ลูกค้า");
-
-    const header = rows[headerRowIdx];
-    const glRow = rows[glRowIdx];
 
     // หาคอลัมน์ "Comments" / "Opening Remarks" / "NumAtCard" (หรือ "Reference No." ที่ใช้แทนกันได้) ในไฟล์ต้นทาง
-    // Comments/Opening Remarks คู่กัน มีเฉพาะฟอร์มแบบที่ 2 (ถ้าเจอทั้งคู่ ใช้ค่าจากคอลัมน์นี้ตรงๆ แทนการคำนวณสูตรเดิม)
-    // NumAtCard/Reference No. เป็นคอลัมน์ (ไม่ใช่ metadata) มีเฉพาะฟอร์มแบบที่ 3/4 (ค่าต่างกันได้ทุกแถว
-    // เช่นเลข PO หรือเลข Ref — ใช้แทน metadata "Reference No." ที่ไม่มีในฟอร์มเหล่านี้)
-    // ฟอร์ม 4 (เช่น PRUDENTIAL) มีคอลัมน์ "Opening Remarks" แต่ไม่มีคอลัมน์ "Comments" เลย — ต่างจากฟอร์ม 2
     let commentsCol = -1, remarksCol = -1, numAtCardCol = -1, email2Col = -1, bookMonthCol = -1;
     for (let c = 0; c < header.length; c++) {
       const h = header[c] ? String(header[c]).trim() : '';
@@ -493,8 +565,6 @@ function processFile(rows, fileLabel) {
     const hasDirectFields = commentsCol !== -1 && remarksCol !== -1;
     const hasRemarksOnly = remarksCol !== -1 && commentsCol === -1;
     const hasEmail2Only = email2Col !== -1 && commentsCol === -1 && remarksCol === -1;
-    // ฟอร์ม 7 (เช่น SAMSUNG PC): มีทั้งคอลัมน์ "Comments" และคอลัมน์ "U_Email2" ต่อแถว แต่ไม่มีคอลัมน์ "Opening Remarks" เลย
-    // ต่างจาก hasEmail2Only ตรงที่ Comments มีค่าจริง (ไม่ว่าง) — อ่าน Comments ตรงจากคอลัมน์, OpeningRemarks เว้นว่าง, U_Email2 อ่านตรงจากคอลัมน์
     const hasCommentsAndEmail2 = commentsCol !== -1 && email2Col !== -1 && remarksCol === -1;
     if (numAtCardMeta === undefined && numAtCardCol === -1) {
       throw new Error('[' + fileLabel + '] ไม่พบ metadata "Reference No." และไม่พบคอลัมน์ "NumAtCard"/"Reference No."/"PO No." ในไฟล์ต้นทาง — ไม่มีที่มาของ NumAtCard เลย ตรวจสอบไฟล์ต้นทางอีกครั้ง');
@@ -503,27 +573,45 @@ function processFile(rows, fileLabel) {
       throw new Error('[' + fileLabel + '] ไม่พบ metadata "Book Month" และไม่พบคอลัมน์ "Book Month" ในไฟล์ต้นทาง — ไม่มีที่มาของ Book Month เลย ตรวจสอบไฟล์ต้นทางอีกครั้ง');
     }
 
+    // คอลัมน์ที่ "ไม่ใช่" pay component แน่ๆ — ต้องกันไม่ให้ถูกนับเป็นยอดเงินตอนไล่คอลัมน์
+    // (สำคัญมากหลังเพิ่มฟีเจอร์คอลัมน์ข้อมูลบริษัท เพราะผู้ใช้อาจวางคอลัมน์เหล่านี้แทรกกลางตารางได้)
+    const excludedCols = {};
+    for (let ki = 0; ki < overrideKeys.length; ki++) excludedCols[overrideCols[overrideKeys[ki]]] = true;
+    [commentsCol, remarksCol, numAtCardCol, email2Col, bookMonthCol].forEach(function(c){ if (c !== -1) excludedCols[c] = true; });
+
     // คอลัมน์เริ่มต้นของ pay component = คอลัมน์แรก (นับจากคอลัมน์ที่ 2 เป็นต้นไป) ที่แถว GL
-    // มีรหัสบัญชีเป็นตัวเลขล้วน (ไม่จำกัด prefix — รองรับทั้ง 4112xxxx แบบเดิม และรหัส GL อื่นๆ
-    // เช่น 2171xxxx ของฟอร์ม BPO) — หาแบบไดนามิก ไม่ fix ตำแหน่งคอลัมน์ เพราะฟอร์ม 2 มีคอลัมน์
-    // Comments/Opening Remarks แทรกก่อนคอลัมน์ pay component ทำให้ตำแหน่งเลื่อนไป
-    // เกณฑ์: ค่าต้องเป็นตัวเลขล้วนอย่างน้อย 4 หลัก ตามด้วยตัวอักษรต่อท้ายได้ 1 ตัว (optional) — รองรับรหัส
-    // แบบ PEPSICO memo เช่น "21710101A"/"21710103A" นอกเหนือจากตัวเลขล้วนอย่าง "21710102"
+    // มีรหัสบัญชีเป็นตัวเลขล้วน (ไม่จำกัด prefix) — หาแบบไดนามิก ไม่ fix ตำแหน่งคอลัมน์
     let startCol = -1;
     for (let c = 1; c < glRow.length; c++) {
+      if (excludedCols[c]) continue;
       const v = glRow[c];
       if (v !== null && v !== undefined && String(v).trim() !== '' && /^\d{4,}[A-Za-z]?$/.test(String(v).trim())) { startCol = c; break; }
     }
     if (startCol === -1) throw new Error('[' + fileLabel + '] หาคอลัมน์ pay component (แถว GL ต้องมีรหัสบัญชีเป็นตัวเลขล้วนอย่างน้อย 4 หลัก มีตัวอักษรต่อท้ายได้ 1 ตัว) ไม่เจอในแถว GL ของไฟล์ต้นทาง — ตรวจสอบโครงสร้างไฟล์ต้นทางอีกครั้ง');
 
     // คอลัมน์สิ้นสุด = คอลัมน์ก่อนถึงคอลัมน์ "Total Invoice" (หรือ "Total" เฉยๆ ในบางฟอร์ม เช่น PRUDENTIAL)
+    // ถ้าไฟล์ไม่มีคอลัมน์ Total เลย (บางฟอร์มมี pay component ตัวเดียว เช่น CENTRAL GROUP) ก็ยังทำงานได้:
+    // ใช้คอลัมน์สุดท้ายที่แถว GL มีรหัสบัญชีเป็นขอบเขต แล้วใช้ "ผลรวมของ pay component" เป็นยอด Inv แทน
+    // ผลที่ตามมา: ไม่มีตัวเลขอิสระให้ reconcile → ระบบจะขึ้นคำเตือนว่าข้ามการตรวจสอบยอดในไฟล์นี้
     let totalCol = -1;
     for (let c = 0; c < header.length; c++) {
       const h = header[c] ? String(header[c]).trim() : '';
       if (h === 'Total Invoice' || h === 'Total') { totalCol = c; break; }
     }
-    if (totalCol === -1) throw new Error('[' + fileLabel + '] หาคอลัมน์ "Total Invoice"/"Total" ไม่เจอในแถว header ของไฟล์ต้นทาง');
-    const endCol = totalCol - 1;
+    let endCol;
+    if (totalCol === -1) {
+      let lastGlCol = -1;
+      for (let c = startCol; c < glRow.length; c++) {
+        if (excludedCols[c]) continue;
+        const v = glRow[c];
+        if (v !== null && v !== undefined && /^\d{4,}[A-Za-z]?$/.test(String(v).trim())) lastGlCol = c;
+      }
+      if (lastGlCol === -1) throw new Error('[' + fileLabel + '] ไม่มีคอลัมน์ "Total Invoice"/"Total" และหาคอลัมน์ pay component ที่มีรหัส GL ไม่เจอ — ตรวจสอบโครงสร้างไฟล์ต้นทางอีกครั้ง');
+      endCol = lastGlCol;
+      warnings.push('ไม่พบคอลัมน์ "Total Invoice"/"Total" — ใช้ผลรวมของคอลัมน์ pay component เป็นยอด Inv แทน และ "ข้ามการ reconcile" ของไฟล์นี้ (ไม่มีตัวเลขอิสระไว้เทียบ)');
+    } else {
+      endCol = totalCol - 1;
+    }
 
     const canComputeFormula = docTypeDesc !== '' && wording !== '';
     if (!hasDirectFields && !hasCommentsAndEmail2 && !canComputeFormula && !hasRemarksOnly && !hasEmail2Only && metaOpeningRemarks === undefined && metaEmail2 === undefined) {
@@ -547,24 +635,66 @@ function processFile(rows, fileLabel) {
     }
     if (records.length === 0) throw new Error('[' + fileLabel + '] ไม่พบแถวข้อมูล (คอลัมน์ No.) ในไฟล์ต้นทาง');
 
-    // Series 1305 = memo/reimbursement ที่ไม่มี VAT (เช่น PEPSICO "DTW-memo") — ไม่ต้องคูณ 1.07
-    // ทั้ง PriceAfterVAT (Line) และ DocTotal (Head) ส่วน Series อื่นๆ (เช่น 1304 invoice ปกติ) ยังคูณ 1.07 ตามเดิม
-    const vatFactor = (String(series).trim() === '1305') ? 1 : 1.07;
-
     const invoices = [];
+    let bpBranchWarned = false, bookMonthWarned = false;
     for (const rowIdx of records) {
       const row = rows[rowIdx];
       const invNo = row[0];
+
+      // ---- resolve ข้อมูลบริษัท/metadata ของ "แถวนี้" ----
+      // ใช้ค่าจากคอลัมน์ override ถ้ามีและไม่ว่าง ไม่งั้นย้อนไปใช้ค่าจาก metadata block ด้านบน
+      const rowMeta = {};
+      const rowOverridden = [];
+      for (let fi = 0; fi < META_FIELDS.length; fi++) {
+        const f = META_FIELDS[fi];
+        let val;
+        const c = overrideCols[f.key];
+        if (c !== undefined) {
+          val = normalizeMetaValue(f, row[c]);
+          if (val !== undefined) rowOverridden.push(f.key);
+        }
+        if (val === undefined) val = baseMeta[f.key];
+        if (val === undefined) {
+          if (f.required) {
+            throw new Error('[' + fileLabel + '] แถว No.' + invNo + ': ไม่มีค่า "' + f.metaKeys[0] + '" — คอลัมน์ "' + f.cols[0] + '" เว้นว่าง และ metadata block ด้านบนก็ไม่มีค่านี้');
+          }
+          val = '';
+        }
+        rowMeta[f.key] = val;
+      }
+      // "รหัสสาขาลูกค้า" (U_BP_Brch) ไม่บังคับ — ถ้าไฟล์ไม่มีเลย ให้ใช้ค่าเดียวกับ "สาขาลูกค้า" (PayToCode)
+      // ตามที่ยืนยันกับผู้ใช้แล้ว (ฟอร์มส่วนใหญ่สองช่องนี้เป็นค่าเดียวกัน) และขึ้นคำเตือนให้เห็นชัด
+      if ((rowMeta.bpBranch === '' || rowMeta.bpBranch === undefined) && rowMeta.branchCode) {
+        rowMeta.bpBranch = rowMeta.branchCode;
+        if (!bpBranchWarned) {
+          warnings.push('ไม่พบ "รหัสสาขาลูกค้า" (U_BP_Brch) ทั้งใน metadata block และในตาราง — ใช้ค่าจาก "สาขาลูกค้า" (PayToCode) แทนอัตโนมัติ');
+          bpBranchWarned = true;
+        }
+      }
+      // Series 1305 = memo/reimbursement ที่ไม่มี VAT (เช่น PEPSICO "DTW-memo") — ไม่คูณ 1.07
+      // คิดต่อแถว เพราะ Series อาจต่างกันได้แต่ละบริษัท/แต่ละแถวเมื่อใช้คอลัมน์ override
+      const vatFactor = (String(rowMeta.series).trim() === '1305') ? 1 : 1.07;
+      validateDateField(rowMeta.invDate, 'วันที่ Inv (แถว No.' + invNo + ')', fileLabel);
+      validateDateField(rowMeta.dueDate, 'Due date (แถว No.' + invNo + ')', fileLabel);
+
       let totalAmt = 0;
       const lineItems = [];
       for (let c = startCol; c <= endCol; c++) {
-        const val = row[c];
+        if (excludedCols[c]) continue;
+        let val = row[c];
         if (val === null || val === undefined || val === '' || val === 0) continue;
+        // บางไฟล์เก็บยอดเงินเป็น "ข้อความ" (cell format text) — แปลงเป็นตัวเลขก่อน ไม่งั้นยอดรวมจะเพี้ยน
+        if (typeof val === 'string') {
+          const num = parseFloat(val.replace(/,/g, '').trim());
+          if (!isFinite(num) || num === 0) continue;
+          val = num;
+        }
+        if (typeof val !== 'number' || !isFinite(val)) continue;
         const desc = header[c];
         const gl = glRow[c];
         const price = val;
-        const priceAfterVat = price * vatFactor;
-        lineItems.push({desc, price, priceAfterVat, gl});
+        const priceAfterVat = round2(price * vatFactor);
+        lineItems.push({desc, price: round2(price), priceAfterVat, gl});
         totalAmt += price;
       }
 
@@ -578,9 +708,7 @@ function processFile(rows, fileLabel) {
         email2 = '';
         sectionLabel = comments;
       } else if (hasCommentsAndEmail2) {
-        // ฟอร์ม 7 (เช่น SAMSUNG PC): มีทั้งคอลัมน์ "Comments" และคอลัมน์ "U_Email2" ต่อแถว ไม่มีคอลัมน์ "Opening Remarks" เลย
-        // Comments อ่านตรงจากคอลัมน์ (มีค่าจริง เช่นชื่อ section/department), OpeningRemarks เว้นว่างไว้ (ไม่มีที่มา),
-        // U_Email2 อ่านตรงจากคอลัมน์ของแถวนี้ (ค่าต่างกันได้ทุกแถว แม้บางไฟล์จะซ้ำกันทุกแถวก็ได้)
+        // ฟอร์ม 7 (เช่น SAMSUNG PC): คอลัมน์ "Comments" + "U_Email2" ต่อแถว ไม่มีคอลัมน์ "Opening Remarks"
         const rawComments2 = row[commentsCol];
         const rawEmail2b = row[email2Col];
         comments = rawComments2 !== null && rawComments2 !== undefined ? String(rawComments2).trim() : '';
@@ -594,34 +722,28 @@ function processFile(rows, fileLabel) {
         openingRemarks = wording + ' ' + monthTxt + ' # ' + sectionLabel + ' : ' + docTypeDesc;
         email2 = '';
       } else if (hasRemarksOnly) {
-        // ฟอร์ม 4 (เช่น PRUDENTIAL): มีคอลัมน์ "Opening Remarks" ต่อแถว แต่ไม่มีคอลัมน์ "Comments" เลย
-        // Comments เว้นว่างไว้เหมือนฟอร์ม 3, OpeningRemarks ดึงตรงจากคอลัมน์ของแถวนี้ (ต่างกันได้ทุกแถว)
+        // ฟอร์ม 4 (เช่น PRUDENTIAL): มีคอลัมน์ "Opening Remarks" ต่อแถว แต่ไม่มีคอลัมน์ "Comments"
         const rawRemarks = row[remarksCol];
         comments = '';
         openingRemarks = rawRemarks !== null && rawRemarks !== undefined ? String(rawRemarks).trim() : '';
         email2 = '';
         sectionLabel = '';
       } else if (hasEmail2Only) {
-        // ฟอร์ม 4b (เช่น PRUDENTIAL เวอร์ชันใหม่): จุดเดิมที่เคยเป็นคอลัมน์ "Opening Remarks" ต่อแถว
-        // เปลี่ยนชื่อเป็น "U_Email2" แทน — ค่าเดียวกัน ตำแหน่งเดียวกัน แต่เป้าหมายเปลี่ยนเป็น Head.U_Email2
-        // Comments และ OpeningRemarks เว้นว่างไว้ทั้งคู่ (ไม่มีที่มาแล้ว)
+        // ฟอร์ม 4b: จุดเดิมที่เคยเป็นคอลัมน์ "Opening Remarks" เปลี่ยนชื่อเป็น "U_Email2"
         const rawEmail2 = row[email2Col];
         comments = '';
         openingRemarks = '';
         email2 = rawEmail2 !== null && rawEmail2 !== undefined ? String(rawEmail2).trim() : '';
         sectionLabel = '';
       } else if (metaOpeningRemarks !== undefined) {
-        // ฟอร์ม 3/5: ไม่มีที่มาของ Comments เลย (ยืนยันกับผู้ใช้แล้ว — เว้นว่างไว้)
-        // OpeningRemarks ใช้ metadata "OpeningRemarks"/"Opening Remarks" ค่าเดียวกันทุกใบ invoice ในไฟล์นี้
+        // ฟอร์ม 3/5: ไม่มีที่มาของ Comments เลย (เว้นว่างไว้) — OpeningRemarks ใช้ metadata ค่าเดียวทุกใบ
         sectionLabel = numAtCardCol !== -1 && row[numAtCardCol] !== null && row[numAtCardCol] !== undefined
           ? String(row[numAtCardCol]).trim() : '';
         comments = '';
         openingRemarks = metaOpeningRemarks;
         email2 = '';
       } else {
-        // ฟอร์ม 3b/5b (เช่น POLYPLEX เวอร์ชันใหม่): จุดเดิมที่เคยเป็น metadata "OpeningRemarks"/"Opening Remarks"
-        // เปลี่ยนชื่อเป็น metadata "U_Email2" แทน — ค่าเดียวกัน ใช้กับทุก invoice ในไฟล์/sheet นั้น
-        // แต่เป้าหมายเปลี่ยนเป็น Head.U_Email2 — Comments และ OpeningRemarks เว้นว่างไว้ทั้งคู่
+        // ฟอร์ม 3b/5b: metadata "U_Email2" แทน "OpeningRemarks" — ปลายทางเป็น Head.U_Email2
         sectionLabel = numAtCardCol !== -1 && row[numAtCardCol] !== null && row[numAtCardCol] !== undefined
           ? String(row[numAtCardCol]).trim() : '';
         comments = '';
@@ -629,17 +751,22 @@ function processFile(rows, fileLabel) {
         email2 = metaEmail2;
       }
 
-      // NumAtCard: ใช้ metadata "Reference No." ถ้ามี (ฟอร์ม 1/2 ค่าเดียวกันทุกใบ)
-      // ไม่งั้นดึงจากคอลัมน์ "NumAtCard"/"PO No." ของแถวนี้ (ฟอร์ม 3/6 ค่าต่างกันได้ทุกแถว)
+      // NumAtCard: ใช้ metadata "Reference No." ถ้ามี ไม่งั้นดึงจากคอลัมน์ "NumAtCard"/"PO No." ของแถวนี้
       const numAtCard = numAtCardMeta !== undefined
         ? numAtCardMeta
         : (row[numAtCardCol] !== null && row[numAtCardCol] !== undefined ? String(row[numAtCardCol]).trim() : '');
 
-      // Book Month: ใช้ metadata "Book Month" ถ้ามี (ค่าเดียวกันทุกใบ) ไม่งั้นดึงจากคอลัมน์ "Book Month"
-      // ของแถวนี้ (ฟอร์ม 6 เช่น G-ABLE — ค่าต่างกันได้ทุกแถว เช่น '0126' vs '0226')
-      const bookMonth = bookMonthMeta !== undefined
+      // Book Month: metadata ถ้ามี ไม่งั้นดึงจากคอลัมน์ "Book Month" ของแถวนี้ (เติม 0 นำหน้าให้ครบ 4 หลัก)
+      const bookMonthRaw = bookMonthMeta !== undefined
         ? bookMonthMeta
-        : (row[bookMonthCol] !== null && row[bookMonthCol] !== undefined ? String(row[bookMonthCol]).trim() : '');
+        : (bookMonthCol !== -1 ? row[bookMonthCol] : undefined);
+      const bookMonthVal = normalizeMetaValue({pad:4}, bookMonthRaw);
+      const bookMonth = bookMonthVal !== undefined ? bookMonthVal : '';
+      // Book Month ควรเป็น MMYY 4 หลัก — ถ้าไม่ใช่ (เช่นใส่สองเดือนในช่องเดียว "0626 0726") เตือนไว้ให้ตรวจ
+      if (bookMonth !== '' && !/^\d{4}$/.test(bookMonth) && !bookMonthWarned) {
+        warnings.push('Book Month บางแถวไม่ใช่รูปแบบ MMYY 4 หลัก (เช่น แถว No.' + invNo + ' = "' + bookMonth + '") — ค่าจะถูกใส่ลง U_BookM ตามที่กรอกมา กรุณาตรวจไฟล์ต้นทาง');
+        bookMonthWarned = true;
+      }
 
       invoices.push({
         fileLabel: fileLabel,
@@ -650,20 +777,17 @@ function processFile(rows, fileLabel) {
         email2: email2,
         numAtCard: numAtCard,
         bookMonth: bookMonth,
-        totalAmt: totalAmt,
-        totalInvoiceSrc: row[totalCol],
+        totalAmt: round2(totalAmt),
+        totalInvoiceSrc: totalCol !== -1 ? row[totalCol] : null,
+        // ยอดตั้งต้นก่อนคูณ VAT: ใช้ Total Invoice จากไฟล์ถ้ามี ไม่งั้นใช้ผลรวมของ pay component
+        docBase: (totalCol !== -1 && row[totalCol] !== null && row[totalCol] !== undefined) ? row[totalCol] : totalAmt,
         vatFactor: vatFactor,
+        overriddenFields: rowOverridden,
         lineItems: lineItems,
-        meta: {
-          projectCode: projectCode, invDate: invDate, dueDate: dueDate, cardCode: cardCode, cardName: cardName,
-          paymentGroup: paymentGroup, series: series, taxId: taxId, branchCode: branchCode,
-          address: address, contactPerson: contactPerson, telephone: telephone, email1: email1,
-          bankAccount: bankAccount, bankName: bankName, bankBranch: bankBranch, accType: accType,
-          swiftCode: swiftCode, bpBranch: bpBranch, bookYear: bookYear, zipCode: zipCode
-        }
+        meta: rowMeta
       });
     }
-    return invoices;
+    return {invoices: invoices, overrideKeys: overrideKeys, warnings: warnings};
 }
 
 // ---------- process button: รวมทุกไฟล์แล้วกำหนด DocNum/ParentKey ต่อเนื่องข้ามไฟล์ ----------
@@ -679,9 +803,10 @@ processBtn.addEventListener('click', () => {
     uploadedFiles.forEach(f => {
       f.sheets.forEach(s => {
         const label = f.sheets.length > 1 ? (f.name + ' / ' + s.sheetName) : f.name;
-        const invoices = processFile(s.rows, label);
+        const res = processFile(s.rows, label);
+        const invoices = res.invoices;
         allInvoices = allInvoices.concat(invoices);
-        fileSummaries.push({name: label, count: invoices.length});
+        fileSummaries.push({name: label, count: invoices.length, overrideKeys: res.overrideKeys, warnings: res.warnings});
       });
     });
 
@@ -703,7 +828,7 @@ processBtn.addEventListener('click', () => {
         lineRows.push([thisDocNum, i, li.desc, li.price, li.priceAfterVat, 'THB', li.gl, 'OUT', inv.meta.projectCode, vatGroup, taxType, li.price, taxPct]);
       });
       const totalInvoiceSrc = inv.totalInvoiceSrc;
-      const docTotal = totalInvoiceSrc * inv.vatFactor;
+      const docTotal = round2(inv.docBase * inv.vatFactor);
       headRows.push([
         thisDocNum, 'dDocument_Service', inv.meta.invDate, inv.meta.dueDate, inv.meta.cardCode, inv.meta.cardName, inv.numAtCard,
         docTotal, 'THB', 1, inv.comments, inv.meta.paymentGroup, inv.meta.series, inv.meta.invDate, '13', inv.meta.taxId,
@@ -721,12 +846,30 @@ processBtn.addEventListener('click', () => {
     let cursor = 1;
     fileSummaries.forEach(fs => { fs.startDocNum = cursor; fs.endDocNum = cursor + fs.count - 1; cursor += fs.count; });
 
+    // สรุปแยกตามบริษัท/ลูกค้า — ใช้ตรวจว่าแถวไหนถูกจับเป็นบริษัทไหน (สำคัญเมื่อทำหลายบริษัทในชีตเดียว)
+    const companyMap = new Map();
+    allInvoices.forEach(inv => {
+      const key = String(inv.meta.cardCode) + ' | ' + String(inv.meta.cardName);
+      if (!companyMap.has(key)) {
+        companyMap.set(key, {cardCode: inv.meta.cardCode, cardName: inv.meta.cardName, taxId: inv.meta.taxId, count: 0, total: 0});
+      }
+      const e = companyMap.get(key);
+      e.count++;
+      e.total += round2((inv.docBase || 0) * inv.vatFactor);
+    });
+    const companySummary = Array.from(companyMap.values());
+
     computedLineRows = lineRows;
     computedHeadRows = headRows;
     outputFileName = computeDefaultOutputFileName(uploadedFiles);
     document.getElementById('outFileNameInput').value = outputFileName;
 
-    renderPreview(headRows, lineRows, mismatches, fileSummaries);
+    renderPreview(headRows, lineRows, mismatches, fileSummaries, companySummary);
+
+    // แสดงคำเตือนของทุกแหล่งข้อมูลก่อน (ไม่บล็อกการดาวน์โหลด แต่ต้องเห็นชัด)
+    fileSummaries.forEach(fs => {
+      (fs.warnings || []).forEach(w => log('⚠️ [' + fs.name + '] ' + w, 'warn'));
+    });
 
     if (mismatches.length > 0) {
       log('พบส่วนต่างในการ reconcile ' + mismatches.length + ' รายการ — ดาวน์โหลดถูกระงับ กรุณาตรวจสอบไฟล์ต้นทาง', 'err');
@@ -734,7 +877,15 @@ processBtn.addEventListener('click', () => {
       document.getElementById('downloadSection').style.display = 'none';
     } else {
       log('ประมวลผลสำเร็จ: รวม ' + uploadedFiles.length + ' ไฟล์ (' + fileSummaries.length + ' แหล่งข้อมูล/sheet) → ' + headRows.length + ' Inv, ' + lineRows.length + ' บรรทัด Line — reconcile ผ่านทุกรายการ ✓', 'ok');
-      fileSummaries.forEach(fs => log('  ' + fs.name + ': ' + fs.count + ' Inv → DocNum ' + fs.startDocNum + '–' + fs.endDocNum, 'info'));
+      fileSummaries.forEach(fs => {
+        const ovNote = (fs.overrideKeys && fs.overrideKeys.length > 0)
+          ? ' · อ่านข้อมูลบริษัทจากคอลัมน์ในตาราง: ' + fs.overrideKeys.map(k => FIELD_LABEL_TH[k] || k).join(', ')
+          : '';
+        log('  ' + fs.name + ': ' + fs.count + ' Inv → DocNum ' + fs.startDocNum + '–' + fs.endDocNum + ovNote, 'info');
+      });
+      if (companySummary.length > 1) {
+        log('พบ ' + companySummary.length + ' บริษัท/ลูกค้าในชุดข้อมูลนี้ — ตรวจตารางสรุปด้านล่างก่อนดาวน์โหลด', 'info');
+      }
       document.getElementById('downloadSection').style.display = 'block';
     }
   } catch (err) {
@@ -755,7 +906,7 @@ function buildTable(cols, rows, limit) {
   const shown = limit ? rows.slice(0, limit) : rows;
   shown.forEach(row => {
     html += '<tr>';
-    row.forEach(v => html += '<td>' + (v === null || v === undefined ? '' : v) + '</td>');
+    row.forEach(v => html += '<td>' + escHtml(v) + '</td>');
     html += '</tr>';
   });
   html += '</tbody></table>';
@@ -765,12 +916,43 @@ function buildTable(cols, rows, limit) {
   return html;
 }
 
-function renderPreview(headRows, lineRows, mismatches, fileSummaries) {
+const FIELD_LABEL_TH = {
+  projectCode:'ProjectCode', invDate:'วันที่ Inv', dueDate:'Due date', cardCode:'รหัสลูกค้า', cardName:'ชื่อลูกค้า',
+  paymentGroup:'รหัส Group credit term', series:'รหัส Series', taxId:'Tax ID', branchCode:'สาขาลูกค้า',
+  address:'ที่อยู่ลูกค้า', contactPerson:'Contact Person', telephone:'Telephone', email1:'Email1',
+  bankAccount:'Bank Account', bankName:'Bank Name', bankBranch:'Bank Branch', accType:'Account Type',
+  swiftCode:'Swift Code', bpBranch:'รหัสสาขาลูกค้า', bookYear:'Book Year', zipCode:'รหัสไปรษณีย์ลูกค้า'
+};
+
+function escHtml(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderPreview(headRows, lineRows, mismatches, fileSummaries, companySummary) {
   document.getElementById('previewSection').style.display = 'block';
   document.getElementById('cardInv').textContent = headRows.length;
   document.getElementById('cardLines').textContent = lineRows.length;
   const grandTotal = headRows.reduce((s, r) => s + (r[7] || 0), 0);
   document.getElementById('cardTotal').textContent = grandTotal.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+
+  const compCard = document.getElementById('cardCompanies');
+  if (compCard) compCard.textContent = companySummary ? companySummary.length : '–';
+
+  const compBox = document.getElementById('companySummary');
+  if (compBox) {
+    if (companySummary && companySummary.length > 0) {
+      let html = '<p class="hint" style="margin-bottom:8px;">สรุปแยกตามบริษัท/ลูกค้า (ตรวจว่าแต่ละแถวถูกจับเป็นบริษัทถูกใบหรือไม่):</p>';
+      html += '<table><thead><tr><th>รหัสลูกค้า</th><th style="text-align:left;">ชื่อลูกค้า</th><th>Tax ID</th><th>จำนวน Inv</th><th>ยอดรวม (รวม VAT)</th></tr></thead><tbody>';
+      companySummary.forEach(cs => {
+        html += '<tr><td>' + escHtml(cs.cardCode) + '</td><td style="text-align:left;">' + escHtml(cs.cardName) + '</td><td>' + escHtml(cs.taxId) + '</td><td>' + cs.count + '</td><td>' + cs.total.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) + '</td></tr>';
+      });
+      html += '</tbody></table>';
+      compBox.innerHTML = html;
+    } else {
+      compBox.innerHTML = '';
+    }
+  }
 
   const fsBox = document.getElementById('fileRangeSummary');
   if (fsBox) {
@@ -778,7 +960,7 @@ function renderPreview(headRows, lineRows, mismatches, fileSummaries) {
       let html = '<p class="hint" style="margin-bottom:8px;">สรุปช่วง DocNum ต่อไฟล์ต้นทาง (เรียงตามลำดับที่ประมวลผล):</p>';
       html += '<table><thead><tr><th style="text-align:left;">ไฟล์ต้นทาง</th><th>จำนวน Inv</th><th>DocNum ที่ได้</th></tr></thead><tbody>';
       fileSummaries.forEach(fs => {
-        html += '<tr><td style="text-align:left;">' + fs.name + '</td><td>' + fs.count + '</td><td>' + fs.startDocNum + '–' + fs.endDocNum + '</td></tr>';
+        html += '<tr><td style="text-align:left;">' + escHtml(fs.name) + '</td><td>' + fs.count + '</td><td>' + fs.startDocNum + '–' + fs.endDocNum + '</td></tr>';
       });
       html += '</tbody></table>';
       fsBox.innerHTML = html;
@@ -890,6 +1072,42 @@ function fillSheetXlsx(wb, sheetName, rows, numHeaderRows, numCols) {
     row.commit && row.commit();
   });
 }
+// ---------- ตารางอ้างอิงชื่อคอลัมน์ที่ใช้ override ข้อมูลบริษัทได้ (render จาก META_FIELDS โดยตรง) ----------
+const FIELD_TARGET = {
+  projectCode:'Line.ProjectCode', invDate:'Head.DocDate + TaxDate', dueDate:'Head.DocDueDate',
+  cardCode:'Head.CardCode', cardName:'Head.CardName', paymentGroup:'Head.PaymentGroupCode',
+  series:'Head.Series (1305 = ไม่คิด VAT)', taxId:'Head.FederalTaxID', branchCode:'Head.PayToCode',
+  address:'Head.Address + U_Address', contactPerson:'Head.U_Contact', telephone:'Head.U_Telephone',
+  email1:'Head.U_Email1', bankAccount:'Head.U_Bank', bankName:'Head.U_BankName',
+  bankBranch:'Head.U_BankBranch', accType:'Head.U_AccType', swiftCode:'Head.U_Swift',
+  bpBranch:'Head.U_BP_Brch', bookYear:'Head.U_BookY', zipCode:'Head.U_KN_ZipCode'
+};
+const EXTRA_ROW_COLS = [
+  {label:'NumAtCard (เลข PO/Ref)', cols:['NumAtCard','Reference No.','PO No.'], target:'Head.NumAtCard'},
+  {label:'Book Month',            cols:['Book Month'],                          target:'Head.U_BookM'},
+  {label:'Comments',              cols:['Comments'],                            target:'Head.Comments'},
+  {label:'Opening Remarks',       cols:['Opening Remarks'],                     target:'Head.OpeningRemarks'},
+  {label:'U_Email2',              cols:['U_Email2'],                            target:'Head.U_Email2'}
+];
+(function renderFieldRef(){
+  const body = document.getElementById('fieldRefBody');
+  if (!body) return;
+  let html = '';
+  META_FIELDS.forEach(function(f){
+    const req = f.required ? '' : ' <span style="color:var(--muted);">(optional)</span>';
+    html += '<tr><td>' + (FIELD_LABEL_TH[f.key] || f.key) + req + '</td><td>' +
+      f.cols.map(function(c){ return '<code>' + escHtml(c) + '</code>'; }).join(' หรือ ') +
+      '</td><td>' + (FIELD_TARGET[f.key] || '') + '</td></tr>';
+  });
+  html += '<tr><td colspan="3" style="background:var(--blue-light);color:var(--navy);font-weight:600;">คอลัมน์รายแถวที่รองรับอยู่แล้วเดิม</td></tr>';
+  EXTRA_ROW_COLS.forEach(function(e){
+    html += '<tr><td>' + e.label + '</td><td>' +
+      e.cols.map(function(c){ return '<code>' + escHtml(c) + '</code>'; }).join(' หรือ ') +
+      '</td><td>' + e.target + '</td></tr>';
+  });
+  body.innerHTML = html;
+})();
+
 </script>
 </body>
 </html>
