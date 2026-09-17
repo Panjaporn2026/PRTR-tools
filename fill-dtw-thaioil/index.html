@@ -551,7 +551,10 @@ function processFile(rows, fileLabel) {
     const metaEmail2Raw = mOptional("U_Email2");
     const metaEmail2 = metaEmail2Raw !== undefined ? String(metaEmail2Raw) : undefined;
     // Book Month ปกติเป็น metadata ค่าเดียวใช้กับทุกใบ แต่บางไฟล์ (เช่น G-ABLE) ย้ายไปเป็นคอลัมน์ต่อแถว
-    const bookMonthMeta = mOptional("Book Month");
+    // ชื่อคอลัมน์ในไฟล์ต้นทางเจอได้ทั้งสองแบบ: label ที่มนุษย์อ่าน "Book Month" หรือชื่อฟิลด์ SAP ตรงๆ
+    // "U_BookM" (ปลายทางจริงคือ Head.U_BookM อยู่แล้ว — ดู META_FIELDS/fieldRefBody ด้านล่างที่ทุกฟิลด์อื่น
+    // ก็รับทั้ง label และชื่อฟิลด์ SAP เช่นกัน)
+    const bookMonthMeta = mOptional("Book Month") !== undefined ? mOptional("Book Month") : mOptional("U_BookM");
 
     // หาคอลัมน์ "Comments" / "Opening Remarks" / "NumAtCard" (หรือ "Reference No." ที่ใช้แทนกันได้) ในไฟล์ต้นทาง
     let commentsCol = -1, remarksCol = -1, numAtCardCol = -1, email2Col = -1, bookMonthCol = -1;
@@ -561,7 +564,7 @@ function processFile(rows, fileLabel) {
       if (h === 'Opening Remarks') remarksCol = c;
       if (h === 'NumAtCard' || h === 'Reference No.' || h === 'PO No.') numAtCardCol = c;
       if (h === 'U_Email2') email2Col = c;
-      if (h === 'Book Month') bookMonthCol = c;
+      if (h === 'Book Month' || h === 'U_BookM') bookMonthCol = c;
     }
     const hasDirectFields = commentsCol !== -1 && remarksCol !== -1;
     const hasRemarksOnly = remarksCol !== -1 && commentsCol === -1;
@@ -571,7 +574,7 @@ function processFile(rows, fileLabel) {
       throw new Error('[' + fileLabel + '] ไม่พบ metadata "Reference No." และไม่พบคอลัมน์ "NumAtCard"/"Reference No."/"PO No." ในไฟล์ต้นทาง — ไม่มีที่มาของ NumAtCard เลย ตรวจสอบไฟล์ต้นทางอีกครั้ง');
     }
     if (bookMonthMeta === undefined && bookMonthCol === -1) {
-      throw new Error('[' + fileLabel + '] ไม่พบ metadata "Book Month" และไม่พบคอลัมน์ "Book Month" ในไฟล์ต้นทาง — ไม่มีที่มาของ Book Month เลย ตรวจสอบไฟล์ต้นทางอีกครั้ง');
+      throw new Error('[' + fileLabel + '] ไม่พบ metadata "Book Month"/"U_BookM" และไม่พบคอลัมน์ "Book Month"/"U_BookM" ในไฟล์ต้นทาง — ไม่มีที่มาของ Book Month เลย ตรวจสอบไฟล์ต้นทางอีกครั้ง');
     }
 
     // คอลัมน์ที่ "ไม่ใช่" pay component แน่ๆ — ต้องกันไม่ให้ถูกนับเป็นยอดเงินตอนไล่คอลัมน์
@@ -1085,7 +1088,7 @@ const FIELD_TARGET = {
 };
 const EXTRA_ROW_COLS = [
   {label:'NumAtCard (เลข PO/Ref)', cols:['NumAtCard','Reference No.','PO No.'], target:'Head.NumAtCard'},
-  {label:'Book Month',            cols:['Book Month'],                          target:'Head.U_BookM'},
+  {label:'Book Month',            cols:['Book Month','U_BookM'],                target:'Head.U_BookM'},
   {label:'Comments',              cols:['Comments'],                            target:'Head.Comments'},
   {label:'Opening Remarks',       cols:['Opening Remarks'],                     target:'Head.OpeningRemarks'},
   {label:'U_Email2',              cols:['U_Email2'],                            target:'Head.U_Email2'}
