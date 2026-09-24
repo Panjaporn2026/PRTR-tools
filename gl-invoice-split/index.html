@@ -503,10 +503,10 @@ header.topnav{background:#fff;border-bottom:3px solid #c8102e;padding:14px 24px;
 
 <main>
   <h1>แยกไฟล์ GL Invoice ตามคอลัมน์</h1>
-  <p class="lead">อัปโหลดไฟล์ GL Invoice Report แล้วติ๊กคอลัมน์ที่ต้องการใช้แยก ระบบจะสร้างไฟล์ใหม่ต่อค่าที่ไม่ซ้ำกัน โดยคงข้อมูลและรูปแบบเดิมไว้ทุกอย่าง ยกเว้นช่อง Head Count ที่ปรับตามจำนวนพนักงานในไฟล์นั้น</p>
+  <p class="lead">อัปโหลดไฟล์ GL Invoice แล้วติ๊กคอลัมน์ที่ต้องการใช้แยก ระบบจะสร้างไฟล์ใหม่ต่อค่าที่ไม่ซ้ำกัน โดยคงข้อมูลและรูปแบบเดิมไว้ทุกอย่าง ยกเว้นช่อง Head Count ที่ปรับตามจำนวนพนักงานในไฟล์นั้น</p>
 
   <section class="step" id="s1" aria-labelledby="t1">
-    <div class="step__head"><span class="step__num">1</span><div><h2 class="step__title" id="t1">เลือกไฟล์</h2><p class="step__hint">รองรับไฟล์ .xlsx ที่มีหัวตารางเริ่มด้วย EMP ID</p></div></div>
+    <div class="step__head"><span class="step__num">1</span><div><h2 class="step__title" id="t1">เลือกไฟล์</h2><p class="step__hint">รองรับไฟล์ .xlsx ที่มีหัวตาราง EMP ID เช่น GL Invoice Report หรือ Query With Fee</p></div></div>
     <label class="drop" id="drop">
       <input type="file" id="file" accept=".xlsx">
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
@@ -605,7 +605,11 @@ async function analyzeWorkbook(zip){
     for(let i=0;i<rows.length&&i<60;i++){
       const cells=parseCells(rows[i].inner, ss);
       if(Object.values(cells).some(c=>c.v.trim()==="EMP ID")){
-        headerIdx=i; for(const [col,c] of Object.entries(cells)){ const h=c.v.trim(); if(h && !(h in headerMap)) headerMap[h]=col; }
+        headerIdx=i;
+        const norm=x=>x.replace(/\s+/g," ").trim().toLowerCase();
+        const byNorm={}; for(const [col,c] of Object.entries(cells)){ const h=norm(c.v); if(h && !(h in byNorm)) byNorm[h]=col; }
+        // map canonical names (case/space-insensitive) so "LINE MANAGER" = "Line Manager", "Name" = "NAME"
+        for(const h of SPLIT_COLUMNS.concat(["EMP ID","Amount"])) if(byNorm[norm(h)]) headerMap[h]=byNorm[norm(h)];
         break;
       }
     }
@@ -763,7 +767,7 @@ if(typeof module!=="undefined") module.exports={SPLIT_COLUMNS, analyzeWorkbook, 
     baseName=file.name.replace(/\.xlsx$/i,"");
     const emps=new Set(); const ec=info.headerMap["EMP ID"];
     info.data.forEach(d=>{const v=d.cells[ec]?.v.trim(); if(v) emps.add(v);});
-    $("fileinfo").innerHTML='<b>'+esc(file.name)+'</b><br><span>ชีต '+esc(info.sheet.name)+', '+info.data.length+' แถวข้อมูล, พนักงาน '+emps.size+' คน</span>';
+    $("fileinfo").innerHTML='<b>'+esc(file.name)+'</b><br><span>ชีต '+esc(info.sheet.name)+', '+info.data.length+' แถวข้อมูล, พนักงาน '+emps.size+' คน'+(info.headCount&&!info.headCount.missing?'':'<br>ไฟล์นี้ไม่มีช่อง Head Count จึงไม่มีการแก้ไขค่าใดเลย')+'</span>';
     $("fileinfo").classList.add("show");
     colsEl.querySelectorAll("input").forEach(inp=>{
       const ok=!!info.headerMap[inp.value]; inp.disabled=!ok; if(!ok) inp.checked=false;
