@@ -302,8 +302,8 @@ function renderGroups() {
 
     const typeLabel = g.docType === 'DEBIT MEMO' ? 'Memo' : 'Invoice';
     tr.innerHTML = `
-      <td class="inv-key">${g.invoiceNo}<div style="font-weight:400; font-size:11px; color:#90a4ae; margin-top:2px;">${typeLabel}</div></td>
-      <td>${g.poRef ? g.poRef + (shared ? ' <span style="color:#e65100; font-size:11px;">(ใช้ร่วมกัน ' + poRefCounts[g.poRef] + ' invoice)</span>' : '') : '<span style="color:#c62828">ไม่พบ</span>'}</td>
+      <td class="inv-key">${g.invoiceNo}<div style="font-weight:400; font-size:12px; color:var(--prtr-text-subtle); margin-top:2px;">${typeLabel}</div></td>
+      <td>${g.poRef ? g.poRef + (shared ? ' <span style="color:var(--prtr-warning-text); font-size:12px;">(ใช้ร่วมกัน ' + poRefCounts[g.poRef] + ' invoice)</span>' : '') : '<span style="color:var(--prtr-error-text)">ไม่พบ</span>'}</td>
       <td>
         ${chip(!!g.signed, g.signed ? 'Signed ✓' : 'Signed ✗')}
         ${chip(!!g.unsigned, g.unsigned ? 'Unsigned ✓' : 'Unsigned ✗')}

@@ -206,8 +206,8 @@ function renderCsvFileList() {
     var jeTag = '';
     if (state.fileJE && state.fileJE.length === state.csvFiles.length) {
       jeTag = state.fileJE[i]
-        ? '<span style="margin-left:8px;color:#0a7a3d;font-weight:600;">→ ' + esc_(state.fileJE[i]) + '</span>'
-        : '<span style="margin-left:8px;color:#999;">→ ไม่พบ JE</span>';
+        ? '<span style="margin-left:8px;color:var(--prtr-success-text);font-weight:600;">→ ' + esc_(state.fileJE[i]) + '</span>'
+        : '<span style="margin-left:8px;color:var(--prtr-text-subtle);">→ ไม่พบ JE</span>';
     }
     return '<div class="file-row"><span class="idx">' + (i + 1) + '</span><span class="fname">' + esc_(f.name) + '</span>' + jeTag +
       '<button class="rm" data-i="' + i + '" title="ลบไฟล์">✕</button></div>';

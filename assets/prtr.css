@@ -245,6 +245,14 @@ button,input,select,textarea{font-family:inherit;}
   .prtr-topbar__home{padding:8px var(--prtr-space-3);}
 }
 
+/* ---- แถบเมนูเครื่องมือด้านซ้าย (เหมือนกันทุกหน้า) ---- */
+.tool-nav-box{background:var(--prtr-surface);border:1px solid var(--prtr-border);border-radius:var(--prtr-radius-lg);padding:var(--prtr-space-3) var(--prtr-space-2);}
+.tool-nav-title{font-size:12px;font-weight:600;line-height:1.5;color:var(--prtr-text-muted);padding:var(--prtr-space-1) var(--prtr-space-2) var(--prtr-space-2);}
+.tool-nav{display:flex;flex-direction:column;gap:2px;}
+.tool-nav-item{display:flex;align-items:center;gap:var(--prtr-space-2);padding:var(--prtr-space-2);border-radius:var(--prtr-radius-md);color:var(--prtr-text);text-decoration:none;font-size:13px;font-weight:500;line-height:1.5;}
+.tool-nav-item:hover{background:var(--prtr-surface-hover);}
+.tool-nav-item.active{background:var(--prtr-btn-primary-bg);color:var(--prtr-btn-primary-text);font-weight:600;}
+
 /* ---- footer (เหมือนกันทุกหน้า) ---- */
 .prtr-footer{
   text-align:center;padding:var(--prtr-space-6) var(--prtr-space-4) var(--prtr-space-7);

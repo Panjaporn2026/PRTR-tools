@@ -6,85 +6,73 @@
 <title>PRTR Accrued Income Generator</title>
 <link rel="icon" type="image/png" href="favicon-64.png"><link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Prompt:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/prtr.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'IBM Plex Sans Thai','Segoe UI',Arial,sans-serif;font-size:13.5px;background:linear-gradient(160deg,#fdf5f6 0%,#f4f5f7 45%,#eef1f4 100%);background-attachment:fixed;color:#1a1a2e;letter-spacing:.1px;min-height:100vh;}
+body{font-family:'Montserrat','Prompt',system-ui,sans-serif;font-size:13.5px;background:var(--prtr-bg-subtle);background-attachment:fixed;color:var(--prtr-text);letter-spacing:.1px;min-height:100vh;}
 .app{max-width:1400px;margin:0 auto;padding:16px;}
-header.topnav{background:#fff;border-bottom:3px solid #c8102e;padding:14px 24px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:10;box-shadow:0 1px 4px rgba(0,0,0,.06);}
-.topnav .logo{font-weight:700;font-size:16px;color:#c8102e;text-decoration:none;display:inline-flex;align-items:center;gap:8px;}
-.topnav .logo img{height:22px;width:auto;}
-.topnav .crumb{color:#ccc;font-size:14px;}
-.topnav .crumb-current{font-size:14px;color:#546e7a;}
-.topnav .back-btn{margin-left:auto;display:inline-flex;align-items:center;gap:6px;background:#fde8ec;color:#c8102e;border:1px solid #f6c6d0;border-radius:20px;padding:7px 16px;font-size:12.5px;font-weight:600;text-decoration:none;transition:.15s;}
-.topnav .back-btn:hover{background:#c8102e;color:#fff;border-color:#c8102e;}
-.card{background:#fff;border-radius:10px;border:1px solid #e0e4ea;padding:20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
-h1{font-size:21px;font-weight:700;color:#c8102e;letter-spacing:.1px;}
-.subtitle{color:#546e7a;font-size:12px;margin-top:3px;}
-h2{font-size:14px;font-weight:700;color:#c8102e;margin-bottom:12px;}
+.card{background:#fff;border-radius:10px;border:1px solid var(--prtr-border);padding:20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+h1{font-size:21px;font-weight:700;color:var(--prtr-text);letter-spacing:.1px;}
+.subtitle{color:var(--prtr-text-muted);font-size:12px;margin-top:3px;}
+h2{font-size:14px;font-weight:700;color:var(--prtr-text);margin-bottom:12px;}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
 @media(max-width:600px){.two-col{grid-template-columns:1fr;}}
-.layout{display:grid;grid-template-columns:210px 1fr;gap:16px;align-items:start;}
+.layout{display:grid;grid-template-columns:240px 1fr;gap:16px;align-items:start;}
 @media(max-width:760px){.layout{grid-template-columns:1fr;}}
 .sidebar{min-width:0;}
 .main-col{min-width:0;}
-.tool-nav-box{background:#fff;border:1px solid #e0e4ea;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.06);padding:14px 10px;}
-.tool-nav-title{font-size:10.5px;font-weight:700;color:#90a4ae;text-transform:uppercase;letter-spacing:.5px;padding:2px 8px 8px;}
-.tool-nav{display:flex;flex-direction:column;gap:2px;}
-.tool-nav-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;color:#37474f;text-decoration:none;font-size:12.5px;font-weight:500;transition:.15s;}
-.tool-nav-item:hover{background:#f5f5f5;}
-.tool-nav-item.active{background:#fde8ec;color:#c8102e;font-weight:700;}
-.ubox{border:2px dashed #90a4ae;border-radius:8px;background:#f8fafc;transition:all .2s;position:relative;overflow:hidden;min-height:110px;}
-.ubox.has-file{border-color:#43a047;background:#f1f8e9;}
-.ubox.drag{border-color:#c8102e;background:#fde8ec;}
+.ubox{border:2px dashed var(--prtr-border-strong);border-radius:8px;background:var(--prtr-bg-subtle);transition:all .2s;position:relative;overflow:hidden;min-height:110px;}
+.ubox.has-file{border-color:var(--prtr-success);background:var(--prtr-success-bg);}
+.ubox.drag{border-color:var(--prtr-accent);background:var(--prtr-red-50);}
 .ubox label{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px 12px;cursor:pointer;height:100%;gap:5px;}
 .ubox input[type=file]{position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:999px;}
 .uico{font-size:26px;}
-.utitle{font-weight:700;font-size:12px;color:#c8102e;}
-.udesc{font-size:11px;color:#607d8b;text-align:center;}
-.ufname{font-size:10.5px;color:#2e7d32;font-weight:600;text-align:center;word-break:break-all;margin-top:2px;}
-.notice{background:#e3f2fd;border:1px solid #90caf9;border-radius:6px;padding:10px 14px;font-size:12px;color:#1565c0;margin-bottom:14px;}
+.utitle{font-weight:700;font-size:12px;color:var(--prtr-text);}
+.udesc{font-size:12px;color:var(--prtr-text-muted);text-align:center;}
+.ufname{font-size:12px;color:var(--prtr-success-text);font-weight:600;text-align:center;word-break:break-all;margin-top:2px;}
+.notice{background:var(--prtr-info-bg);border:1px solid var(--prtr-info);border-radius:6px;padding:10px 14px;font-size:12px;color:var(--prtr-info-text);margin-bottom:14px;}
 .msg{border-radius:6px;padding:8px 14px;font-size:12px;margin-top:8px;display:none;}
-.msg.err{background:#ffebee;color:#c62828;border:1px solid #ef9a9a;}
-.msg.ok{background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;}
+.msg.err{background:var(--prtr-error-bg);color:var(--prtr-error-text);border:1px solid var(--prtr-error);}
+.msg.ok{background:var(--prtr-success-bg);color:var(--prtr-success-text);border:1px solid var(--prtr-success);}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
-.chip{display:flex;align-items:center;gap:5px;background:#fde8ec;border-radius:20px;padding:3px 10px;font-size:11px;color:#c8102e;}
-.chip .rm{cursor:pointer;color:#e53935;font-size:13px;}
+.chip{display:flex;align-items:center;gap:5px;background:var(--prtr-red-50);border-radius:20px;padding:3px 10px;font-size:12px;color:var(--prtr-primary-text);}
+.chip .rm{cursor:pointer;color:var(--prtr-error-text);font-size:13px;}
 .summary-grid{display:flex;flex-wrap:wrap;gap:10px;}
-.sc{border:1px solid #e0e4ea;border-radius:8px;padding:12px 14px;min-width:195px;flex:1;}
-.sc .fn{font-size:10.5px;color:#c8102e;font-weight:700;margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.sr{display:flex;justify-content:space-between;font-size:11px;padding:1px 0;}
-.sr .l{color:#607d8b;}.sr .v{font-weight:600;color:#c8102e;}
-.badge{background:#ffecb3;color:#e65100;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;margin-left:3px;}
+.sc{border:1px solid var(--prtr-border);border-radius:8px;padding:12px 14px;min-width:195px;flex:1;}
+.sc .fn{font-size:12px;color:var(--prtr-primary-text);font-weight:700;margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sr{display:flex;justify-content:space-between;font-size:12px;padding:1px 0;}
+.sr .l{color:var(--prtr-text-muted);}.sr .v{font-weight:600;color:var(--prtr-primary-text);}
+.badge{background:var(--prtr-warning-bg);color:var(--prtr-warning-text);border-radius:10px;padding:1px 7px;font-size:12px;font-weight:700;margin-left:3px;}
 .gb-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
-.cbi{display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;padding:5px 8px;border-radius:5px;border:1px solid #e0e4ea;}
-.cbi:hover:not(.dis){border-color:#c8102e;background:#fdf4f5;}
+.cbi{display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;padding:5px 8px;border-radius:5px;border:1px solid var(--prtr-border);}
+.cbi:hover:not(.dis){border-color:var(--prtr-accent);background:var(--prtr-red-50);}
 .cbi.dis{opacity:.38;cursor:not-allowed;}
-.cbi input{cursor:pointer;accent-color:#c8102e;}
-.rc{font-size:11.5px;color:#546e7a;margin-top:10px;}.rc strong{color:#c8102e;}
-table{width:100%;border-collapse:collapse;font-size:11.5px;}
-thead th{background:#c8102e;color:#fff;padding:6px 7px;text-align:center;font-weight:600;white-space:nowrap;}
+.cbi input{cursor:pointer;accent-color:var(--prtr-primary-text);}
+.rc{font-size:12px;color:var(--prtr-text-muted);margin-top:10px;}.rc strong{color:var(--prtr-primary-text);}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+thead th{background:var(--prtr-bg-subtle);color:var(--prtr-text-muted);padding:6px 7px;text-align:center;font-weight:600;white-space:nowrap;}
 thead th:first-child{border-radius:6px 0 0 0;}thead th:last-child{border-radius:0 6px 0 0;}
-tbody tr:nth-child(odd){background:#fdf7f8;}tbody tr:nth-child(even){background:#fff;}
-tbody tr:hover{background:#fbebed;}tbody tr.off{opacity:.4;}
-tbody td{padding:5px 7px;border-bottom:1px solid #eee;white-space:nowrap;}
-td.n{text-align:right;}td.w{color:#e65100;text-align:center;}td.ok{color:#2e7d32;text-align:center;}
-tfoot tr{background:#fde8ec;font-weight:700;}tfoot td{padding:5px 7px;border-top:2px solid #c8102e;}
-.nd{text-align:center;color:#90a4ae;padding:24px;}
-.ss{font-size:11px;color:#546e7a;margin-top:8px;}.ss strong{color:#c8102e;}
+tbody tr:nth-child(odd){background:var(--prtr-red-50);}tbody tr:nth-child(even){background:#fff;}
+tbody tr:hover{background:var(--prtr-red-50);}tbody tr.off{opacity:.4;}
+tbody td{padding:5px 7px;border-bottom:1px solid var(--prtr-border);white-space:nowrap;}
+td.n{text-align:right;}td.w{color:var(--prtr-warning-text);text-align:center;}td.ok{color:var(--prtr-success-text);text-align:center;}
+tfoot tr{background:var(--prtr-red-50);font-weight:700;}tfoot td{padding:5px 7px;border-top:2px solid var(--prtr-accent);}
+.nd{text-align:center;color:var(--prtr-text-subtle);padding:24px;}
+.ss{font-size:12px;color:var(--prtr-text-muted);margin-top:8px;}.ss strong{color:var(--prtr-primary-text);}
 .dlr{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
-.bld{background:#c8102e;color:#fff;border:none;border-radius:7px;padding:10px 22px;font-size:13px;font-weight:700;cursor:pointer;}
-.bld:hover{background:#a30d24;}.bld:disabled{background:#90a4ae;cursor:not-allowed;}
-#sm{font-size:11px;color:#c8102e;margin-left:8px;}
-.fo{font-size:11px;color:#546e7a;}
+.bld{background:var(--prtr-btn-primary-bg);color:#fff;border:none;border-radius:7px;padding:10px 22px;font-size:13px;font-weight:700;cursor:pointer;}
+.bld:hover{background:var(--prtr-btn-primary-hover);}.bld:disabled{background:var(--prtr-border-strong);cursor:not-allowed;}
+#sm{font-size:12px;color:var(--prtr-primary-text);margin-left:8px;}
+.fo{font-size:12px;color:var(--prtr-text-muted);}
 </style>
 </head>
 <body>
-<header class="topnav">
-  <a class="logo" href="../"><img src="favicon-64.png" alt=""> OSInvoice Tools</a>
-  <span class="crumb">›</span>
-  <span class="crumb-current">Accrued Income Generator</span>
-  <a class="back-btn" href="../">🏠 หน้าหลัก</a>
+<header class="prtr-topbar">
+  <a class="prtr-topbar__brand" href="../" aria-label="OSInvoice Tools หน้าหลัก"><img src="../assets/prtr-logo.svg" alt="PRTR" class="prtr-topbar__logo"><span class="prtr-topbar__app">OSInvoice Tools</span></a>
+  <span class="prtr-topbar__sep" aria-hidden="true">/</span>
+  <span class="prtr-topbar__current">Accrued Income Generator</span>
+  <a class="prtr-topbar__home" href="../"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7"/><path d="M5 9v11h14V9"/></svg><span>หน้าหลัก</span></a>
 </header>
 <div class="app">
 <div class="card">
@@ -121,7 +109,7 @@ tfoot tr{background:#fde8ec;font-weight:700;}tfoot td{padding:5px 7px;border-top
       <div class="notice">ℹ️ อัปโหลดไฟล์ Detail of Invoice แล้วกด Download เพื่อรับไฟล์ Accrue Income ที่กรอกข้อมูลแล้ว — ใช้ Template Accrue Income มาตรฐานในตัว ไม่ต้องแนบเอง</div>
       <h2>📂 อัปโหลดไฟล์</h2>
       <div>
-        <div style="font-size:11.5px;font-weight:700;color:#c8102e;margin-bottom:6px;">Detail of Invoice <span style="color:#607d8b;font-weight:400;">(เลือกได้หลายไฟล์)</span></div>
+        <div style="font-size:12px;font-weight:700;color:var(--prtr-primary-text);margin-bottom:6px;">Detail of Invoice <span style="color:var(--prtr-text-muted);font-weight:400;">(เลือกได้หลายไฟล์)</span></div>
         <div class="ubox" id="bInv">
           <label><span class="uico">📄</span><span class="utitle">คลิกหรือลากไฟล์มาวาง</span><span class="udesc">Detail of Invoice .xlsx</span>
             <input type="file" id="fiInv" multiple accept=".xlsx,.xls" onchange="onInvChange(this)">
@@ -130,7 +118,7 @@ tfoot tr{background:#fde8ec;font-weight:700;}tfoot td{padding:5px 7px;border-top
         <div class="chips" id="invChips"></div>
       </div>
       <div class="msg err" id="errBox"></div>
-      <div class="msg" id="tplBox" style="background:#e3f2fd;color:#1565c0;display:none;">⏳ กำลังโหลด Template Accrue Income ในตัว...</div>
+      <div class="msg" id="tplBox" style="background:var(--prtr-info-bg);color:var(--prtr-info-text);display:none;">⏳ กำลังโหลด Template Accrue Income ในตัว...</div>
       <div class="msg ok" id="okBox"></div>
       <div id="groupCard" style="display:none;margin-top:16px;">
         <h2>🔀 Group By</h2><div class="gb-grid" id="gbGrid"></div><div class="rc" id="rc"></div>
@@ -596,12 +584,12 @@ async function loadEmbeddedTemplate() {
     if(!resp.ok) throw new Error('HTTP '+resp.status);
     templateBuf=await resp.arrayBuffer();
     dbg('embedded template loaded: '+templateBuf.byteLength+' bytes');
-    box.style.background='#e8f5e9'; box.style.color='#2e7d32';
+    box.style.background='var(--prtr-success-bg)'; box.style.color='var(--prtr-success-text)';
     box.textContent='✅ โหลด Template Accrue Income ในตัวสำเร็จ';
     setTimeout(function(){box.style.display='none';},4000);
     renderDl();
   } catch(err) {
-    box.style.background='#ffebee'; box.style.color='#c62828';
+    box.style.background='var(--prtr-error-bg)'; box.style.color='var(--prtr-error-text)';
     box.textContent='❌ โหลด Template ในตัวไม่สำเร็จ: '+err.message;
     dbg('embedded template ERROR: '+err.message);
   }
@@ -833,7 +821,7 @@ function selAll(checked){document.querySelectorAll('.rcb').forEach(function(cb){
 function onCbChange(cb){var k=cb.dataset.rk;rowSelected[k]=cb.checked;cb.closest('tr').classList.toggle('off',!cb.checked);var cbs=document.querySelectorAll('.rcb');var all=Array.from(cbs).every(function(c){return c.checked;});var none=Array.from(cbs).every(function(c){return!c.checked;});var sa=document.getElementById('selAll');sa.checked=all;sa.indeterminate=!all&&!none;updateFoot();updateSS();renderDl();}
 function updateFoot(){var rows=getRows().filter(function(r){return rowSelected[r.rowKey]!==false;});var ft=document.getElementById('pf');if(!rows.length){ft.style.display='none';return;}ft.style.display='';var s=[rows.reduce(function(a,r){return a+r.count;},0),rows.reduce(function(a,r){return a+r.salary;},0),rows.reduce(function(a,r){return a+r.ssf;},0),rows.reduce(function(a,r){return a+r.pvf;},0),rows.reduce(function(a,r){return a+r.health;},0),rows.reduce(function(a,r){return a+r.checkup;},0),rows.reduce(function(a,r){return a+r.alwFix;},0),rows.reduce(function(a,r){return a+r.otherInc;},0),rows.reduce(function(a,r){return a+r.ot;},0),rows.reduce(function(a,r){return a+r.commission;},0),rows.reduce(function(a,r){return a+r.incentive;},0),rows.reduce(function(a,r){return a+r.bonus;},0),rows.reduce(function(a,r){return a+r.alwNonFix;},0),rows.reduce(function(a,r){return a+r.fee;},0),rows.reduce(function(a,r){return a+r.totalInv;},0)];['f0','f1','f2','f3','f4','f5','f6','f7','f8','f9','f10','f11','f12','f13'].forEach(function(id,i){document.getElementById(id).textContent=i===0?s[0]:fmt(s[i]);});}
 function updateSS(){var rows=getRows();var sel=rows.filter(function(r){return rowSelected[r.rowKey]!==false;}).length;document.getElementById('ss').innerHTML='เลือก <strong>'+sel+' / '+rows.length+'</strong> แถว';}
-function renderPreview(){var card=document.getElementById('previewCard');if(!files.length){card.style.display='none';return;}card.style.display='block';var rows=getRows();var tb=document.getElementById('pb');if(!rows.length){tb.innerHTML='<tr><td colspan="14" class="nd">ไม่มีข้อมูล</td></tr>';return;}rows.forEach(function(r){if(rowSelected[r.rowKey]===undefined)rowSelected[r.rowKey]=true;});tb.innerHTML=rows.map(function(r){var sel=rowSelected[r.rowKey]!==false;var calcTot=r.salary+r.alwFix+r.alwNonFix+r.ot+r.commission+r.incentive+r.travelFixed+r.reimburse+r.bonus+r.awards+r.severance+r.checkup+r.uniform+r.eventRoom+r.training+r.otherExp+r.tempSalary+r.otherInc+r.ssf+r.pvf+r.health+r.fee;var diff=Math.abs(calcTot-r.totalInv);return'<tr'+(sel?'':' class="off"')+'><td style="text-align:center"><input type="checkbox" class="rcb" data-rk="'+esc(r.rowKey)+'"'+(sel?' checked':'')+' onchange="onCbChange(this)" style="cursor:pointer;accent-color:#c8102e"></td><td>'+esc(r.company)+' / '+esc(r.detail)+'</td><td class="n">'+r.count+'</td><td class="n">'+fmt(r.salary)+'</td><td class="n">'+fmt(r.ssf)+'</td><td class="n">'+fmt(r.pvf)+'</td><td class="n">'+fmt(r.health)+'</td><td class="n">'+fmt(r.checkup)+'</td><td class="n">'+fmt(r.alwFix)+'</td><td class="n">'+fmt(r.otherInc)+'</td><td class="n">'+fmt(r.ot)+'</td><td class="n">'+fmt(r.commission)+'</td><td class="n">'+fmt(r.incentive)+'</td><td class="n">'+fmt(r.bonus)+'</td><td class="n">'+fmt(r.alwNonFix)+'</td><td class="n">'+fmt(r.fee)+'</td><td class="n">'+fmt(r.totalInv)+'</td><td class="'+(diff>1?'w':'ok')+'">'+(diff>1?'⚠':'✓')+'</td></tr>';}).join('');updateFoot();updateSS();}
+function renderPreview(){var card=document.getElementById('previewCard');if(!files.length){card.style.display='none';return;}card.style.display='block';var rows=getRows();var tb=document.getElementById('pb');if(!rows.length){tb.innerHTML='<tr><td colspan="14" class="nd">ไม่มีข้อมูล</td></tr>';return;}rows.forEach(function(r){if(rowSelected[r.rowKey]===undefined)rowSelected[r.rowKey]=true;});tb.innerHTML=rows.map(function(r){var sel=rowSelected[r.rowKey]!==false;var calcTot=r.salary+r.alwFix+r.alwNonFix+r.ot+r.commission+r.incentive+r.travelFixed+r.reimburse+r.bonus+r.awards+r.severance+r.checkup+r.uniform+r.eventRoom+r.training+r.otherExp+r.tempSalary+r.otherInc+r.ssf+r.pvf+r.health+r.fee;var diff=Math.abs(calcTot-r.totalInv);return'<tr'+(sel?'':' class="off"')+'><td style="text-align:center"><input type="checkbox" class="rcb" data-rk="'+esc(r.rowKey)+'"'+(sel?' checked':'')+' onchange="onCbChange(this)" style="cursor:pointer;accent-color:var(--prtr-primary-text)"></td><td>'+esc(r.company)+' / '+esc(r.detail)+'</td><td class="n">'+r.count+'</td><td class="n">'+fmt(r.salary)+'</td><td class="n">'+fmt(r.ssf)+'</td><td class="n">'+fmt(r.pvf)+'</td><td class="n">'+fmt(r.health)+'</td><td class="n">'+fmt(r.checkup)+'</td><td class="n">'+fmt(r.alwFix)+'</td><td class="n">'+fmt(r.otherInc)+'</td><td class="n">'+fmt(r.ot)+'</td><td class="n">'+fmt(r.commission)+'</td><td class="n">'+fmt(r.incentive)+'</td><td class="n">'+fmt(r.bonus)+'</td><td class="n">'+fmt(r.alwNonFix)+'</td><td class="n">'+fmt(r.fee)+'</td><td class="n">'+fmt(r.totalInv)+'</td><td class="'+(diff>1?'w':'ok')+'">'+(diff>1?'⚠':'✓')+'</td></tr>';}).join('');updateFoot();updateSS();}
 function renderDl(){var card=document.getElementById('dlCard');if(!files.length){card.style.display='none';return;}card.style.display='block';var rows=getRows().filter(function(r){return rowSelected[r.rowKey]!==false;});var hasT=!!templateBuf;document.getElementById('fo').textContent=rows.length&&hasT?outFname(rows):(hasT?'':'⚠ กรุณาอัปโหลด Template ด้วย');var btn=document.getElementById('btnDl');btn.disabled=!rows.length||!hasT;btn.textContent=!hasT?'⬇ รอ Template...':rows.length?'⬇ Download Accrued Income Form':'⬇ ยังไม่ได้เลือกแถว';}
 
 // ── Download ─────────────────────────────────
@@ -862,4 +850,5 @@ async function downloadExcel(){
   }
 }
 </script>
+<footer class="prtr-footer">OSInvoice Tools สำหรับทีม PRTR</footer>
 </body></html>

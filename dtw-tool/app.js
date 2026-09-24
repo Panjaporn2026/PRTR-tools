@@ -162,7 +162,7 @@ function refreshKeyColumnPickers() {
 
 function renderRadioChips(containerId, name, options, onChange) {
   var el = $(containerId);
-  if (!options.length) { el.innerHTML = '<span style="color:#c62828;font-size:12px">ไม่พบคอลัมน์ที่ใช้เป็นตัวเลือกได้ในไฟล์ GL_Invoice ที่อัปโหลด</span>'; return; }
+  if (!options.length) { el.innerHTML = '<span style="color:var(--prtr-error-text);font-size:12px">ไม่พบคอลัมน์ที่ใช้เป็นตัวเลือกได้ในไฟล์ GL_Invoice ที่อัปโหลด</span>'; return; }
   el.innerHTML = options.map(function (opt, i) {
     return '<label class="an-col-chip"><input type="radio" name="' + name + '" value="' + esc(opt) + '"' + (i === 0 ? ' checked' : '') + '> ' + esc(opt) + '</label>';
   }).join('');
@@ -375,7 +375,7 @@ $('btnRun').addEventListener('click', async function () {
     var warnHtml = result.warnings.length
       ? '<div class="warn-box">⚠️ มีจุดที่ควรตรวจสอบก่อนใช้ไฟล์จริง (' + result.warnings.length + ' รายการ):<br>' + result.warnings.map(esc).join('<br>') + '</div>'
       : '';
-    msgEl.innerHTML = '<div class="warn-box" style="background:#e8f5e9;border-color:#a5d6a7;color:#1b5e20">✅ กรอกไฟล์สำเร็จ ตรวจสอบความถูกต้องแล้ว (verifyWrites ผ่านทุกจุด)</div>' + warnHtml;
+    msgEl.innerHTML = '<div class="warn-box" style="background:var(--prtr-success-bg);border-color:var(--prtr-success);color:var(--prtr-success-text)">✅ กรอกไฟล์สำเร็จ ตรวจสอบความถูกต้องแล้ว (verifyWrites ผ่านทุกจุด)</div>' + warnHtml;
   } catch (err) {
     msgEl.innerHTML = '<div class="warn-box err">❌ ' + esc(err.message) + '</div>';
   } finally {
