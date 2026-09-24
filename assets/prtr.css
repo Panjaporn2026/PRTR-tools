@@ -1,0 +1,252 @@
+/* ==========================================================================
+   PRTR shared style for OSInvoice Tools
+   ใช้ร่วมกันทุกหน้า: design tokens ตาม CI + แถบหัว/ท้ายหน้า + ค่าพื้นฐาน
+   แก้สีหรือฟอนต์ของทั้งเว็บที่ไฟล์นี้ที่เดียว
+   ฟอนต์: ใส่ <link> Google Fonts (Montserrat + Prompt) ในแต่ละหน้า
+   ========================================================================== */
+
+/* ---- tokens (จาก prtr-brand-core/tokens.css) ---- */
+:root {
+  /* --- brand red --- */
+  --prtr-red-50: #FEF2F3;
+  --prtr-red-100: #FDE0E2;
+  --prtr-red-200: #FAC0C4;
+  --prtr-red-300: #F58F96;
+  --prtr-red-400: #EF5B65;
+  --prtr-red-500: #E82631;
+  --prtr-red-600: #D0161F;
+  --prtr-red-700: #AB121A;
+  --prtr-red-800: #860E14;
+  --prtr-red-900: #610A0F;
+  --prtr-primary: #E82631;
+  --prtr-primary-text: #D0161F;
+
+  /* --- neutral --- */
+  --prtr-neutral-0: #FFFFFF;
+  --prtr-neutral-50: #FAF9F9;
+  --prtr-neutral-100: #F4F2F3;
+  --prtr-neutral-200: #E7E4E5;
+  --prtr-neutral-300: #D2CDCE;
+  --prtr-neutral-400: #A9A2A4;
+  --prtr-neutral-500: #77696C;
+  --prtr-neutral-600: #5C5457;
+  --prtr-neutral-700: #443E40;
+  --prtr-neutral-800: #2A2527;
+  --prtr-neutral-850: #1E1B1D;
+  --prtr-neutral-900: #171416;
+  --prtr-neutral-950: #0D0B0C;
+
+  /* --- semantic --- */
+  --prtr-success: #0E8A5F;
+  --prtr-success-bg: #E6F5EE;
+  --prtr-success-text: #0A6A49;
+  --prtr-warning: #B45309;
+  --prtr-warning-bg: #FDF3E5;
+  --prtr-warning-text: #8A3F07;
+  --prtr-error: #B3121B;
+  --prtr-error-bg: #FDECEE;
+  --prtr-error-text: #8E0E15;
+  --prtr-info: #1D63C7;
+  --prtr-info-bg: #EAF1FC;
+  --prtr-info-text: #164C9B;
+
+  /* --- surface roles (ใช้ตัวนี้ใน UI ไม่ใช่สีดิบข้างบน) --- */
+  --prtr-bg:            var(--prtr-neutral-0);
+  --prtr-bg-subtle:     var(--prtr-neutral-50);
+  --prtr-surface:       var(--prtr-neutral-0);
+  --prtr-surface-hover: var(--prtr-neutral-100);
+  --prtr-border:        var(--prtr-neutral-200);
+  --prtr-border-strong: var(--prtr-neutral-300);
+  --prtr-text:          var(--prtr-neutral-900);
+  --prtr-text-muted:    var(--prtr-neutral-600);
+  --prtr-text-subtle:   var(--prtr-neutral-500);
+  --prtr-text-inverse:  var(--prtr-neutral-0);
+  --prtr-accent:        var(--prtr-red-500);
+  --prtr-accent-hover:  var(--prtr-red-600);
+  --prtr-accent-press:  var(--prtr-red-700);
+  --prtr-focus-ring:    var(--prtr-red-500);
+  /* ปุ่ม primary มี token ของตัวเอง เพราะในธีมมืดต้องสลับทิศ
+     ห้ามใช้ --prtr-accent-hover เป็นพื้นปุ่ม มันหมายถึง 'แดงเข้มขึ้น' ในธีมสว่าง
+     แต่หมายถึง 'แดงสว่างขึ้น' ในธีมมืด */
+  --prtr-btn-primary-bg:    var(--prtr-red-600);  /* AA 5.50 กับตัวขาว */
+  --prtr-btn-primary-text:  var(--prtr-neutral-0);
+  --prtr-btn-primary-hover: var(--prtr-red-700);
+
+  /* --- chart: โหมดสถานะ (ข้อมูลที่มีดี/แย่) --- */
+  --prtr-st-good: #0E8A5F;
+  --prtr-st-good-soft: #E6F5EE;
+  --prtr-st-good-text: #0A6A49;
+  --prtr-st-warn: #B45309;
+  --prtr-st-warn-soft: #FDF3E5;
+  --prtr-st-warn-text: #8A3F07;
+  --prtr-st-bad: #B3121B;
+  --prtr-st-bad-soft: #FDECEE;
+  --prtr-st-bad-text: #8E0E15;
+  --prtr-st-neutral: #1D63C7;
+  --prtr-st-neutral-soft: #EAF1FC;
+  --prtr-st-neutral-text: #164C9B;
+
+  /* --- chart: ไล่เฉดแดงแบรนด์ (ข้อมูลที่มีแต่มากน้อย ไม่มีดี/แย่) --- */
+  --prtr-ramp-1: #640D13;
+  --prtr-ramp-on-1: #FFFFFF;
+  --prtr-ramp-2: #8C141C;
+  --prtr-ramp-on-2: #FFFFFF;
+  --prtr-ramp-3: #B81D26;
+  --prtr-ramp-on-3: #FFFFFF;
+  --prtr-ramp-4: #DC242E;
+  --prtr-ramp-on-4: #FFFFFF;
+  --prtr-ramp-5: #EB6669;
+  --prtr-ramp-on-5: #171416;
+  --prtr-ramp-6: #F09E9F;
+  --prtr-ramp-on-6: #171416;
+  --prtr-ramp-7: #F6CDCE;
+  --prtr-ramp-on-7: #171416;
+
+  /* --- chart: categorical (แต่ละส่วนเป็นคนละหัวข้อ ไม่มีดี/แย่ ไม่มีลำดับ) --- */
+  /* ใช้ได้สูงสุด 7 สี — เกินกว่านี้ตาแยกไม่ออกไม่ว่าจะเลือกสีดีแค่ไหน ถ้ามีหมวดมากกว่า 7 ให้เรียงจากมากไปน้อย เอา 6 อันดับแรก แล้วรวมที่เหลือเป็น 'อื่นๆ' สีเทา */
+  --prtr-chart-1: #A8760F;        /* amber */
+  --prtr-chart-on-1: #171416;
+  --prtr-chart-2: #73351B;        /* umber */
+  --prtr-chart-on-2: #FFFFFF;
+  --prtr-chart-3: #1A5124;        /* forest */
+  --prtr-chart-on-3: #FFFFFF;
+  --prtr-chart-4: #007A77;        /* teal */
+  --prtr-chart-on-4: #FFFFFF;
+  --prtr-chart-5: #3F98D2;        /* azure */
+  --prtr-chart-on-5: #171416;
+  --prtr-chart-6: #9D85C7;        /* lilac */
+  --prtr-chart-on-6: #171416;
+  --prtr-chart-7: #8E4C7D;        /* plum */
+  --prtr-chart-on-7: #FFFFFF;
+  --prtr-chart-highlight: #E82631; /* แดงแบรนด์ = ตัวเน้นเท่านั้น */
+  --prtr-chart-dim: #D2CDCE;
+  --prtr-chart-line: #77696C;
+  --prtr-chart-track: #F4F2F3;
+  --prtr-chart-gridline: #E7E4E5;
+  --prtr-chart-axis: #5C5457;
+
+  /* --- typography --- */
+  --prtr-font: 'Montserrat', 'Prompt', sans-serif;
+  --prtr-font-en: 'Montserrat', sans-serif;
+  --prtr-font-th: 'Prompt', sans-serif;
+  --prtr-font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+  --prtr-display-size: 60px;
+  --prtr-display-line: 1.2;
+  --prtr-display-weight: 700;
+  --prtr-display-color: var(--prtr-text);
+  --prtr-h1-size: 40px;
+  --prtr-h1-line: 1.2;
+  --prtr-h1-weight: 700;
+  --prtr-h1-color: var(--prtr-accent);
+  --prtr-h2-size: 28px;
+  --prtr-h2-line: 1.3;
+  --prtr-h2-weight: 700;
+  --prtr-h2-color: var(--prtr-text);
+  --prtr-h3-size: 20px;
+  --prtr-h3-line: 1.4;
+  --prtr-h3-weight: 600;
+  --prtr-h3-color: var(--prtr-text);
+  --prtr-h4-size: 16px;
+  --prtr-h4-line: 1.45;
+  --prtr-h4-weight: 600;
+  --prtr-h4-color: var(--prtr-text);
+  --prtr-body-size: 15px;
+  --prtr-body-line: 1.65;
+  --prtr-body-weight: 400;
+  --prtr-body-color: var(--prtr-text);
+  --prtr-small-size: 13px;
+  --prtr-small-line: 1.55;
+  --prtr-small-weight: 400;
+  --prtr-small-color: var(--prtr-text-muted);
+  --prtr-caption-size: 12px;
+  --prtr-caption-line: 1.4;
+  --prtr-caption-weight: 500;
+  --prtr-caption-color: var(--prtr-text-subtle);
+
+  /* --- ข้อความในกราฟ: หนึ่งกราฟมีตัวหนา 700 ได้ชุดเดียว --- */
+  --prtr-ct-value-size: 11px;
+  --prtr-ct-value-weight: 600;
+  --prtr-ct-value-color: var(--prtr-text);
+  --prtr-ct-value-key-size: 12px;
+  --prtr-ct-value-key-weight: 700;
+  --prtr-ct-value-key-color: var(--prtr-text);
+  --prtr-ct-label-size: 11px;
+  --prtr-ct-label-weight: 400;
+  --prtr-ct-label-color: var(--prtr-text-muted);
+  --prtr-ct-axis-size: 11px;
+  --prtr-ct-axis-weight: 400;
+  --prtr-ct-axis-color: var(--prtr-text-subtle);
+
+  /* --- gradient (มี 2 ตัวเท่านั้นที่อนุญาต) --- */
+  --prtr-gradient-brand: linear-gradient(135deg, #E82631 0%, #AB121A 100%);
+  --prtr-gradient-sidebar: linear-gradient(165deg, #B81D26 0%, #7A1119 55%, #4E0A10 100%);
+
+  /* --- space / radius / shadow --- */
+  --prtr-space-1: 4px;
+  --prtr-space-2: 8px;
+  --prtr-space-3: 12px;
+  --prtr-space-4: 16px;
+  --prtr-space-5: 24px;
+  --prtr-space-6: 32px;
+  --prtr-space-7: 48px;
+  --prtr-space-8: 64px;
+  --prtr-space-9: 96px;
+  --prtr-radius-sm: 4px;
+  --prtr-radius-md: 8px;
+  --prtr-radius-lg: 12px;
+  --prtr-radius-xl: 16px;
+  --prtr-radius-full: 9999px;
+  --prtr-shadow-sm: 0 1px 2px rgba(23,20,22,0.06);
+  --prtr-shadow-md: 0 2px 8px rgba(23,20,22,0.08);
+  --prtr-shadow-lg: 0 8px 24px rgba(23,20,22,0.10);
+  --prtr-shadow-card: 0 1px 2px rgba(23,20,22,0.07), 0 8px 20px -10px rgba(23,20,22,0.16);
+  --prtr-shadow-card-hover: 0 1px 3px rgba(23,20,22,0.09), 0 16px 32px -14px rgba(23,20,22,0.22);
+}
+
+/* ---- base ---- */
+html{-webkit-text-size-adjust:100%;}
+body{
+  font-family:'Montserrat','Prompt',system-ui,sans-serif;
+  background:var(--prtr-bg-subtle);
+  color:var(--prtr-text);
+  line-height:1.6;
+  letter-spacing:0;
+}
+:focus-visible{outline:2px solid var(--prtr-focus-ring);outline-offset:2px;}
+button,input,select,textarea{font-family:inherit;}
+
+/* ---- top bar (เหมือนกันทุกหน้า) ---- */
+.prtr-topbar{
+  position:sticky;top:0;z-index:50;
+  display:flex;align-items:center;gap:var(--prtr-space-3);
+  min-height:60px;padding:var(--prtr-space-3) var(--prtr-space-5);
+  background:var(--prtr-surface);
+  border-bottom:1px solid var(--prtr-border);
+}
+.prtr-topbar__brand{display:inline-flex;align-items:center;gap:var(--prtr-space-3);text-decoration:none;color:var(--prtr-text);flex:none;}
+.prtr-topbar__logo{height:22px;width:auto;display:block;}
+.prtr-topbar__app{font-weight:600;font-size:15px;line-height:1.5;padding-left:var(--prtr-space-3);border-left:1px solid var(--prtr-border);}
+.prtr-topbar__sep{color:var(--prtr-text-subtle);font-size:15px;line-height:1.5;}
+.prtr-topbar__current{font-size:15px;line-height:1.5;color:var(--prtr-text-muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.prtr-topbar__tagline{font-size:14px;line-height:1.5;color:var(--prtr-text-muted);}
+.prtr-topbar__home{
+  margin-left:auto;flex:none;display:inline-flex;align-items:center;gap:var(--prtr-space-2);
+  font-size:14px;font-weight:600;line-height:1.4;color:var(--prtr-text);text-decoration:none;
+  border:1px solid var(--prtr-border-strong);border-radius:var(--prtr-radius-md);
+  padding:8px var(--prtr-space-4);background:transparent;
+}
+.prtr-topbar__home:hover{background:var(--prtr-surface-hover);}
+.prtr-topbar__home svg{flex:none;}
+@media (max-width:640px){
+  .prtr-topbar{padding:var(--prtr-space-3) var(--prtr-space-4);}
+  .prtr-topbar__sep,.prtr-topbar__tagline{display:none;}
+  .prtr-topbar:has(.prtr-topbar__current) .prtr-topbar__app{display:none;}
+  .prtr-topbar__home span{display:none;}
+  .prtr-topbar__home{padding:8px var(--prtr-space-3);}
+}
+
+/* ---- footer (เหมือนกันทุกหน้า) ---- */
+.prtr-footer{
+  text-align:center;padding:var(--prtr-space-6) var(--prtr-space-4) var(--prtr-space-7);
+  color:var(--prtr-text-subtle);font-size:13px;line-height:1.6;
+}
