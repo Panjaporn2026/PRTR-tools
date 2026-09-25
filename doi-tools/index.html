@@ -17,7 +17,7 @@
     body {
       font-family:'Montserrat','Prompt',system-ui,sans-serif;
       background:var(--prtr-bg-subtle); background-attachment: fixed; color: var(--prtr-text);
-      min-height: 100vh; padding: 24px 16px; letter-spacing: .1px;
+      min-height: 100vh; padding: 0; letter-spacing: .1px;
     }
     a { color: var(--prtr-text-muted); text-decoration: none; }
     a:hover { color: var(--prtr-primary-text); }
@@ -110,7 +110,76 @@
     .split-pw-label { font-size: 12px; color: var(--prtr-text-muted); display: flex; align-items: center; gap: 8px; cursor: pointer; }
     .split-pw-row .pw-field { flex: 1; min-width: 220px; max-width: 320px; }
     .split-pw-row .pw-field input { width: 100%; }
-  </style>
+  /* ---- Detail of Invoice split (step layout, same pattern as แยกไฟล์ GL Invoice) ---- */
+.ds-step{background:var(--prtr-surface);border:1px solid var(--prtr-border);border-radius:var(--prtr-radius-lg);padding:var(--prtr-space-5);margin-bottom:var(--prtr-space-4);min-width:0;}
+.ds-step[aria-disabled="true"]{opacity:.5;pointer-events:none;}
+.ds-head{display:flex;align-items:baseline;gap:var(--prtr-space-3);margin-bottom:var(--prtr-space-4);}
+.ds-num{flex:none;width:28px;height:28px;border-radius:var(--prtr-radius-full);border:1px solid var(--prtr-border-strong);display:grid;place-items:center;font-weight:600;font-size:14px;line-height:1;font-variant-numeric:tabular-nums;transform:translateY(4px);}
+.ds-title{font-size:16px;line-height:1.5;font-weight:600;margin:0;color:var(--prtr-text);}
+.ds-hint{color:var(--prtr-text-muted);font-size:13px;margin:2px 0 0;}
+.ds-drop{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--prtr-space-2);text-align:center;border:1px dashed var(--prtr-border-strong);border-radius:var(--prtr-radius-md);padding:var(--prtr-space-6) var(--prtr-space-4);cursor:pointer;background:var(--prtr-bg-subtle);color:var(--prtr-text);}
+.ds-drop:hover,.ds-drop.is-over{border-color:var(--prtr-accent);background:var(--prtr-surface-hover);}
+.ds-drop:focus-within{outline:2px solid var(--prtr-focus-ring);outline-offset:2px;}
+.ds-drop input{position:absolute;width:1px;height:1px;opacity:0;}
+.ds-drop__main{font-weight:600;font-size:15px;}
+.ds-drop__sub{color:var(--prtr-text-muted);font-size:13px;}
+.ds-info{display:none;margin-top:var(--prtr-space-4);padding:var(--prtr-space-3) var(--prtr-space-4);border-radius:var(--prtr-radius-md);background:var(--prtr-bg-subtle);font-size:13px;line-height:1.7;}
+.ds-info.show{display:block;}
+.ds-info b{font-weight:600;overflow-wrap:anywhere;}
+.ds-info span{color:var(--prtr-text-muted);}
+.ds-cols{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:var(--prtr-space-2);}
+.ds-col{display:flex;align-items:center;gap:var(--prtr-space-2);padding:var(--prtr-space-2) var(--prtr-space-3);border:1px solid var(--prtr-border);border-radius:var(--prtr-radius-md);cursor:pointer;user-select:none;min-height:44px;font-size:13px;line-height:1.4;}
+.ds-col:hover{background:var(--prtr-surface-hover);}
+.ds-col input{width:18px;height:18px;margin:0;flex:none;accent-color:var(--prtr-btn-primary-bg);}
+.ds-col:has(input:checked){border-color:var(--prtr-primary-text);background:var(--prtr-red-50);}
+.ds-col:has(input:focus-visible){outline:2px solid var(--prtr-focus-ring);outline-offset:2px;}
+.ds-preview{margin:var(--prtr-space-4) 0 0;font-size:13px;color:var(--prtr-text-muted);}
+.ds-preview code{font-family:inherit;color:var(--prtr-text);font-weight:500;overflow-wrap:anywhere;}
+.ds-preview code em{font-style:normal;color:var(--prtr-primary-text);font-weight:600;}
+.ds-field{border:0;margin:0 0 var(--prtr-space-4);padding:0;}
+.ds-field:last-child{margin-bottom:0;}
+.ds-label{font-size:13px;font-weight:600;color:var(--prtr-text);padding:0;margin-bottom:var(--prtr-space-2);}
+.ds-radio{display:flex;align-items:flex-start;gap:var(--prtr-space-3);padding:var(--prtr-space-3);border:1px solid var(--prtr-border);border-radius:var(--prtr-radius-md);margin-top:var(--prtr-space-2);cursor:pointer;font-size:13px;line-height:1.5;}
+.ds-radio:has(input:checked){border-color:var(--prtr-primary-text);background:var(--prtr-red-50);}
+.ds-radio input{margin-top:3px;accent-color:var(--prtr-btn-primary-bg);flex:none;}
+.ds-radio b{font-weight:600;}
+.ds-radio small{color:var(--prtr-text-muted);font-size:12px;}
+.ds-switch{display:flex;align-items:center;gap:var(--prtr-space-2);font-size:13px;cursor:pointer;min-height:36px;}
+.ds-switch input{width:18px;height:18px;margin:0;accent-color:var(--prtr-btn-primary-bg);}
+.ds-pw{display:flex;gap:var(--prtr-space-2);margin-top:var(--prtr-space-2);max-width:420px;}
+.ds-pw[hidden]{display:none;}
+.ds-pw input{flex:1;min-width:0;font:inherit;font-size:13px;padding:8px var(--prtr-space-3);border:1px solid var(--prtr-border-strong);border-radius:var(--prtr-radius-md);background:var(--prtr-surface);color:var(--prtr-text);}
+.ds-pw input:focus{outline:2px solid var(--prtr-focus-ring);outline-offset:1px;}
+.ds-tablewrap{overflow-x:auto;border:1px solid var(--prtr-border);border-radius:var(--prtr-radius-md);}
+.ds-table{width:100%;border-collapse:collapse;font-size:13px;}
+.ds-table th{background:var(--prtr-bg-subtle);color:var(--prtr-text-muted);font-weight:600;text-align:left;padding:var(--prtr-space-2) var(--prtr-space-3);white-space:nowrap;border-bottom:1px solid var(--prtr-border);}
+.ds-table td{padding:var(--prtr-space-2) var(--prtr-space-3);border-bottom:1px solid var(--prtr-border);vertical-align:middle;}
+.ds-table tbody tr:hover{background:var(--prtr-surface-hover);}
+.ds-table tfoot td{font-weight:600;border-top:1px solid var(--prtr-border-strong);border-bottom:0;}
+.ds-table .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.ds-table td.fn{overflow-wrap:anywhere;min-width:220px;}
+.ds-tag{display:inline-block;margin-left:var(--prtr-space-2);font-size:12px;font-weight:600;padding:0 var(--prtr-space-2);border-radius:var(--prtr-radius-full);background:var(--prtr-warning-bg);color:var(--prtr-warning-text);}
+.ds-actions{display:flex;flex-wrap:wrap;gap:var(--prtr-space-3);margin-top:var(--prtr-space-5);align-items:center;}
+.ds-btn{font:inherit;font-size:13px;font-weight:600;line-height:1.4;border-radius:var(--prtr-radius-md);padding:10px var(--prtr-space-4);cursor:pointer;min-height:44px;border:1px solid transparent;}
+.ds-btn:focus-visible{outline:2px solid var(--prtr-focus-ring);outline-offset:2px;}
+.ds-btn:disabled{opacity:.5;cursor:not-allowed;}
+.ds-btn--primary{background:var(--prtr-btn-primary-bg);color:var(--prtr-btn-primary-text);}
+.ds-btn--primary:hover:not(:disabled){background:var(--prtr-btn-primary-hover);}
+.ds-btn--secondary{background:transparent;color:var(--prtr-text);border-color:var(--prtr-border-strong);}
+.ds-btn--secondary:hover:not(:disabled){background:var(--prtr-surface-hover);}
+.ds-btn--ghost{background:transparent;color:var(--prtr-text-muted);padding:6px var(--prtr-space-3);min-height:36px;}
+.ds-btn--ghost:hover:not(:disabled){background:var(--prtr-surface-hover);color:var(--prtr-text);}
+.ds-status{font-size:13px;color:var(--prtr-text-muted);}
+.ds-msg{display:none;margin-top:var(--prtr-space-4);padding:var(--prtr-space-3) var(--prtr-space-4);border-radius:var(--prtr-radius-md);font-size:13px;}
+.ds-msg.show{display:block;}
+.ds-msg--err{background:var(--prtr-error-bg);color:var(--prtr-error-text);}
+.ds-msg--warn{background:var(--prtr-warning-bg);color:var(--prtr-warning-text);}
+.ds-empty{color:var(--prtr-text-muted);font-size:13px;margin:0;}
+@media (max-width:560px){.ds-actions .ds-btn{flex:1 1 100%;}}
+.ds-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
+  /* content padding moved off <body> so the shared top bar spans the full width */
+  body > .wrap, body > .container, body > .app { padding-top: 24px; padding-bottom: 24px; padding-left: 16px; padding-right: 16px; }
+</style>
 </head>
 <body>
 <header class="prtr-topbar">
@@ -121,7 +190,7 @@
 </header>
 <div class="wrap">
   <h1>🧾 Detail of Invoice Tools</h1>
-  <p class="subtitle">ตัดไฟล์แยกตามคอลัมน์ / ซ่อนคอลัมน์ / ล็อกรหัสผ่าน — เฉพาะไฟล์ Detail of Invoice (.xlsx)</p>
+  <p class="subtitle">แยกไฟล์ Detail of Invoice ตามคอลัมน์ที่เลือก พร้อมซ่อนคอลัมน์ที่ไม่ใช้และใส่รหัสผ่านได้</p>
 
   <div class="layout">
     <div class="sidebar">
@@ -150,39 +219,51 @@
     </div>
 
     <div class="main-col">
-      <!-- Split -->
-      <div class="mapping-section">
-        <div class="mapping-header">
-          <div class="mapping-header-left">
-            <div>
-              <div class="mapping-title">✂️ ตัดไฟล์จาก Detail of Invoice</div>
-              <div class="mapping-desc">วางไฟล์ Detail of Invoice 1 ไฟล์ แล้วติ๊กเลือกคอลัมน์ที่ต้องการตัดแยก (ด้านล่าง) — ไฟล์ที่ได้จะถูกตั้งชื่อเป็น "Project Code SAP_Detail of invoice_MMYY" ต่อท้ายด้วยคอลัมน์ที่เลือกโดยอัตโนมัติ พร้อมซ่อนคอลัมน์ Subtotal = 0 และคอลัมน์หลัง Memo/Total Invoice Before Vat ให้เสมอ</div>
-            </div>
-          </div>
-        </div>
+      <section class="ds-step" id="ds1" aria-labelledby="dsT1">
+        <div class="ds-head"><span class="ds-num">1</span><div><h2 class="ds-title" id="dsT1">เลือกไฟล์ Detail of Invoice</h2><p class="ds-hint">ไฟล์ .xlsx 1 ไฟล์ รองรับไฟล์ที่มี sheet อื่นร่วมด้วย เช่น HRIS PAYROLL REPORT</p></div></div>
+        <label class="ds-drop" id="dsDrop">
+          <input type="file" id="dsFile" accept=".xlsx">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+          <span class="ds-drop__main">ลากไฟล์มาวาง หรือคลิกเพื่อเลือก</span>
+          <span class="ds-drop__sub">ไฟล์ถูกประมวลผลในเบราว์เซอร์นี้เท่านั้น</span>
+        </label>
+        <div class="ds-info" id="dsInfo" aria-live="polite"></div>
+        <div class="ds-msg ds-msg--err" id="dsErr" role="alert"></div>
+      </section>
 
-        <div class="mapping-upload-row" style="margin-top:10px">
-          <div class="mapping-drop" id="splitDrop" onclick="document.getElementById('splitInput').click()">
-            ✂️ คลิกหรือลากไฟล์ Detail of Invoice 1 ไฟล์ ที่ต้องการตัดไฟล์มาวางที่นี่
-          </div>
-        </div>
-        <input type="file" id="splitInput" accept=".xlsx" style="display:none">
-        <div class="split-pw-row">
-          <label class="split-pw-label">
-            <span class="toggle-sw"><input type="checkbox" id="splitPwToggle" onchange="toggleSplitPwRow()"><span class="slider"></span></span>
-            ใส่รหัสผ่านให้ไฟล์ที่ตัดออกมา (รหัสเดียวกันทุกไฟล์)
-          </label>
-          <div class="pw-field" id="splitPwFieldWrap" style="display:none">
-            <input type="password" id="splitPw" placeholder="รหัสผ่านสำหรับไฟล์ที่ตัดออกมา">
-            <button class="pw-eye" onclick="toggleSplitPwVisibility()" tabindex="-1">👁</button>
-          </div>
-        </div>
-        <button class="btn-tpl" id="btnRunSplit" onclick="runSplit()" disabled style="align-self:stretch;text-align:center;padding:9px 12px;margin-top:12px;width:100%">✂️ ตัดไฟล์ (ดาวน์โหลด ZIP)</button>
-        <div class="mapping-status" id="splitStatus"></div>
-      </div>
+      <section class="ds-step" id="ds2" aria-labelledby="dsT2" aria-disabled="true">
+        <div class="ds-head"><span class="ds-num">2</span><div><h2 class="ds-title" id="dsT2">ติ๊กคอลัมน์ที่ใช้แยก</h2><p class="ds-hint">ติ๊กหลายคอลัมน์ได้ ระบบจะแยก 1 ไฟล์ต่อ 1 ชุดค่าที่ไม่ซ้ำกัน และต่อท้ายชื่อไฟล์ตามลำดับที่ติ๊ก</p></div></div>
+        <div class="ds-cols" id="dsCols" role="group" aria-labelledby="dsT2"></div>
+        <p class="ds-preview" id="dsNamePreview" aria-live="polite"></p>
+      </section>
 
-      <div class="empty-hint" id="mainEmptyHint">อัปโหลดไฟล์ Detail of Invoice ด้านบนเพื่อเลือกคอลัมน์ที่ต้องการตัดแยกที่นี่</div>
-      <div class="mapping-section autoname-cols" id="autoNameColsWrap" style="display:none"></div>
+      <section class="ds-step" id="ds3" aria-labelledby="dsT3" aria-disabled="true">
+        <div class="ds-head"><span class="ds-num">3</span><div><h2 class="ds-title" id="dsT3">ตัวเลือกไฟล์ที่ได้</h2><p class="ds-hint">ระบบซ่อนคอลัมน์ที่ยอดเป็น 0 และคอลัมน์หลัง Memo / Total Invoice Before Vat ให้อัตโนมัติ</p></div></div>
+        <fieldset class="ds-field" id="dsSheetsField" hidden>
+          <legend class="ds-label" id="dsSheetsLegend">Sheet อื่นในไฟล์</legend>
+          <label class="ds-radio"><input type="radio" name="dsOther" value="keep" checked><span><b>คงไว้เหมือนต้นฉบับ</b><br><small>ทุกไฟล์ที่แยกจะมี sheet นี้ครบทุกแถวเหมือนไฟล์เดิม</small></span></label>
+          <label class="ds-radio"><input type="radio" name="dsOther" value="remove"><span><b>ลบออก และตัดลิงก์</b><br><small>สูตรที่อ้างถึง sheet นี้จะถูกเก็บเป็นค่า ตัวเลขที่แสดงไม่เปลี่ยน</small></span></label>
+        </fieldset>
+        <div class="ds-field">
+          <label class="ds-switch"><input type="checkbox" id="dsPwOn"><span>ใส่รหัสผ่านเปิดไฟล์ (รหัสเดียวกันทุกไฟล์)</span></label>
+          <div class="ds-pw" id="dsPwWrap" hidden>
+            <input type="password" id="dsPw" placeholder="รหัสผ่าน" autocomplete="new-password" aria-label="รหัสผ่าน">
+            <button type="button" class="ds-btn ds-btn--ghost" id="dsPwEye">แสดง</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="ds-step" id="ds4" aria-labelledby="dsT4" aria-disabled="true">
+        <div class="ds-head"><span class="ds-num">4</span><div><h2 class="ds-title" id="dsT4">ตรวจรายการแล้วดาวน์โหลด</h2><p class="ds-hint" id="dsSummary">ติ๊กคอลัมน์อย่างน้อย 1 คอลัมน์เพื่อดูรายการไฟล์</p></div></div>
+        <div id="dsResult"><p class="ds-empty">ยังไม่มีรายการ</p></div>
+        <div class="ds-msg ds-msg--warn" id="dsWarn"></div>
+        <div class="ds-actions">
+          <button type="button" class="ds-btn ds-btn--primary" id="dsZip" disabled>ดาวน์โหลด ZIP</button>
+          <button type="button" class="ds-btn ds-btn--secondary" id="dsEach" disabled>ดาวน์โหลดแยกทีละไฟล์</button>
+          <span class="ds-status" id="dsStatus" aria-live="polite"></span>
+        </div>
+      </section>
+
 
       <hr class="divider">
       <div class="info-row">
@@ -238,7 +319,7 @@ function buildNumericCellGrid(sheetXml) {
     var type = tMatch ? tMatch[1] : null;
     if (type === 's' || type === 'str' || type === 'inlineStr' || type === 'b' || type === 'e') continue;
     if (/<f\b/.test(inner)) continue; // only plain literals -- not another formula to evaluate
-    var vMatch = /<v>([\s\S]*?)<\/v>/.exec(inner);
+    var vMatch = /<v\b[^>]*>([\s\S]*?)<\/v>/.exec(inner);
     if (!vMatch) continue;
     var num = parseFloat(vMatch[1]);
     if (!isNaN(num)) grid[addr] = num;
@@ -288,7 +369,7 @@ function findZeroSubtotalColumns(sheetXml) {
     if (fFull) formulaText = fFull[1];
     else if (fShared && sharedMap[fShared[1]] !== undefined) formulaText = sharedMap[fShared[1]];
     if (!formulaText || !/SUBTOTAL\s*\(/i.test(formulaText)) continue;
-    var vMatch = /<v>([\s\S]*?)<\/v>/.exec(inner);
+    var vMatch = /<v\b[^>]*>([\s\S]*?)<\/v>/.exec(inner);
     var val = vMatch ? parseFloat(vMatch[1]) : NaN;
     if (isNaN(val)) {
       if (!numericGrid) numericGrid = buildNumericCellGrid(sheetXml);
@@ -438,13 +519,13 @@ function findColAfterLabel(sheetXml, sharedStrings, targetLabelsLower, maxRow) {
       const type = tMatch ? tMatch[1] : null;
       let text = null;
       if (type === 's') {
-        const vMatch = /<v>([\s\S]*?)<\/v>/.exec(inner);
+        const vMatch = /<v\b[^>]*>([\s\S]*?)<\/v>/.exec(inner);
         if (vMatch) text = sharedStrings[parseInt(vMatch[1], 10)];
       } else if (type === 'inlineStr') {
         const tInner = /<t[^>]*>([\s\S]*?)<\/t>/.exec(inner);
         if (tInner) text = decodeXmlEntities(tInner[1]);
       } else if (type === 'str') {
-        const vMatch = /<v>([\s\S]*?)<\/v>/.exec(inner);
+        const vMatch = /<v\b[^>]*>([\s\S]*?)<\/v>/.exec(inner);
         if (vMatch) text = decodeXmlEntities(vMatch[1]);
       }
       if (text === undefined || text === null) continue;
@@ -476,7 +557,10 @@ function findColsAfterMemoOrTotal(sheetXml, sharedStrings) {
 async function applyColumnHiding(buffer, opts) {
   const zip = await JSZip.loadAsync(buffer);
   const sharedStrings = opts.hideAfterMemo ? await readSharedStrings(zip) : [];
-  const sheetPaths = Object.keys(zip.files).filter(function (name) {
+  // opts.onlySheetPath: a split output's hide list is computed for the Detail of Invoice sheet
+  // only -- applying the same column indices to any other sheet kept in the workbook (e.g. HRIS
+  // PAYROLL REPORT) would hide unrelated columns there.
+  const sheetPaths = opts.onlySheetPath ? [opts.onlySheetPath] : Object.keys(zip.files).filter(function (name) {
     return /^xl\/worksheets\/sheet\d+\.xml$/.test(name);
   });
   for (const path of sheetPaths) {
@@ -570,7 +654,10 @@ function periodToMMYY(period) {
 async function readDetailOfInvoiceMeta(file, wantColNames, opts) {
   const buf = await file.arrayBuffer();
   const wb = XLSX.read(buf, { type: 'array', cellDates: true });
-  const ws = wb.Sheets[wb.SheetNames[0]];
+  // Workbooks may carry more sheets than the Detail of Invoice itself (e.g. a "HRIS PAYROLL REPORT"
+  // data sheet the Detail formulas pull from). Prefer the sheet actually named Detail of Invoice.
+  const detailSheetName = wb.SheetNames.find(n => /detail\s*of\s*invoice/i.test(n)) || wb.SheetNames[0];
+  const ws = wb.Sheets[detailSheetName];
   if (!ws['!ref']) return null;
   const range = XLSX.utils.decode_range(ws['!ref']);
   let company = null, period = null;
@@ -633,7 +720,8 @@ async function readDetailOfInvoiceMeta(file, wantColNames, opts) {
   // in both the simple synthetic layout and a real 300+ column DKSH file) -- used to bound the
   // auto-name/split column picker so it doesn't get flooded with amount columns.
   const lmCol = columns.find(c => c.name.trim().toLowerCase() === 'line manager');
-  const meta = { company: sanitizeNamePart(company), projectName, mmyy, columns, values, headerRowExcel: headerRow + 1, lineManagerCol: lmCol ? lmCol.col : null };
+  const meta = { company: sanitizeNamePart(company), projectName, mmyy, columns, values, headerRowExcel: headerRow + 1, lineManagerCol: lmCol ? lmCol.col : null,
+    sheetName: detailSheetName, sheetNames: wb.SheetNames.slice() };
   if (opts && opts.allRows && headerRow >= 0) {
     const wantNames = wantColNames || new Set(columns.map(c => c.name));
     const rowValues = [];
@@ -666,9 +754,6 @@ function escAttr(s) {
   return String(s).replace(/[&<>"']/g, ch => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[ch]));
 }
 
-function toggleAutoNameCol(name, checked) {
-  if (checked) autoNameSelectedCols.add(name); else autoNameSelectedCols.delete(name);
-}
 
 // Any header column can be a split/naming key EXCEPT ones that obviously can't work as a grouping
 // key -- per-row unique identifiers, dates, amount-type columns, and a couple of fields confirmed
@@ -703,42 +788,6 @@ function isAutoNameAllowed(name, sampleValue, colIndex, lineManagerCol) {
   return true;
 }
 
-function renderAutoNameCols(columns, values, lineManagerCol) {
-  const wrap = document.getElementById('autoNameColsWrap');
-  columns = (columns || []).filter(c => isAutoNameAllowed(c.name, values ? values[c.name] : undefined, c.col, lineManagerCol));
-  if (!columns.length) { wrap.style.display = 'none'; wrap.innerHTML = ''; autoNameAvailableCols = []; var mh = document.getElementById('mainEmptyHint'); if (mh) mh.style.display = 'block'; return; }
-  autoNameAvailableCols = columns;
-  const knownNames = new Set(columns.map(c => c.name));
-  autoNameSelectedCols.forEach(n => { if (!knownNames.has(n)) autoNameSelectedCols.delete(n); });
-  if (autoNameSelectedCols.size === 0) {
-    const lm = columns.find(c => c.name.trim().toLowerCase() === 'line manager');
-    if (lm) autoNameSelectedCols.add(lm.name);
-  }
-  wrap.style.display = 'block';
-  var mainHint = document.getElementById('mainEmptyHint');
-  if (mainHint) mainHint.style.display = 'none';
-  wrap.innerHTML =
-    '<div class="an-cols-label">เลือกคอลัมน์ที่ต้องการต่อท้ายชื่อไฟล์ (เรียงตามลำดับคอลัมน์ในไฟล์):</div>' +
-    '<div class="an-cols-list">' +
-    columns.map(c => {
-      const checked = autoNameSelectedCols.has(c.name) ? 'checked' : '';
-      return '<label class="an-col-chip"><input type="checkbox" ' + checked +
-        ' onchange="toggleAutoNameCol(\'' + escAttr(c.name).replace(/'/g, '&#39;') + '\', this.checked)"> ' +
-        escAttr(c.name) + '</label>';
-    }).join('') +
-    '</div>';
-}
-
-// Scans one file's header row and refreshes the shared checkbox picker from it. Used both when
-// files land in the auto-name zone and when a file is dropped on the split zone -- whichever file
-// was scanned most recently is what the checkboxes reflect.
-async function scanFileForAutoNameCols(file) {
-  try {
-    const meta = await readDetailOfInvoiceMeta(file);
-    renderAutoNameCols(meta ? meta.columns : null, meta ? meta.values : null, meta ? meta.lineManagerCol : null);
-  } catch (err) { renderAutoNameCols(null); }
-}
-
 // ===================== SPLIT DETAIL OF INVOICE BY COLUMN =====================
 // Row-level XML engine ported from gl-invoice/sheetmodel.js -- surgical raw-XML row deletion so
 // styles, merged cells, column widths etc. never change, only rows get physically removed.
@@ -771,9 +820,9 @@ function stripFormulaKeepValue(cellXml) {
   const m = /^(<c\b[^>]*>)([\s\S]*)<\/c>$/.exec(cellXml);
   if (!m) return cellXml;
   const openTag = m[1], inner = m[2];
-  const vM = /<v>([\s\S]*?)<\/v>/.exec(inner);
+  const vM = /<v\b[^>]*>([\s\S]*?)<\/v>/.exec(inner);
   if (!vM) return openTag + '</c>'; // no cached value to fall back to -- drop the formula, leave the cell blank
-  return openTag + '<v>' + vM[1] + '</v></c>';
+  return openTag + vM[0] + '</c>'; // keep <v xml:space="preserve"> etc. intact (leading spaces/newlines in text)
 }
 
 function parseSheetRowsForSplit(sheetXml) {
@@ -843,7 +892,7 @@ function getCellValueForSplit(rawCellXml, sst) {
   const innerM = /^<c\b[^>]*>([\s\S]*)<\/c>$/.exec(rawCellXml);
   const inner = innerM ? innerM[1] : '';
   if (type === 's') {
-    const vM = /<v>([\s\S]*?)<\/v>/.exec(inner);
+    const vM = /<v\b[^>]*>([\s\S]*?)<\/v>/.exec(inner);
     return vM ? (sst[parseInt(vM[1], 10)] != null ? sst[parseInt(vM[1], 10)] : null) : null;
   }
   if (type === 'inlineStr') {
@@ -851,7 +900,7 @@ function getCellValueForSplit(rawCellXml, sst) {
     const tM = isM ? /<t[^>]*>([\s\S]*?)<\/t>/.exec(isM[1]) : null;
     return tM ? decodeXmlEntities(tM[1]) : null;
   }
-  const vM3 = /<v>([\s\S]*?)<\/v>/.exec(inner);
+  const vM3 = /<v\b[^>]*>([\s\S]*?)<\/v>/.exec(inner);
   if (!vM3) return null;
   const n = parseFloat(vM3[1]);
   return isNaN(n) ? vM3[1] : n;
@@ -882,9 +931,16 @@ function updateStructuralRefsForSplit(sheetXml, wbXml, opts) {
   if (opts.sheetName) {
     const escName = opts.sheetName.replace(/'/g, "''");
     const newRange = "'" + escName + "'!$" + opts.firstCol + '$' + opts.headerRow + ':$' + opts.lastCol + '$' + opts.lastRow;
+    let done = false;
     wbXml = wbXml.replace(
-      /(<definedName\s+name="_xlnm\._FilterDatabase"[^>]*>)[\s\S]*?(<\/definedName>)/,
-      (_, open, close) => open + escAttr(newRange) + close
+      /(<definedName\s+name="_xlnm\._FilterDatabase"[^>]*>)([\s\S]*?)(<\/definedName>)/g,
+      (all, open, body, close) => {
+        if (done) return all;
+        const txt = decodeXmlEntities(body).replace(/&#(\d+);/g, (m, d) => String.fromCharCode(+d)).replace(/&#x([0-9a-f]+);/gi, (m, h) => String.fromCharCode(parseInt(h, 16)));
+        if (txt.indexOf("'" + escName + "'!") !== 0 && txt.indexOf(opts.sheetName + '!') !== 0) return all;
+        done = true;
+        return open + escAttr(newRange) + close;
+      }
     );
   }
   return { sheetXml, wbXml };
@@ -929,174 +985,415 @@ function ensureFullCalcOnLoad(wbXml) {
 const SPLIT_UNASSIGNED_KEY = '__UNASSIGNED__';
 const SPLIT_UNASSIGNED_LABEL = 'ไม่ระบุ';
 
-async function splitDetailOfInvoiceFile(file, wantCols) {
-  if (!wantCols || !wantCols.size) throw new Error('กรุณาติ๊กเลือกอย่างน้อย 1 คอลัมน์ก่อนตัดไฟล์');
-  const buf = await file.arrayBuffer();
-  const meta = await readDetailOfInvoiceMeta(file, wantCols, { allRows: true });
-  if (!meta) throw new Error('ไม่พบรูปแบบ Detail of Invoice ที่รู้จักในไฟล์นี้');
-  const effectiveCols = meta.columns.filter(c => wantCols.has(c.name));
-  if (!effectiveCols.length) throw new Error('ไม่พบคอลัมน์ที่ติ๊กเลือกไว้ในไฟล์นี้ — กรุณาติ๊กคอลัมน์ที่มีอยู่จริงในไฟล์');
-  if (!meta.rowValues || !meta.rowValues.length) throw new Error('ไม่พบแถวข้อมูลในไฟล์นี้');
-
-  // Group every data row by the tuple of its selected-column values; a row missing ANY of them
-  // goes into one shared "ไม่ระบุ" bucket rather than being silently dropped or half-classified.
-  const rowNumToKey = new Map();
-  const groupInfo = new Map(); // key -> { parts: [sanitized values] | null, count }
-  meta.rowValues.forEach(rv => {
-    const rawParts = effectiveCols.map(c => rv.values[c.name] || '');
-    const hasBlank = rawParts.some(p => !p);
-    const key = hasBlank ? SPLIT_UNASSIGNED_KEY : rawParts.join('');
-    rowNumToKey.set(rv.rowNum, key);
-    if (!groupInfo.has(key)) {
-      groupInfo.set(key, { parts: hasBlank ? null : rawParts.map(sanitizeNamePart), count: 0 });
-    }
-    groupInfo.get(key).count++;
+// ---- multi-sheet support ------------------------------------------------------------------
+// Resolve every sheet's display name -> part path via workbook.xml + workbook.xml.rels (never
+// assume sheet1.xml is the Detail of Invoice: templates may carry a HRIS PAYROLL REPORT sheet too).
+function resolveRelTarget(basePath, target) {
+  if (target.startsWith('/')) return target.slice(1);
+  const parts = basePath.split('/'); parts.pop();
+  target.split('/').forEach(seg => { if (seg === '..') parts.pop(); else if (seg && seg !== '.') parts.push(seg); });
+  return parts.join('/');
+}
+async function resolveSheetParts(zip) {
+  const wbXml = await zip.file('xl/workbook.xml').async('string');
+  const relsXml = await zip.file('xl/_rels/workbook.xml.rels').async('string');
+  const rels = {};
+  relsXml.replace(/<Relationship\b([^>]*?)\/?>/g, (m, a) => {
+    const id = /\bId="([^"]*)"/.exec(a), t = /\bTarget="([^"]*)"/.exec(a);
+    if (id && t) rels[id[1]] = t[1];
+    return m;
   });
+  const sheets = [];
+  wbXml.replace(/<sheet\b([^>]*?)\/?>/g, (m, a) => {
+    const n = /\bname="([^"]*)"/.exec(a), r = /\br:id="([^"]*)"/.exec(a);
+    const t = r ? rels[r[1]] : null;
+    sheets.push({ name: n ? decodeXmlEntities(n[1]) : '', rid: r ? r[1] : null, path: t ? resolveRelTarget('xl/workbook.xml', t) : null, tag: m });
+    return m;
+  });
+  return { wbXml, relsXml, sheets };
+}
 
+// Does formula text reference any of these sheet names ('Sheet Name'!A1 or SheetName!A1)?
+function formulaRefsSheets(text, names) {
+  if (!text || !names.length) return false;
+  return names.some(n => {
+    if (text.indexOf("'" + n.replace(/'/g, "''") + "'!") >= 0) return true;
+    if (/^[A-Za-z_][\w.]*$/.test(n)) return new RegExp('(^|[^\\w.\'])' + n.replace(/\./g, '\\.') + '!').test(text);
+    return false;
+  });
+}
+
+// "Break links": every formula (in any row of the kept sheet) that points at a removed sheet is
+// frozen to its cached value, exactly like Excel's copy -> paste values. Shared-formula families are
+// handled as a whole: if the master references a removed sheet, every sibling is frozen too, so no
+// sibling is left pointing at a master that no longer carries a formula.
+function breakLinksInRows(rows, removedNames) {
+  if (!removedNames.length) return;
+  const stripSi = new Set();
+  rows.forEach(row => {
+    for (const col in row.cellsByCol) {
+      const fm = /<f\b([^>]*)>([\s\S]*?)<\/f>/.exec(row.cellsByCol[col]);
+      if (fm && /\bt="shared"/.test(fm[1]) && formulaRefsSheets(decodeXmlEntities(fm[2]), removedNames)) {
+        const si = /\bsi="(\d+)"/.exec(fm[1]); if (si) stripSi.add(si[1]);
+      }
+    }
+  });
+  rows.forEach(row => {
+    for (const col in row.cellsByCol) {
+      const x = row.cellsByCol[col];
+      if (!/<f\b/.test(x)) continue;
+      const fm = /<f\b([^>]*?)(?:\/>|>([\s\S]*?)<\/f>)/.exec(x);
+      if (!fm) continue;
+      const si = /\bt="shared"/.test(fm[1]) ? ((/\bsi="(\d+)"/.exec(fm[1]) || [])[1] || null) : null;
+      if ((si && stripSi.has(si)) || (fm[2] && formulaRefsSheets(decodeXmlEntities(fm[2]), removedNames))) {
+        row.cellsByCol[col] = stripFormulaKeepValue(x);
+      }
+    }
+  });
+}
+// Conditional formats / data validations outside sheetData that point at a removed sheet would
+// otherwise turn into #REF! -- drop just those rules.
+function dropRulesReferencingSheets(postXml, removedNames) {
+  if (!removedNames.length) return postXml;
+  postXml = postXml.replace(/<conditionalFormatting\b[\s\S]*?<\/conditionalFormatting>/g,
+    m => formulaRefsSheets(decodeXmlEntities(m), removedNames) ? '' : m);
+  postXml = postXml.replace(/<dataValidation\b[\s\S]*?<\/dataValidation>/g,
+    m => formulaRefsSheets(decodeXmlEntities(m), removedNames) ? '' : m);
+  postXml = postXml.replace(/<dataValidations\b[^>]*>\s*<\/dataValidations>/, '');
+  postXml = postXml.replace(/(<dataValidations\b[^>]*\bcount=")\d+(")([\s\S]*?)(<\/dataValidations>)/,
+    (m, a, b, body, c) => a + (body.match(/<dataValidation\b/g) || []).length + b + body + c);
+  return postXml;
+}
+
+// Removes every sheet except keepName from the package: <sheet> entries, relationships, content
+// types, the sheet parts (and parts only they used), defined names scoped to / pointing at them.
+async function removeOtherSheets(zip, parts, keepName) {
+  let { wbXml, relsXml } = parts;
+  const removed = parts.sheets.filter(sh => sh.name !== keepName);
+  if (!removed.length) return { wbXml, removedNames: [] };
+  const kept = parts.sheets.find(sh => sh.name === keepName);
+  const keptIdx = {}; let k = 0;
+  parts.sheets.forEach((sh, i) => { if (sh.name === keepName) keptIdx[i] = k++; });
+  // parts still used by the kept sheet must survive
+  const keptTargets = new Set();
+  if (kept && kept.path) {
+    const kr = zip.file(kept.path.replace(/([^/]+)$/, '_rels/$1.rels'));
+    if (kr) (await kr.async('string')).replace(/<Relationship\b([^>]*?)\/?>/g, (m, a) => {
+      const t = /\bTarget="([^"]*)"/.exec(a); if (t && !/TargetMode="External"/.test(a)) keptTargets.add(resolveRelTarget(kept.path, t[1])); return m;
+    });
+  }
+  const removePaths = new Set();
+  for (const sh of removed) {
+    wbXml = wbXml.replace(sh.tag, '');
+    if (sh.rid) relsXml = relsXml.replace(new RegExp('<Relationship\\b[^>]*\\bId="' + sh.rid + '"[^>]*\\/>'), '');
+    if (!sh.path) continue;
+    removePaths.add(sh.path);
+    const relPath = sh.path.replace(/([^/]+)$/, '_rels/$1.rels');
+    const rf = zip.file(relPath);
+    if (rf) {
+      (await rf.async('string')).replace(/<Relationship\b([^>]*?)\/?>/g, (m, a) => {
+        const t = /\bTarget="([^"]*)"/.exec(a);
+        if (t && !/TargetMode="External"/.test(a)) removePaths.add(resolveRelTarget(sh.path, t[1]));
+        return m;
+      });
+      zip.remove(relPath);
+    }
+  }
+  let ct = await zip.file('[Content_Types].xml').async('string');
+  removePaths.forEach(path => {
+    if (keptTargets.has(path)) return;
+    zip.remove(path);
+    ct = ct.replace(new RegExp('<Override\\b[^>]*\\bPartName="/' + path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '"[^>]*\\/>'), '');
+  });
+  zip.file('[Content_Types].xml', ct);
+  zip.file('xl/_rels/workbook.xml.rels', relsXml);
+  const removedNames = removed.map(sh => sh.name);
+  wbXml = wbXml.replace(/<definedName\b([^>]*)>([\s\S]*?)<\/definedName>/g, (m, a, body) => {
+    const ls = /\blocalSheetId="(\d+)"/.exec(a);
+    if (ls) {
+      const i = parseInt(ls[1], 10);
+      if (!(i in keptIdx)) return '';
+      a = a.replace(/\blocalSheetId="\d+"/, 'localSheetId="' + keptIdx[i] + '"');
+    }
+    if (formulaRefsSheets(decodeXmlEntities(body), removedNames)) return '';
+    return '<definedName' + a + '>' + body + '</definedName>';
+  });
+  wbXml = wbXml.replace(/<definedNames>\s*<\/definedNames>/, '');
+  // docProps/app.xml lists sheet titles for Explorer/Finder previews -- keep it in step.
+  const appFile = zip.file('docProps/app.xml');
+  if (appFile) {
+    let app = await appFile.async('string'); let n = 0;
+    removedNames.forEach(name => {
+      const tag = '<vt:lpstr>' + escAttr(name).replace(/&#39;/g, "'") + '</vt:lpstr>';
+      const tp = app.indexOf('<TitlesOfParts>');
+      const at = tp >= 0 ? app.indexOf(tag, tp) : -1;
+      if (at >= 0) { app = app.slice(0, at) + app.slice(at + tag.length); n++; }
+    });
+    if (n) {
+      app = app.replace(/(<TitlesOfParts>\s*<vt:vector size=")(\d+)/, (m, a1, v) => a1 + Math.max(0, parseInt(v, 10) - n));
+      app = app.replace(/(<vt:lpstr>Worksheets<\/vt:lpstr><\/vt:variant><vt:variant><vt:i4>)(\d+)/, (m, a1, v) => a1 + Math.max(0, parseInt(v, 10) - n));
+      zip.file('docProps/app.xml', app);
+    }
+  }
+  wbXml = wbXml.replace(/(<workbookView\b[^>]*?)\s+activeTab="\d+"/, '$1').replace(/(<workbookView\b[^>]*?)\s+firstSheet="\d+"/, '$1');
+  return { wbXml, removedNames };
+}
+
+// Group the data rows by the selected columns (in the order the user ticked them). Pure planning:
+// no file is built here, so the preview table can be shown instantly.
+function planDetailSplit(meta, colList) {
+  const effectiveCols = colList.map(n => meta.columns.find(c => c.name === n)).filter(Boolean);
+  if (!effectiveCols.length) throw new Error('กรุณาติ๊กเลือกอย่างน้อย 1 คอลัมน์');
+  if (!meta.rowValues || !meta.rowValues.length) throw new Error('ไม่พบแถวข้อมูลในไฟล์นี้');
+  const amtCol = meta.columns.find(c => normText(c.name).toLowerCase() === 'total invoice before vat');
+  const groups = new Map();
+  const rowNumToKey = new Map();
+  meta.rowValues.forEach(rv => {
+    const raw = effectiveCols.map(c => rv.values[c.name] || '');
+    const hasBlank = raw.some(p => !p);
+    const key = hasBlank ? SPLIT_UNASSIGNED_KEY : raw.join('\u0001');
+    rowNumToKey.set(rv.rowNum, key);
+    if (!groups.has(key)) groups.set(key, { key, parts: hasBlank ? null : raw.map(sanitizeNamePart), count: 0, amount: 0, isUnassigned: hasBlank });
+    const g = groups.get(key);
+    g.count++;
+    if (amtCol) { const n = parseFloat(String(rv.values[amtCol.name] || '').replace(/,/g, '')); if (!isNaN(n)) g.amount += n; }
+  });
+  const base = `${meta.projectName}_Detail of invoice_${meta.mmyy}`;
+  const used = new Set();
+  const list = Array.from(groups.values());
+  list.forEach(g => {
+    const suffix = g.isUnassigned ? SPLIT_UNASSIGNED_LABEL : g.parts.join('_');
+    const name = suffix ? base + '_' + suffix : base;
+    let n = name, i = 2;
+    while (used.has(n.toLowerCase())) n = name + ' (' + (i++) + ')';
+    used.add(n.toLowerCase());
+    g.fileName = n + '.xlsx';
+  });
+  return { groups: list, rowNumToKey, hasAmount: !!amtCol, baseName: base };
+}
+
+// Builds the split workbooks for a plan. opts.otherSheets: 'keep' (other sheets stay exactly as in
+// the original) or 'remove' (other sheets are deleted and formulas pointing at them become values).
+// opts.onlyKeys: build just these group keys (single-file download).
+async function buildDetailSplit(buf, meta, plan, opts) {
+  opts = opts || {};
   const zip = await JSZip.loadAsync(buf);
-  const sheetPaths = Object.keys(zip.files).filter(n => /^xl\/worksheets\/sheet\d+\.xml$/.test(n));
-  if (sheetPaths.length !== 1) throw new Error('รองรับเฉพาะไฟล์ที่มี Sheet เดียว (พบ ' + sheetPaths.length + ' sheet ในไฟล์นี้)');
-  const sheetPath = sheetPaths[0];
+  const parts = await resolveSheetParts(zip);
+  const target = parts.sheets.find(sh => sh.name === meta.sheetName) || parts.sheets[0];
+  if (!target || !target.path) throw new Error('ไม่พบ sheet Detail of Invoice ในไฟล์');
+  const sheetPath = target.path;
+  let baseWbXml = parts.wbXml, removedNames = [];
+  if (opts.otherSheets === 'remove') {
+    const r = await removeOtherSheets(zip, parts, target.name);
+    baseWbXml = r.wbXml; removedNames = r.removedNames;
+  }
   const origSheetXml = await zip.file(sheetPath).async('string');
-  const origWbXml = await zip.file('xl/workbook.xml').async('string');
   const sst = await readSharedStrings(zip);
-  const sheetNameM = /<sheet\b[^>]*\bname="([^"]*)"/.exec(origWbXml);
-  const sheetName = sheetNameM ? decodeXmlEntities(sheetNameM[1]) : null;
   const headerRow1 = meta.headerRowExcel;
   const parsed = parseSheetRowsForSplit(origSheetXml);
-  // Freeze formulas to their cached values in the DATA rows only (see stripFormulaKeepValue) --
-  // the title/header block above headerRow1 is left untouched so a SUBTOTAL formula living there
-  // still works with the hide-zero-subtotal-columns feature applied after splitting.
+  // Data rows: freeze formulas to their cached values (see stripFormulaKeepValue) so every amount,
+  // fee and head-count-driven value stays exactly as calculated in the original file.
   parsed.rows.forEach(row => {
     if (row.rowNum <= headerRow1) return;
     for (const col in row.cellsByCol) row.cellsByCol[col] = stripFormulaKeepValue(row.cellsByCol[col]);
   });
+  breakLinksInRows(parsed.rows, removedNames);
+  const post = dropRulesReferencingSheets(parsed.post, removedNames);
   await stripCalcChain(zip);
-  // Which columns are legitimately subtotal-tracked at all (see findSubtotalTrackedColumns) --
-  // computed once from the ORIGINAL sheet since splitting never adds/removes columns, only rows.
   const trackedSubtotalCols = findSubtotalTrackedColumns(origSheetXml);
 
   const outputs = [];
-  for (const [key, info] of groupInfo) {
+  for (const g of plan.groups) {
+    if (opts.onlyKeys && !opts.onlyKeys.has(g.key)) continue;
     const clonedRows = parsed.rows.map(r => ({ rowNum: r.rowNum, attrsRest: r.attrsRest, cellsByCol: r.cellsByCol }));
     const keptRows = deleteAndRenumberForSplit(
       clonedRows,
-      row => row.rowNum > headerRow1 && (rowNumToKey.get(row.rowNum) || SPLIT_UNASSIGNED_KEY) !== key,
+      row => row.rowNum > headerRow1 && (plan.rowNumToKey.get(row.rowNum) || SPLIT_UNASSIGNED_KEY) !== g.key,
       headerRow1 + 1,
       headerRow1 + 1
     );
-    const newLastRow = headerRow1 + info.count;
+    const newLastRow = headerRow1 + g.count;
     const { firstCol, lastCol } = columnExtentForSplit(keptRows, headerRow1);
-    // The original file's cached SUBTOTAL values reflect the whole unsplit dataset, not this
-    // group's own rows -- e.g. a column could be nonzero in the aggregate but genuinely zero for
-    // every row THIS group kept. Re-decide hide/show directly from this group's surviving values
-    // rather than trusting the (now stale) cached subtotal.
     const zeroValueCols = computeZeroValueColsForGroup(keptRows, headerRow1, trackedSubtotalCols, sst);
-    let newSheetXml = serializeSheetRowsForSplit({ pre: parsed.pre, post: parsed.post, rows: keptRows });
-    let newWbXml = origWbXml;
-    const refs = updateStructuralRefsForSplit(newSheetXml, newWbXml, {
-      firstCol, lastCol, headerRow: headerRow1, lastRow: newLastRow, sheetName
+    let newSheetXml = serializeSheetRowsForSplit({ pre: parsed.pre, post, rows: keptRows });
+    const refs = updateStructuralRefsForSplit(newSheetXml, baseWbXml, {
+      firstCol, lastCol, headerRow: headerRow1, lastRow: newLastRow, sheetName: target.name
     });
-    newSheetXml = refs.sheetXml;
-    newWbXml = ensureFullCalcOnLoad(refs.wbXml);
+    zip.file(sheetPath, refs.sheetXml);
+    zip.file('xl/workbook.xml', ensureFullCalcOnLoad(refs.wbXml));
+    const outBytes = await zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+    outputs.push({ key: g.key, name: g.fileName, data: outBytes, rowCount: g.count, isUnassigned: g.isUnassigned, zeroValueCols, sheetPath });
+  }
+  return outputs;
+}
 
-    zip.file(sheetPath, newSheetXml);
-    zip.file('xl/workbook.xml', newWbXml);
-    const outBytes = await zip.generateAsync({ type: 'uint8array' });
+// ===================== SPLIT UI (step layout) =====================
+(function () {
+  const $ = id => document.getElementById(id);
+  const fmt = n => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const state = { file: null, buf: null, meta: null, tick: [], plan: null, cache: null, busy: false };
 
-    const suffix = key === SPLIT_UNASSIGNED_KEY ? SPLIT_UNASSIGNED_LABEL : info.parts.join('_');
-    const baseName = `${meta.projectName}_Detail of invoice_${meta.mmyy}`;
-    outputs.push({
-      name: (suffix ? `${baseName}_${suffix}` : baseName) + '.xlsx',
-      data: outBytes,
-      rowCount: info.count,
-      isUnassigned: key === SPLIT_UNASSIGNED_KEY,
-      zeroValueCols
+  function setStep(n, on) { $('ds' + n).setAttribute('aria-disabled', on ? 'false' : 'true'); }
+  function msg(el, text) { el.textContent = text || ''; el.classList.toggle('show', !!text); }
+  function status(t) { $('dsStatus').textContent = t || ''; }
+  function otherMode() { const r = document.querySelector('input[name="dsOther"]:checked'); return r ? r.value : 'keep'; }
+  function password() { return $('dsPwOn').checked ? $('dsPw').value : ''; }
+
+  // ---- file ----
+  const drop = $('dsDrop');
+  $('dsFile').addEventListener('change', e => { if (e.target.files[0]) loadFile(e.target.files[0]); e.target.value = ''; });
+  ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('is-over'); }));
+  ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('is-over'); }));
+  drop.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) loadFile(f); });
+
+  async function loadFile(file) {
+    msg($('dsErr'), ''); $('dsInfo').classList.remove('show');
+    Object.assign(state, { file: null, buf: null, meta: null, plan: null, cache: null });
+    [2, 3, 4].forEach(n => setStep(n, false));
+    if (!/\.xlsx$/i.test(file.name)) { msg($('dsErr'), 'ไฟล์นี้ไม่ใช่ .xlsx กรุณาเลือกไฟล์ Excel นามสกุล .xlsx'); return; }
+    if (typeof XLSX === 'undefined' || typeof JSZip === 'undefined') { msg($('dsErr'), 'โหลดตัวอ่านไฟล์ไม่สำเร็จ ตรวจการเชื่อมต่ออินเทอร์เน็ตแล้วรีเฟรชหน้านี้'); return; }
+    let meta;
+    try { meta = await readDetailOfInvoiceMeta(file, null, { allRows: true }); }
+    catch (e) { msg($('dsErr'), 'เปิดไฟล์ไม่ได้ ไฟล์อาจเสียหายหรือถูกล็อกรหัสผ่านไว้'); return; }
+    if (!meta || meta.headerRowExcel < 1) { msg($('dsErr'), 'ไม่พบรูปแบบ Detail of Invoice ในไฟล์นี้ (ต้องมี COMPANY NAME, PAYROLL FOR THE MONTH OF และหัวตารางที่มี Line Manager)'); return; }
+    state.file = file; state.buf = await file.arrayBuffer(); state.meta = meta;
+    const others = meta.sheetNames.filter(n => n !== meta.sheetName);
+    $('dsInfo').innerHTML = '<b>' + escAttr(file.name) + '</b><br><span>' +
+      escAttr(meta.company) + ', เดือน ' + escAttr(meta.mmyy) + ', ' + meta.rowValues.length + ' แถวข้อมูล (หัวตารางแถวที่ ' + meta.headerRowExcel + ')' +
+      (others.length ? '<br>sheet อื่นในไฟล์: ' + others.map(escAttr).join(', ') : '') + '</span>';
+    $('dsInfo').classList.add('show');
+    $('dsSheetsField').hidden = !others.length;
+    if (others.length) $('dsSheetsLegend').textContent = 'Sheet อื่นในไฟล์ (' + others.join(', ') + ')';
+    renderCols();
+    setStep(2, true); setStep(3, true);
+    refresh();
+  }
+
+  // ---- columns ----
+  function renderCols() {
+    const m = state.meta;
+    // Offer every identity/categorical column up to Line Manager that actually holds data in this
+    // file (e.g. QT No., PO, Branch, Cost Center 1-4 -- whatever this client's template calls them),
+    // skipping the row number, dates, and fields that are never a grouping need.
+    const filled = new Set();
+    m.rowValues.forEach(rv => { for (const k in rv.values) if (rv.values[k]) filled.add(k); });
+    const cols = m.columns.filter(c => {
+      const norm = normText(c.name).toLowerCase();
+      if (m.lineManagerCol != null && c.col > m.lineManagerCol) return false;
+      if (!filled.has(c.name)) return false;
+      if (AUTO_NAME_ALWAYS_ALLOWED.has(norm)) return true;
+      if (norm === 'no' || norm === 'no.' || norm === 'name (thai)') return false;
+      if (AUTO_NAME_NEVER_USEFUL.has(norm)) return false;
+      if (/\bdate\b/.test(norm)) return false;
+      if (/\bid\b/.test(norm)) return false;
+      return true;
     });
+    const names = new Set(cols.map(c => c.name));
+    state.tick = state.tick.filter(n => names.has(n));
+    if (!state.tick.length) { const lm = cols.find(c => normText(c.name).toLowerCase() === 'line manager'); if (lm) state.tick = [lm.name]; }
+    $('dsCols').innerHTML = cols.map((c, i) =>
+      '<label class="ds-col"><input type="checkbox" value="' + escAttr(c.name) + '"' + (state.tick.includes(c.name) ? ' checked' : '') + '><span>' + escAttr(c.name) + '</span></label>'
+    ).join('');
   }
-  return { meta, outputs };
-}
+  $('dsCols').addEventListener('change', e => {
+    const v = e.target.value;
+    state.tick = state.tick.filter(x => x !== v);
+    if (e.target.checked) state.tick.push(v);
+    refresh();
+  });
+  document.querySelectorAll('input[name="dsOther"]').forEach(r => r.addEventListener('change', () => { state.cache = null; status(''); }));
+  $('dsPwOn').addEventListener('change', () => { $('dsPwWrap').hidden = !$('dsPwOn').checked; state.cache = null; if ($('dsPwOn').checked) $('dsPw').focus(); });
+  $('dsPw').addEventListener('input', () => { state.cache = null; });
+  $('dsPwEye').addEventListener('click', () => { const i = $('dsPw'); const show = i.type === 'password'; i.type = show ? 'text' : 'password'; $('dsPwEye').textContent = show ? 'ซ่อน' : 'แสดง'; });
 
-let splitTargetFile = null;
-
-const splitDrop = document.getElementById('splitDrop');
-splitDrop.addEventListener('dragover', e => { e.preventDefault(); splitDrop.classList.add('dragover'); });
-splitDrop.addEventListener('dragleave', () => splitDrop.classList.remove('dragover'));
-splitDrop.addEventListener('drop', e => {
-  e.preventDefault(); splitDrop.classList.remove('dragover');
-  const f = e.dataTransfer.files[0];
-  if (f) selectSplitFile(f);
-});
-document.getElementById('splitInput').addEventListener('change', e => {
-  if (e.target.files[0]) selectSplitFile(e.target.files[0]);
-  e.target.value = '';
-});
-
-// Picking a file only loads it + refreshes the column checkboxes from IT specifically -- the
-// actual split only runs when the user presses the "ตัดไฟล์" button, so they always get a chance
-// to review/tick columns for this exact file first, even if they never touched the main file list.
-async function selectSplitFile(file) {
-  const statusEl = document.getElementById('splitStatus');
-  const btn = document.getElementById('btnRunSplit');
-  statusEl.className = 'mapping-status show';
-  if (file.name.split('.').pop().toLowerCase() !== 'xlsx') {
-    statusEl.innerHTML = '<span class="ms-err">✕ รองรับเฉพาะไฟล์ .xlsx</span>';
-    splitTargetFile = null; btn.disabled = true;
-    return;
-  }
-  splitTargetFile = file;
-  splitDrop.textContent = '✂️ ' + file.name + ' — คลิกเพื่อเปลี่ยนไฟล์';
-  btn.disabled = false;
-  statusEl.innerHTML = '';
-  await scanFileForAutoNameCols(file);
-}
-
-function toggleSplitPwRow() {
-  const on = document.getElementById('splitPwToggle').checked;
-  document.getElementById('splitPwFieldWrap').style.display = on ? 'flex' : 'none';
-}
-function toggleSplitPwVisibility() {
-  const inp = document.getElementById('splitPw');
-  inp.type = inp.type === 'password' ? 'text' : 'password';
-}
-
-async function runSplit() {
-  const statusEl = document.getElementById('splitStatus');
-  statusEl.className = 'mapping-status show';
-  const file = splitTargetFile;
-  if (!file) {
-    statusEl.innerHTML = '<span class="ms-err">✕ กรุณาเลือกไฟล์ที่ต้องการตัดก่อน</span>';
-    return;
-  }
-  statusEl.innerHTML = '<span style="color:var(--prtr-primary-text)">⏳ กำลังตัดไฟล์...</span>';
-  try {
-    const { outputs } = await splitDetailOfInvoiceFile(file, autoNameSelectedCols);
-    const password = document.getElementById('splitPwToggle').checked ? document.getElementById('splitPw').value : '';
-    // Same post-processing every normal "ประมวลผล" run already applies: hide zero-subtotal
-    // columns + everything after Memo/Total Invoice Before Vat, then optionally lock with a
-    // password -- so a split output is exactly as finished as a normally-processed file.
-    // zeroSubtotalColsOverride uses THIS group's own re-decided hide list (computed in
-    // splitDetailOfInvoiceFile) instead of re-scanning the file's now-stale cached subtotals.
-    statusEl.innerHTML = '<span style="color:var(--prtr-primary-text)">⏳ กำลังซ่อนคอลัมน์และล็อกรหัสผ่าน...</span>';
-    const outerZip = new JSZip();
-    for (const o of outputs) {
-      const hideOpts = { hideZeroSubtotal: true, hideAfterMemo: true, zeroSubtotalColsOverride: o.zeroValueCols };
-      const finalBytes = await processExcel(o.data, password, hideOpts);
-      outerZip.file(o.name, finalBytes);
+  // ---- plan + table ----
+  function refresh() {
+    state.cache = null; status('');
+    const m = state.meta; if (!m) return;
+    const base = m.projectName + '_Detail of invoice_' + m.mmyy;
+    $('dsNamePreview').innerHTML = state.tick.length ? 'ตัวอย่างชื่อไฟล์: <code>' + escAttr(base) + '<em>_' + state.tick.map(escAttr).join('_') + '</em>.xlsx</code>' : '';
+    if (!state.tick.length) {
+      state.plan = null; setStep(4, false);
+      $('dsSummary').textContent = 'ติ๊กคอลัมน์อย่างน้อย 1 คอลัมน์เพื่อดูรายการไฟล์';
+      $('dsResult').innerHTML = '<p class="ds-empty">ยังไม่มีรายการ</p>'; msg($('dsWarn'), ''); buttons(); return;
     }
-    const blob = await outerZip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 1 } });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = file.name.replace(/\.xlsx$/i, '') + '_split.zip'; a.click();
-
-    const unassigned = outputs.find(o => o.isUnassigned);
-    const totalRows = outputs.reduce((sum, o) => sum + o.rowCount, 0);
-    statusEl.innerHTML = `<span class="ms-ok">✅ ตัดไฟล์สำเร็จ ${outputs.length} ไฟล์ (รวม ${totalRows} แถว)</span>` +
-      (unassigned ? ` <span class="ms-warn">⚠️ มี ${unassigned.rowCount} แถวที่คอลัมน์ที่เลือกว่างเปล่า ถูกรวมไว้ในไฟล์ "ไม่ระบุ"</span>` : '');
-  } catch (err) {
-    statusEl.innerHTML = '<span class="ms-err">✕ ' + escAttr(err.message || String(err)) + '</span>';
+    try { state.plan = planDetailSplit(m, state.tick); }
+    catch (e) { state.plan = null; $('dsResult').innerHTML = '<p class="ds-empty">' + escAttr(e.message) + '</p>'; buttons(); return; }
+    const pl = state.plan; setStep(4, true);
+    $('dsSummary').textContent = 'จะได้ ' + pl.groups.length + ' ไฟล์ แยกตาม ' + state.tick.join(' + ');
+    let rows = '', tot = 0, totRows = 0;
+    pl.groups.forEach((g, i) => {
+      tot += g.amount; totRows += g.count;
+      rows += '<tr><td class="fn">' + escAttr(g.fileName) + (g.isUnassigned ? '<span class="ds-tag">ค่าว่าง</span>' : '') + '</td><td class="num">' + g.count + '</td>' +
+        (pl.hasAmount ? '<td class="num">' + fmt(g.amount) + '</td>' : '') +
+        '<td class="num"><button type="button" class="ds-btn ds-btn--ghost" data-i="' + i + '">ดาวน์โหลด</button></td></tr>';
+    });
+    $('dsResult').innerHTML = '<div class="ds-tablewrap"><table class="ds-table"><thead><tr><th>ชื่อไฟล์</th><th class="num">แถว</th>' +
+      (pl.hasAmount ? '<th class="num">Total Invoice Before Vat</th>' : '') + '<th class="num"><span class="ds-sr">ดาวน์โหลดไฟล์เดียว</span></th></tr></thead><tbody>' + rows +
+      '</tbody><tfoot><tr><td>รวม</td><td class="num">' + totRows + '</td>' + (pl.hasAmount ? '<td class="num">' + fmt(tot) + '</td>' : '') + '<td></td></tr></tfoot></table></div>';
+    const un = pl.groups.find(g => g.isUnassigned);
+    msg($('dsWarn'), un ? 'มี ' + un.count + ' แถวที่คอลัมน์ที่เลือกเป็นค่าว่าง ระบบรวมไว้ในไฟล์ "' + SPLIT_UNASSIGNED_LABEL + '"' : '');
+    buttons();
   }
-}
+  function buttons() {
+    const on = !!state.plan && !state.busy;
+    $('dsZip').disabled = !on; $('dsEach').disabled = !on;
+    document.querySelectorAll('#dsResult [data-i]').forEach(b => { b.disabled = !on; });
+  }
+
+  // ---- build + download ----
+  async function build(onlyKeys) {
+    const pw = password();
+    if ($('dsPwOn').checked && !pw) throw new Error('กรุณาใส่รหัสผ่าน หรือปิดตัวเลือกใส่รหัสผ่าน');
+    if (!onlyKeys && state.cache) return state.cache;
+    const outs = await buildDetailSplit(state.buf, state.meta, state.plan, { otherSheets: otherMode(), onlyKeys });
+    const files = [];
+    for (let i = 0; i < outs.length; i++) {
+      const o = outs[i];
+      status('กำลังซ่อนคอลัมน์' + (pw ? 'และใส่รหัสผ่าน' : '') + ' ' + (i + 1) + '/' + outs.length);
+      const bytes = await processExcel(o.data, pw, { hideZeroSubtotal: true, hideAfterMemo: true, zeroSubtotalColsOverride: o.zeroValueCols, onlySheetPath: o.sheetPath });
+      files.push({ key: o.key, name: o.name, blob: new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }) });
+    }
+    if (!onlyKeys) state.cache = files;
+    return files;
+  }
+  function save(name, blob) {
+    const url = URL.createObjectURL(blob); const a = document.createElement('a');
+    a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  }
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  async function run(fn) {
+    if (state.busy) return; state.busy = true; buttons();
+    try { await fn(); } catch (e) { status('ทำรายการไม่สำเร็จ: ' + (e && e.message || e)); }
+    state.busy = false; buttons();
+  }
+  $('dsZip').addEventListener('click', () => run(async () => {
+    status('กำลังสร้างไฟล์…');
+    const files = await build();
+    const z = new JSZip(); files.forEach(f => z.file(f.name, f.blob));
+    const blob = await z.generateAsync({ type: 'blob', compression: 'STORE' });
+    save(state.file.name.replace(/\.xlsx$/i, '') + '_split.zip', blob);
+    status('ดาวน์โหลด ZIP แล้ว (' + files.length + ' ไฟล์)');
+  }));
+  $('dsEach').addEventListener('click', () => run(async () => {
+    status('กำลังสร้างไฟล์…');
+    const files = await build();
+    for (let i = 0; i < files.length; i++) { status('กำลังดาวน์โหลด ' + (i + 1) + '/' + files.length); save(files[i].name, files[i].blob); await sleep(600); }
+    status('ดาวน์โหลดแล้ว ' + files.length + ' ไฟล์ (ถ้าเบราว์เซอร์ถามเรื่องดาวน์โหลดหลายไฟล์ ให้กดอนุญาต)');
+  }));
+  $('dsResult').addEventListener('click', e => {
+    const b = e.target.closest('[data-i]'); if (!b) return;
+    const g = state.plan.groups[+b.dataset.i];
+    run(async () => {
+      status('กำลังสร้างไฟล์…');
+      const files = state.cache || await build(new Set([g.key]));
+      const f = files.find(x => x.key === g.key);
+      save(f.name, f.blob); status('ดาวน์โหลด ' + f.name + ' แล้ว');
+    });
+  });
+})();
+
 </script>
 <footer class="prtr-footer">OSInvoice Tools สำหรับทีม PRTR</footer>
 </body>
