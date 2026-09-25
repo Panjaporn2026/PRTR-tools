@@ -241,7 +241,7 @@
         <div class="ds-head"><span class="ds-num">3</span><div><h2 class="ds-title" id="dsT3">ตัวเลือกไฟล์ที่ได้</h2><p class="ds-hint">ระบบซ่อนคอลัมน์ที่ยอดเป็น 0 และคอลัมน์หลัง Memo / Total Invoice Before Vat ให้อัตโนมัติ</p></div></div>
         <fieldset class="ds-field" id="dsSheetsField" hidden>
           <legend class="ds-label" id="dsSheetsLegend">Sheet อื่นในไฟล์</legend>
-          <label class="ds-radio"><input type="radio" name="dsOther" value="keep" checked><span><b>คงไว้เหมือนต้นฉบับ</b><br><small>ทุกไฟล์ที่แยกจะมี sheet นี้ครบทุกแถวเหมือนไฟล์เดิม</small></span></label>
+          <label class="ds-radio"><input type="radio" name="dsOther" value="keep" checked><span><b>คงไว้ เฉพาะพนักงานในไฟล์นั้น</b><br><small>แต่ละไฟล์จะมีเฉพาะแถวของพนักงานที่อยู่ในไฟล์เดียวกัน ไม่มีข้อมูลของคนอื่น</small></span></label>
           <label class="ds-radio"><input type="radio" name="dsOther" value="remove"><span><b>ลบออก และตัดลิงก์</b><br><small>สูตรที่อ้างถึง sheet นี้จะถูกเก็บเป็นค่า ตัวเลขที่แสดงไม่เปลี่ยน</small></span></label>
         </fieldset>
         <div class="ds-field">
@@ -739,9 +739,46 @@ async function readDetailOfInvoiceMeta(file, wantColNames, opts) {
         const cell = ws[XLSX.utils.encode_cell({ r, c })];
         rowVals[name] = cell && cell.v !== undefined && cell.v !== null ? String(cell.v).trim() : '';
       });
-      rowValues.push({ rowNum: r + 1, values: rowVals });
+      // Which rows of OTHER sheets this Detail row pulls its data from (e.g. ='HRIS PAYROLL
+      // REPORT'!B2). Used to cut those sheets down to the same employees as each split file.
+      const refs = {};
+      for (let c = range.s.c; c <= range.e.c; c++) {
+        const cell = ws[XLSX.utils.encode_cell({ r, c })];
+        if (!cell || !cell.f) continue;
+        const re = /(?:'((?:[^']|'')+)'|([A-Za-z_][\w.]*))!\$?[A-Z]{1,3}\$?(\d+)/g; let fm;
+        while ((fm = re.exec(cell.f))) {
+          const sn = fm[1] ? fm[1].replace(/''/g, "'") : fm[2];
+          if (sn === detailSheetName || wb.SheetNames.indexOf(sn) < 0) continue;
+          (refs[sn] = refs[sn] || new Set()).add(parseInt(fm[3], 10));
+        }
+      }
+      rowValues.push({ rowNum: r + 1, values: rowVals, refs });
     }
     meta.rowValues = rowValues;
+    // Fallback for other sheets the Detail rows don't reference by formula: match by Emp ID.
+    meta.otherSheets = {};
+    wb.SheetNames.forEach(sn => {
+      if (sn === detailSheetName) return;
+      const os = wb.Sheets[sn]; const info = { empHeaderRow: null, empRows: new Map() };
+      if (os && os['!ref']) {
+        const rg = XLSX.utils.decode_range(os['!ref']);
+        let empCol = -1;
+        for (let r2 = rg.s.r; r2 <= Math.min(rg.e.r, rg.s.r + 9) && empCol < 0; r2++) {
+          for (let c2 = rg.s.c; c2 <= rg.e.c; c2++) {
+            const hc = os[XLSX.utils.encode_cell({ r: r2, c: c2 })];
+            if (hc && normText(hc.v).toLowerCase() === 'emp id') { empCol = c2; info.empHeaderRow = r2 + 1; break; }
+          }
+        }
+        if (empCol >= 0) for (let r2 = info.empHeaderRow; r2 <= rg.e.r; r2++) {
+          const cell = os[XLSX.utils.encode_cell({ r: r2, c: empCol })];
+          const id = cell && cell.v != null ? String(cell.v).trim() : '';
+          if (!id) continue;
+          if (!info.empRows.has(id)) info.empRows.set(id, []);
+          info.empRows.get(id).push(r2 + 1);
+        }
+      }
+      meta.otherSheets[sn] = info;
+    });
   }
   return meta;
 }
@@ -1158,6 +1195,29 @@ function planDetailSplit(meta, colList) {
     g.count++;
     if (amtCol) { const n = parseFloat(String(rv.values[amtCol.name] || '').replace(/,/g, '')); if (!isNaN(n)) g.amount += n; }
   });
+  // Rows of each other sheet (e.g. HRIS PAYROLL REPORT) that belong to each group: the rows the
+  // group's Detail rows pull from by formula, else the rows with the same Emp ID. Rows above the
+  // first employee row (the sheet's header) are always kept; nothing else of another group is.
+  const empName = (meta.columns.find(c => normText(c.name).toLowerCase() === 'emp id') || {}).name;
+  const sheetFilters = {};
+  Object.keys(meta.otherSheets || {}).forEach(sn => {
+    const info = meta.otherSheets[sn];
+    let minRef = Infinity;
+    meta.rowValues.forEach(rv => { if (rv.refs && rv.refs[sn]) rv.refs[sn].forEach(n => { if (n < minRef) minRef = n; }); });
+    const byRef = minRef !== Infinity;
+    if (!byRef && !info.empHeaderRow) return; // can't tell which rows belong to whom
+    sheetFilters[sn] = { headerLast: byRef ? minRef - 1 : info.empHeaderRow, byRef };
+  });
+  meta.rowValues.forEach(rv => {
+    const g = groups.get(rowNumToKey.get(rv.rowNum));
+    g.sheetRows = g.sheetRows || {};
+    Object.keys(sheetFilters).forEach(sn => {
+      const set = g.sheetRows[sn] = g.sheetRows[sn] || new Set();
+      if (rv.refs && rv.refs[sn]) rv.refs[sn].forEach(n => set.add(n));
+      else if (empName && rv.values[empName]) (meta.otherSheets[sn].empRows.get(String(rv.values[empName]).trim()) || []).forEach(n => set.add(n));
+    });
+  });
+  const unfilterable = Object.keys(meta.otherSheets || {}).filter(sn => !sheetFilters[sn]);
   const base = `${meta.projectName}_Detail of invoice_${meta.mmyy}`;
   const used = new Set();
   const list = Array.from(groups.values());
@@ -1169,7 +1229,7 @@ function planDetailSplit(meta, colList) {
     used.add(n.toLowerCase());
     g.fileName = n + '.xlsx';
   });
-  return { groups: list, rowNumToKey, hasAmount: !!amtCol, baseName: base };
+  return { groups: list, rowNumToKey, hasAmount: !!amtCol, baseName: base, sheetFilters, unfilterable };
 }
 
 // Builds the split workbooks for a plan. opts.otherSheets: 'keep' (other sheets stay exactly as in
@@ -1202,6 +1262,20 @@ async function buildDetailSplit(buf, meta, plan, opts) {
   await stripCalcChain(zip);
   const trackedSubtotalCols = findSubtotalTrackedColumns(origSheetXml);
 
+  // keep mode: other sheets are cut down to each group's own employees (never another group's)
+  const others = [];
+  if (opts.otherSheets !== 'remove') {
+    for (const sh of parts.sheets) {
+      const flt = plan.sheetFilters && plan.sheetFilters[sh.name];
+      if (sh.name === target.name || !flt || !sh.path || !zip.file(sh.path)) continue;
+      const xml = await zip.file(sh.path).async('string');
+      const pr = parseSheetRowsForSplit(xml);
+      // freeze formulas below the header so deleting rows can't orphan a shared formula
+      pr.rows.forEach(row => { if (row.rowNum > flt.headerLast) for (const col in row.cellsByCol) row.cellsByCol[col] = stripFormulaKeepValue(row.cellsByCol[col]); });
+      others.push({ sh, flt, pr });
+    }
+  }
+
   const outputs = [];
   for (const g of plan.groups) {
     if (opts.onlyKeys && !opts.onlyKeys.has(g.key)) continue;
@@ -1220,7 +1294,23 @@ async function buildDetailSplit(buf, meta, plan, opts) {
       firstCol, lastCol, headerRow: headerRow1, lastRow: newLastRow, sheetName: target.name
     });
     zip.file(sheetPath, refs.sheetXml);
-    zip.file('xl/workbook.xml', ensureFullCalcOnLoad(refs.wbXml));
+    let wbOut = refs.wbXml;
+    for (const o of others) {
+      const want = (g.sheetRows && g.sheetRows[o.sh.name]) || new Set();
+      const rowsO = o.pr.rows.map(r => ({ rowNum: r.rowNum, attrsRest: r.attrsRest, cellsByCol: r.cellsByCol }));
+      const keptO = deleteAndRenumberForSplit(rowsO, row => row.rowNum > o.flt.headerLast && !want.has(row.rowNum), o.flt.headerLast + 1, o.flt.headerLast + 1);
+      const lastO = o.flt.headerLast + keptO.filter(r => r.rowNum > o.flt.headerLast).length;
+      let xmlO = serializeSheetRowsForSplit({ pre: o.pr.pre, post: o.pr.post, rows: keptO });
+      try {
+        const ext = columnExtentForSplit(keptO, o.flt.headerLast);
+        const r2 = updateStructuralRefsForSplit(xmlO, wbOut, { firstCol: ext.firstCol, lastCol: ext.lastCol, headerRow: o.flt.headerLast, lastRow: Math.max(lastO, o.flt.headerLast), sheetName: o.sh.name });
+        xmlO = r2.sheetXml; wbOut = r2.wbXml;
+      } catch (e) { /* header row without cells: leave dimension/filter as they are */ }
+      // a frozen pane scrolled past the new last row would open on an empty screen
+      xmlO = xmlO.replace(/(<pane\b[^>]*\btopLeftCell=")([A-Z]+)(\d+)(")/, (m, a1, col, row, b1) => parseInt(row, 10) > lastO ? a1 + col + (o.flt.headerLast + 1) + b1 : m);
+      zip.file(o.sh.path, xmlO);
+    }
+    zip.file('xl/workbook.xml', ensureFullCalcOnLoad(wbOut));
     const outBytes = await zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE', compressionOptions: { level: 6 } });
     outputs.push({ key: g.key, name: g.fileName, data: outBytes, rowCount: g.count, isUnassigned: g.isUnassigned, zeroValueCols, sheetPath });
   }
@@ -1301,7 +1391,7 @@ async function buildDetailSplit(buf, meta, plan, opts) {
     if (e.target.checked) state.tick.push(v);
     refresh();
   });
-  document.querySelectorAll('input[name="dsOther"]').forEach(r => r.addEventListener('change', () => { state.cache = null; status(''); }));
+  document.querySelectorAll('input[name="dsOther"]').forEach(r => r.addEventListener('change', () => { refresh(); }));
   $('dsPwOn').addEventListener('change', () => { $('dsPwWrap').hidden = !$('dsPwOn').checked; state.cache = null; if ($('dsPwOn').checked) $('dsPw').focus(); });
   $('dsPw').addEventListener('input', () => { state.cache = null; });
   $('dsPwEye').addEventListener('click', () => { const i = $('dsPw'); const show = i.type === 'password'; i.type = show ? 'text' : 'password'; $('dsPwEye').textContent = show ? 'ซ่อน' : 'แสดง'; });
@@ -1332,7 +1422,10 @@ async function buildDetailSplit(buf, meta, plan, opts) {
       (pl.hasAmount ? '<th class="num">Total Invoice Before Vat</th>' : '') + '<th class="num"><span class="ds-sr">ดาวน์โหลดไฟล์เดียว</span></th></tr></thead><tbody>' + rows +
       '</tbody><tfoot><tr><td>รวม</td><td class="num">' + totRows + '</td>' + (pl.hasAmount ? '<td class="num">' + fmt(tot) + '</td>' : '') + '<td></td></tr></tfoot></table></div>';
     const un = pl.groups.find(g => g.isUnassigned);
-    msg($('dsWarn'), un ? 'มี ' + un.count + ' แถวที่คอลัมน์ที่เลือกเป็นค่าว่าง ระบบรวมไว้ในไฟล์ "' + SPLIT_UNASSIGNED_LABEL + '"' : '');
+    const warns = [];
+    if (un) warns.push('มี ' + un.count + ' แถวที่คอลัมน์ที่เลือกเป็นค่าว่าง ระบบรวมไว้ในไฟล์ "' + SPLIT_UNASSIGNED_LABEL + '"');
+    if (pl.unfilterable.length && otherMode() === 'keep') warns.push('sheet ' + pl.unfilterable.join(', ') + ' ไม่มีคอลัมน์ Emp ID และไม่ได้เชื่อมกับ Detail of Invoice จึงกรองรายคนไม่ได้ ถ้าคงไว้ ทุกไฟล์จะมี sheet นี้ครบทุกแถว ควรเลือก "ลบออก" ถ้าจะส่งลูกค้า');
+    msg($('dsWarn'), warns.join(' / '));
     buttons();
   }
   function buttons() {
