@@ -545,12 +545,20 @@ function findColAfterLabel(sheetXml, sharedStrings, targetLabelsLower, maxRow) {
 function findColsAfterMemoOrTotal(sheetXml, sharedStrings) {
   const maxRow = 30;
   let col = findColAfterLabel(sheetXml, sharedStrings, ['memo'], maxRow);
+  // Templates whose last billing column is "TOTAL MEMO" (after TOTAL INVOICE BEFORE VAT / VAT /
+  // TOTAL INVOICE): hide only what comes after it, and keep TOTAL MEMO itself visible even when
+  // it is 0 for this file (otherwise the zero-value rule would hide it).
+  let keepCol = null;
+  if (col === null) { col = findColAfterLabel(sheetXml, sharedStrings, ['total memo'], maxRow); if (col !== null) keepCol = col; }
   if (col === null) col = findColAfterLabel(sheetXml, sharedStrings, ['total invoice before vat'], maxRow);
   if (col === null) return [];
   const dimMatch = /<dimension ref="[A-Z]+\d+:([A-Z]+)\d+"/.exec(sheetXml);
-  const maxCol = dimMatch ? colLettersToIndex(dimMatch[1]) : col;
+  // No <dimension> (some files re-saved by other tools omit it): use the right-most used cell.
+  let maxCol = dimMatch ? colLettersToIndex(dimMatch[1]) : col;
+  if (!dimMatch) { const cr = /<c r="([A-Z]+)\d+"/g; let m; while ((m = cr.exec(sheetXml))) { const ci = colLettersToIndex(m[1]); if (ci > maxCol) maxCol = ci; } }
   const toHide = [];
   for (let c = col + 2; c <= maxCol; c++) toHide.push(c);
+  toHide.keepVisible = keepCol !== null ? [keepCol] : [];
   return toHide;
 }
 
@@ -571,8 +579,9 @@ async function applyColumnHiding(buffer, opts) {
     let toHide = opts.hideZeroSubtotal
       ? (opts.zeroSubtotalColsOverride || findZeroSubtotalColumns(xml))
       : [];
-    if (opts.hideAfterMemo) toHide = toHide.concat(findColsAfterMemoOrTotal(xml, sharedStrings));
-    toHide = Array.from(new Set(toHide));
+    let keepVisible = [];
+    if (opts.hideAfterMemo) { const after = findColsAfterMemoOrTotal(xml, sharedStrings); keepVisible = after.keepVisible || []; toHide = toHide.concat(after); }
+    toHide = Array.from(new Set(toHide)).filter(c => keepVisible.indexOf(c) < 0);
     if (toHide.length) zip.file(path, hideColumnsInSheetXml(xml, toHide));
   }
   return await zip.generateAsync({ type: 'uint8array' });
