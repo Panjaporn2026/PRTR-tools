@@ -699,6 +699,20 @@ async function readDetailOfInvoiceMeta(file, wantColNames, opts) {
     }
     return false;
   }
+  // A data row can also contain the text "Line manager" -- e.g. an employee whose Line Manager
+  // field literally reads "Line manager" (confirmed real-world case: a BBGI file with that value
+  // in data rows 550+). A real header row also carries the "Emp ID" / "NAME" column titles, so
+  // when any candidate has those, only such rows are considered.
+  function rowHasHeaderTitles(r) {
+    for (let c = range.s.c; c <= range.e.c; c++) {
+      const cell = ws[XLSX.utils.encode_cell({ r, c })];
+      const t = cell ? String(cell.v || '').trim().toLowerCase() : '';
+      if (t === 'emp id' || t === 'name') return true;
+    }
+    return false;
+  }
+  const titled = headerCandidates.filter(rowHasHeaderTitles);
+  if (titled.length) headerCandidates.splice(0, headerCandidates.length, ...titled);
   let headerRow = headerCandidates.find(r => rowLooksLikeData(r + 1));
   if (headerRow === undefined) headerRow = headerCandidates.length ? headerCandidates[headerCandidates.length - 1] : -1;
 
