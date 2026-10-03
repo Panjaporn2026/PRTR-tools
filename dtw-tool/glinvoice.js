@@ -127,6 +127,16 @@ function mapCostToIncome(rows, costIncomeMap) {
 // noVatIncomeAccounts the user ticked. Sums Amount per Income account within each split -- this
 // directly mirrors the real Siemens ground truth (two Head rows for the same PO: one VAT, one
 // no-VAT Reimbursement).
+// Billing period of a row. GL_Invoice-family exports name this column differently: the
+// HM_GL_INVOICE_QUERY export calls it "Calendar Group", the GL_Invoice_Report export calls it
+// "Period" (both hold e.g. "9/2026" -- confirmed on real ZOETIS files of each kind). Use whichever
+// one this row's file actually has.
+function hasPeriodValue(v) { return v instanceof Date || normText(v) !== ''; }
+function periodOfRow(row) {
+  var cg = row.get('Calendar Group');
+  return hasPeriodValue(cg) ? cg : row.get('Period');
+}
+
 function buildInvoiceGroups(mappedRows, groupingKeyCol, refNoCol, noVatIncomeAccounts) {
   var groups = new Map(); // groupKey -> { key, refNo, rows: [] }
   mappedRows.forEach(function (entry) {
@@ -139,12 +149,14 @@ function buildInvoiceGroups(mappedRows, groupingKeyCol, refNoCol, noVatIncomeAcc
         name: normText(entry.row.get('NAME')),
         invoiceSentTo: normText(entry.row.get('Invoice Sent To')),
         projectCodeSap: normText(entry.row.get('Project Code SAP')),
-        period: entry.row.get('Calendar Group'),
+        period: periodOfRow(entry.row),
         lineManager: normText(entry.row.get('Line Manager')),
         rows: []
       });
     }
-    groups.get(key).rows.push(entry);
+    var grp = groups.get(key);
+    if (!hasPeriodValue(grp.period)) grp.period = periodOfRow(entry.row); // first row blank -> take the next one that has it
+    grp.rows.push(entry);
   });
 
   var invoices = [];
