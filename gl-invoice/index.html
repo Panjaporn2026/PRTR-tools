@@ -75,6 +75,65 @@
   .result-actions{display:flex;gap:10px;flex-wrap:wrap;}
   .btn-outline{background:transparent;color:var(--prtr-text);border:1px solid var(--prtr-border-strong);border-radius:var(--prtr-radius-md);padding:10px var(--prtr-space-5);font-size:13px;font-weight:600;line-height:1.4;cursor:pointer;font-family:inherit;transition:background .15s;}
   .btn-outline:hover{background:var(--prtr-surface-hover);}
+
+  /* ── ฟังก์ชัน 4: แยกไฟล์ตามคอลัมน์ (scope ใต้ #splitPanel ไม่ให้ชนกับสไตล์ของฟังก์ชันอื่น) ── */
+  #splitPanel{font-size:15px;line-height:1.6;}
+  #splitPanel .step{background:var(--prtr-surface);border:1px solid var(--prtr-border);border-radius:var(--prtr-radius-lg);padding:var(--prtr-space-5);margin-bottom:var(--prtr-space-4);min-width:0;}
+  #splitPanel .step[aria-disabled="true"]{opacity:.5;pointer-events:none;}
+  #splitPanel .step__head{display:flex;align-items:baseline;gap:var(--prtr-space-3);margin-bottom:var(--prtr-space-4);}
+  #splitPanel .step__num{flex:none;width:28px;height:28px;border-radius:var(--prtr-radius-full);border:1px solid var(--prtr-border-strong);display:grid;place-items:center;font-weight:600;font-size:14px;line-height:1;font-variant-numeric:tabular-nums;transform:translateY(4px);}
+  #splitPanel .step__title{font-size:18px;line-height:1.5;font-weight:600;margin:0;}
+  #splitPanel .step__hint{color:var(--prtr-text-muted);font-size:14px;margin:2px 0 0;}
+  #splitPanel .drop{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--prtr-space-2);text-align:center;border:1px dashed var(--prtr-border-strong);border-radius:var(--prtr-radius-md);padding:var(--prtr-space-6) var(--prtr-space-4);cursor:pointer;background:var(--prtr-bg-subtle);}
+  #splitPanel .drop:hover,#splitPanel .drop.is-over{border-color:var(--prtr-accent);background:var(--prtr-surface-hover);}
+  #splitPanel .drop:focus-within{outline:2px solid var(--prtr-focus-ring);outline-offset:2px;}
+  #splitPanel .drop input{position:absolute;width:1px;height:1px;opacity:0;}
+  #splitPanel .drop__main{font-weight:600;}
+  #splitPanel .drop__sub{color:var(--prtr-text-muted);font-size:14px;}
+  #splitPanel .fileinfo{display:none;margin-top:var(--prtr-space-4);padding:var(--prtr-space-3) var(--prtr-space-4);border-radius:var(--prtr-radius-md);background:var(--prtr-bg-subtle);font-size:14px;}
+  #splitPanel .fileinfo.show{display:block;}
+  #splitPanel .fileinfo b{font-weight:600;word-break:break-all;}
+  #splitPanel .fileinfo span{color:var(--prtr-text-muted);}
+  #splitPanel .cols{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:var(--prtr-space-2);}
+  #splitPanel .col{display:flex;align-items:center;gap:var(--prtr-space-2);padding:var(--prtr-space-2) var(--prtr-space-3);border:1px solid var(--prtr-border);border-radius:var(--prtr-radius-md);cursor:pointer;user-select:none;min-height:44px;}
+  #splitPanel .col:hover{background:var(--prtr-surface-hover);}
+  #splitPanel .col input{width:18px;height:18px;accent-color:var(--prtr-btn-primary-bg);margin:0;flex:none;}
+  #splitPanel .col:has(input:checked){border-color:var(--prtr-primary-text);background:var(--prtr-red-50);}
+  #splitPanel .col:has(input:disabled){opacity:.45;cursor:not-allowed;}
+  #splitPanel .col:has(input:focus-visible){outline:2px solid var(--prtr-focus-ring);outline-offset:2px;}
+  #splitPanel .col__label{font-size:14px;line-height:1.5;}
+  #splitPanel .namepreview{margin-top:var(--prtr-space-4);font-size:14px;color:var(--prtr-text-muted);}
+  #splitPanel .namepreview code{font-family:inherit;color:var(--prtr-text);font-weight:500;word-break:break-all;}
+  #splitPanel .namepreview code em{font-style:normal;color:var(--prtr-primary-text);font-weight:600;}
+  #splitPanel .tablewrap{overflow-x:auto;border:1px solid var(--prtr-border);border-radius:var(--prtr-radius-md);}
+  #splitPanel table{width:100%;border-collapse:collapse;font-size:14px;}
+  #splitPanel th{background:var(--prtr-bg-subtle);color:var(--prtr-text-muted);font-weight:600;text-align:left;padding:var(--prtr-space-2) var(--prtr-space-3);white-space:nowrap;border-bottom:1px solid var(--prtr-border);}
+  #splitPanel td{padding:var(--prtr-space-2) var(--prtr-space-3);border-bottom:1px solid var(--prtr-border);vertical-align:middle;}
+  #splitPanel tr:last-child td{border-bottom:0;}
+  #splitPanel tbody tr:hover{background:var(--prtr-surface-hover);}
+  #splitPanel .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  #splitPanel td.fn{overflow-wrap:anywhere;min-width:200px;}
+  #splitPanel tfoot td{font-weight:600;border-top:1px solid var(--prtr-border-strong);border-bottom:0;}
+  #splitPanel .actions{display:flex;flex-wrap:wrap;gap:var(--prtr-space-3);margin-top:var(--prtr-space-5);align-items:center;}
+  #splitPanel .btn{font:inherit;font-size:14px;font-weight:600;line-height:1.4;border-radius:var(--prtr-radius-md);padding:10px var(--prtr-space-4);cursor:pointer;min-height:44px;border:1px solid transparent;}
+  #splitPanel .btn:focus-visible{outline:2px solid var(--prtr-focus-ring);outline-offset:2px;}
+  #splitPanel .btn:disabled{opacity:.5;cursor:not-allowed;}
+  #splitPanel .btn--primary{background:var(--prtr-btn-primary-bg);color:var(--prtr-btn-primary-text);}
+  #splitPanel .btn--primary:hover:not(:disabled){filter:brightness(.94);}
+  #splitPanel .btn--secondary{background:transparent;color:var(--prtr-text);border-color:var(--prtr-border-strong);}
+  #splitPanel .btn--secondary:hover:not(:disabled){background:var(--prtr-surface-hover);}
+  #splitPanel .btn--ghost{background:transparent;color:var(--prtr-text-muted);padding:6px var(--prtr-space-3);min-height:36px;}
+  #splitPanel .btn--ghost:hover:not(:disabled){background:var(--prtr-surface-hover);color:var(--prtr-text);}
+  #splitPanel .status{font-size:14px;color:var(--prtr-text-muted);}
+  #splitPanel .msg{display:none;margin-top:var(--prtr-space-4);padding:var(--prtr-space-3) var(--prtr-space-4);border-radius:var(--prtr-radius-md);font-size:14px;gap:var(--prtr-space-2);align-items:flex-start;}
+  #splitPanel .msg.show{display:flex;}
+  #splitPanel .msg--error{background:var(--prtr-error-bg);color:var(--prtr-error);}
+  #splitPanel .msg--warn{background:var(--prtr-bg-subtle);color:var(--prtr-warning);border:1px solid var(--prtr-border);}
+  #splitPanel .msg svg{flex:none;margin-top:3px;}
+  #splitPanel .empty{color:var(--prtr-text-muted);font-size:14px;margin:0;}
+  #splitPanel .foot{color:var(--prtr-text-subtle);font-size:13px;margin-top:var(--prtr-space-4);}
+  #splitPanel .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
+  @media (max-width:560px){#splitPanel .actions .btn{flex:1 1 100%;}}
 </style>
 </head>
 <body>
@@ -106,19 +165,54 @@
       <div class="fn-desc" id="fnDesc"></div>
       <div class="extra-line-options" id="extraLineOptions" style="display:none"></div>
 
-      <div class="dz" id="dropzone">
-        <label style="cursor:pointer">
-          <div>📄 คลิกหรือลากไฟล์ Excel มาวาง</div>
-          <div class="dz-hint" id="dzHint">.xlsx</div>
-          <input type="file" id="fileInput" accept=".xlsx,.xlsm">
-        </label>
+      <div id="genericPanel">
+        <div class="dz" id="dropzone">
+          <label style="cursor:pointer">
+            <div>📄 คลิกหรือลากไฟล์ Excel มาวาง</div>
+            <div class="dz-hint" id="dzHint">.xlsx</div>
+            <input type="file" id="fileInput" accept=".xlsx,.xlsm">
+          </label>
+        </div>
+
+        <div id="fileList"></div>
+        <button class="btn-main" id="btnProcess" style="display:none">▶ เริ่มรวมไฟล์</button>
+
+        <div id="statusBox" class="status-box" style="display:none"></div>
+        <div class="summary-box" id="summaryBox" style="display:none"></div>
       </div>
 
-      <div id="fileList"></div>
-      <button class="btn-main" id="btnProcess" style="display:none">▶ เริ่มรวมไฟล์</button>
+      <div id="splitPanel" style="display:none">
+        <section class="step" id="s1" aria-labelledby="t1">
+          <div class="step__head"><span class="step__num">1</span><div><h2 class="step__title" id="t1">เลือกไฟล์</h2><p class="step__hint">รองรับไฟล์ .xlsx ที่มีหัวตาราง EMP ID เช่น GL Invoice Report หรือ Query With Fee</p></div></div>
+          <label class="drop" id="drop">
+            <input type="file" id="file" accept=".xlsx">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+            <span class="drop__main">ลากไฟล์มาวาง หรือคลิกเพื่อเลือก</span>
+            <span class="drop__sub">ไฟล์ถูกประมวลผลในเบราว์เซอร์นี้เท่านั้น</span>
+          </label>
+          <div class="fileinfo" id="fileinfo" aria-live="polite"></div>
+          <div class="msg msg--error" id="err" role="alert"></div>
+        </section>
 
-      <div id="statusBox" class="status-box" style="display:none"></div>
-      <div class="summary-box" id="summaryBox" style="display:none"></div>
+        <section class="step" id="s2" aria-labelledby="t2" aria-disabled="true">
+          <div class="step__head"><span class="step__num">2</span><div><h2 class="step__title" id="t2">ติ๊กคอลัมน์ที่ใช้แยก</h2><p class="step__hint">ติ๊กหลายคอลัมน์ได้ ระบบจะแยก 1 ไฟล์ต่อ 1 ชุดค่าที่ไม่ซ้ำกัน และต่อท้ายชื่อไฟล์ตามลำดับที่ติ๊ก</p></div></div>
+          <div class="cols" id="cols" role="group" aria-labelledby="t2"></div>
+          <p class="namepreview" id="namepreview" aria-live="polite"></p>
+        </section>
+
+        <section class="step" id="s3" aria-labelledby="t3" aria-disabled="true">
+          <div class="step__head"><span class="step__num">3</span><div><h2 class="step__title" id="t3">ตรวจรายการแล้วดาวน์โหลด</h2><p class="step__hint" id="summary">ติ๊กคอลัมน์อย่างน้อย 1 คอลัมน์เพื่อดูรายการไฟล์</p></div></div>
+          <div id="result"><p class="empty">ยังไม่มีรายการ</p></div>
+          <div class="msg msg--warn" id="warn"></div>
+          <div class="actions">
+            <button class="btn btn--primary" id="btnZip" disabled>ดาวน์โหลด ZIP</button>
+            <button class="btn btn--secondary" id="btnEach" disabled>ดาวน์โหลดแยกทีละไฟล์</button>
+            <span class="status" id="status" aria-live="polite"></span>
+          </div>
+        </section>
+
+        <p class="foot">ชื่อไฟล์ใหม่ = ชื่อไฟล์เดิม_ค่าของคอลัมน์ที่ติ๊ก (เรียงตามลำดับที่ติ๊ก) และอักขระที่ใช้ในชื่อไฟล์ไม่ได้ เช่น / \ : * ? " &lt; &gt; | จะถูกแทนด้วย -</p>
+      </div>
     </div>
   </div>
 </div>
@@ -126,10 +220,12 @@
 </div>
 <footer class="prtr-footer">OSInvoice Tools สำหรับทีม PRTR</footer>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="excel.js"></script>
 <script src="sheetmodel.js"></script>
 <script src="styles.js"></script>
 <script src="functions.js"></script>
 <script src="app.js"></script>
+<script src="split.js"></script>
 </body>
 </html>

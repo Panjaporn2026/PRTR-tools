@@ -9,7 +9,10 @@ var FUNCTIONS = [
   { id: 'merge', label: '2. Merge', multi: true,
     desc: 'โยนไฟล์ที่ 1 แล้วโยนไฟล์ที่ 2 แล้วโยนไฟล์ที่ 3-6 ตามลำดับ\nระบบจะนำข้อมูล (หลัง header) ของไฟล์ที่ 2-6 ต่อท้ายไฟล์ที่ 1\nHeader ของ output ยึดตามไฟล์ที่ 1 ทั้งหมด รูปแบบของไฟล์ห้ามเปลี่ยนแปลง' },
   { id: 'changeHeaderDynamic', label: '3. Change Header (ไฟล์รูปแบบใหม่)', multi: false,
-    desc: 'สำหรับไฟล์รูปแบบใหม่ที่ระบบเพิ่มแถว metadata มา (Start-End Period, Payment Date)\nลบแถว metadata ทั้งหมดตั้งแต่แถวที่ 4 จนถึงก่อนแถว Header (หาอัตโนมัติ) + เปลี่ยนชื่อ Column:\n• Period → Calendar Group\n• Paycode Code → PIN Name' }
+    desc: 'สำหรับไฟล์รูปแบบใหม่ที่ระบบเพิ่มแถว metadata มา (Start-End Period, Payment Date)\nลบแถว metadata ทั้งหมดตั้งแต่แถวที่ 4 จนถึงก่อนแถว Header (หาอัตโนมัติ) + เปลี่ยนชื่อ Column:\n• Period → Calendar Group\n• Paycode Code → PIN Name' },
+  // panel:'split' = ฟังก์ชันนี้มีหน้าจอของตัวเอง (split.js) ไม่ใช้กล่องอัปโหลด/สรุปผลร่วมของฟังก์ชัน 1-3
+  { id: 'split', label: '4. แยกไฟล์ตามคอลัมน์', multi: false, panel: 'split',
+    desc: 'อัปโหลดไฟล์ GL Invoice แล้วติ๊กคอลัมน์ที่ต้องการใช้แยก ระบบจะสร้างไฟล์ใหม่ต่อค่าที่ไม่ซ้ำกัน\nโดยคงข้อมูลและรูปแบบเดิมไว้ทุกอย่าง ยกเว้นช่อง Head Count ที่ปรับตามจำนวนพนักงานในไฟล์นั้น' }
 ];
 
 var FN_META = {
@@ -72,6 +75,11 @@ function renderExtraLineOptions() {
     cb.addEventListener('change', function () { toggleExtraLineType(cb.getAttribute('data-key'), cb.checked); });
   });
 }
+function renderPanels() {
+  var isSplit = currentFn().panel === 'split';
+  document.getElementById('genericPanel').style.display = isSplit ? 'none' : '';
+  document.getElementById('splitPanel').style.display = isSplit ? '' : 'none';
+}
 function renderDropzoneHint() {
   var fn = currentFn();
   document.getElementById('dzHint').textContent = fn.multi ? '.xlsx (เลือกได้หลายไฟล์ เรียงตามลำดับที่ต้องการ)' : '.xlsx';
@@ -115,6 +123,7 @@ function selectFunction(id) {
   resetOutputUI();
   renderSidebar();
   renderFnDesc();
+  renderPanels();
   renderExtraLineOptions();
   renderDropzoneHint();
   renderFileList();
