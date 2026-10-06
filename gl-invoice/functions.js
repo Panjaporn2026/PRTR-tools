@@ -426,3 +426,41 @@ async function runMergeFunction(bufs, fileNames) {
   var outputBytes = await finalizeAndBuildOutputBytes(baseCtx, structuralOpts);
   return { ok: true, summary: summary, outputBytes: outputBytes };
 }
+
+// ── Function 4: Delete GL 51110129 rows (batch, one output file per input file) ─────────────────
+// Removes every data row whose Account is exactly 51110129 and closes the gap; nothing else in
+// the file is touched -- no restyling (styles.xml is passed through as-is), no header/Head Count
+// change, no other row edited. A file with no such row is returned byte-for-byte unchanged.
+var DELETE_GL_ACCOUNT = '51110129';
+
+async function runDeleteGLFunction(buf) {
+  var ctx = await loadGLInvoiceContext(buf);
+  var acctCol = ctx.cols.Account;
+  function isTarget(row) {
+    return row.rowNum > ctx.headerRow && normText(getCellValue(row.cellsByCol[acctCol], ctx.sst)) === DELETE_GL_ACCOUNT;
+  }
+  var summary = { deleted: [], amount: 0, unchanged: false };
+  ctx.model.rows.forEach(function (row) {
+    if (!isTarget(row)) return;
+    var amt = getCellValue(row.cellsByCol[ctx.cols.Amount], ctx.sst);
+    var n = typeof amt === 'number' ? amt : parseFloat(String(amt == null ? '' : amt).replace(/,/g, ''));
+    if (!isNaN(n)) summary.amount += n;
+    summary.deleted.push({
+      row: row.rowNum,
+      name: normText(getCellValue(row.cellsByCol[ctx.cols.NAME], ctx.sst)),
+      empId: normText(getCellValue(row.cellsByCol[ctx.cols.EMPID], ctx.sst)),
+      paycodeName: normText(getCellValue(row.cellsByCol[ctx.cols.PaycodeName], ctx.sst)),
+      account: DELETE_GL_ACCOUNT,
+      grouping: normText(getCellValue(row.cellsByCol[ctx.cols.Grouping], ctx.sst)),
+      amount: isNaN(n) ? '' : n
+    });
+  });
+  if (!summary.deleted.length) {
+    summary.unchanged = true;
+    return { ok: true, summary: summary, outputBytes: new Uint8Array(buf) };
+  }
+  ctx.model.rows = deleteAndRenumber(ctx.model.rows, isTarget, ctx.headerRow + 1, ctx.headerRow + 1);
+  ctx.styles = null; // formatting is never changed by this function: keep styles.xml byte-identical
+  var outputBytes = await finalizeAndBuildOutputBytes(ctx, buildStructuralOptsAfterAppend(ctx));
+  return { ok: true, summary: summary, outputBytes: outputBytes };
+}

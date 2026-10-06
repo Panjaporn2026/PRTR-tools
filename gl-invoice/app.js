@@ -10,15 +10,18 @@ var FUNCTIONS = [
     desc: 'โยนไฟล์ที่ 1 แล้วโยนไฟล์ที่ 2 แล้วโยนไฟล์ที่ 3-6 ตามลำดับ\nระบบจะนำข้อมูล (หลัง header) ของไฟล์ที่ 2-6 ต่อท้ายไฟล์ที่ 1\nHeader ของ output ยึดตามไฟล์ที่ 1 ทั้งหมด รูปแบบของไฟล์ห้ามเปลี่ยนแปลง' },
   { id: 'changeHeaderDynamic', label: '3. Change Header (ไฟล์รูปแบบใหม่)', multi: false,
     desc: 'สำหรับไฟล์รูปแบบใหม่ที่ระบบเพิ่มแถว metadata มา (Start-End Period, Payment Date)\nลบแถว metadata ทั้งหมดตั้งแต่แถวที่ 4 จนถึงก่อนแถว Header (หาอัตโนมัติ) + เปลี่ยนชื่อ Column:\n• Period → Calendar Group\n• Paycode Code → PIN Name' },
-  // panel:'split' = ฟังก์ชันนี้มีหน้าจอของตัวเอง (split.js) ไม่ใช้กล่องอัปโหลด/สรุปผลร่วมของฟังก์ชัน 1-3
-  { id: 'split', label: '4. แยกไฟล์ตามคอลัมน์', multi: false, panel: 'split',
+  { id: 'deleteGL', label: '4. ลบบรรทัด GL 51110129', multi: true, batch: true, minFiles: 1, processLabel: '▶ เริ่มลบบรรทัด',
+    desc: 'ลบทุกแถวที่ Account = 51110129 แล้วเลื่อนแถวถัดไปขึ้นมาแทน\nข้อมูลอื่น รูปแบบ สี และ Head Count ไม่เปลี่ยน\nเลือกได้หลายไฟล์ ได้ไฟล์แยกเหมือนเดิม ชื่อไฟล์เดิม (หลายไฟล์ดาวน์โหลดเป็น ZIP)\nไฟล์ที่ไม่มี GL 51110129 จะได้ไฟล์เดิมกลับมาโดยไม่แก้ไขอะไร' },
+  // panel:'split' = ฟังก์ชันนี้มีหน้าจอของตัวเอง (split.js) ไม่ใช้กล่องอัปโหลด/สรุปผลร่วมของฟังก์ชัน 1-4
+  { id: 'split', label: '5. แยกไฟล์ตามคอลัมน์', multi: false, panel: 'split',
     desc: 'อัปโหลดไฟล์ GL Invoice แล้วติ๊กคอลัมน์ที่ต้องการใช้แยก ระบบจะสร้างไฟล์ใหม่ต่อค่าที่ไม่ซ้ำกัน\nโดยคงข้อมูลและรูปแบบเดิมไว้ทุกอย่าง ยกเว้นช่อง Head Count ที่ปรับตามจำนวนพนักงานในไฟล์นั้น' }
 ];
 
 var FN_META = {
   duplicate: { icon: '➕', title: 'สรุปผล Duplicate — แถวที่เพิ่ม/อัพเดท' },
   merge: { icon: '🔗', title: 'สรุปผล Merge — รวมไฟล์' },
-  changeHeaderDynamic: { icon: '📝', title: 'สรุปผล Change Header (ไฟล์รูปแบบใหม่)' }
+  changeHeaderDynamic: { icon: '📝', title: 'สรุปผล Change Header (ไฟล์รูปแบบใหม่)' },
+  deleteGL: { icon: '🗑️', title: 'สรุปผล ลบบรรทัด GL 51110129' }
 };
 
 var state = { fnId: FUNCTIONS[0].id, files: [], resultBytes: null, resultBaseName: null, processedAt: null, sourceLabel: null, extraLineTypes: ['EXPENSE'] };
@@ -75,11 +78,6 @@ function renderExtraLineOptions() {
     cb.addEventListener('change', function () { toggleExtraLineType(cb.getAttribute('data-key'), cb.checked); });
   });
 }
-function renderPanels() {
-  var isSplit = currentFn().panel === 'split';
-  document.getElementById('genericPanel').style.display = isSplit ? 'none' : '';
-  document.getElementById('splitPanel').style.display = isSplit ? '' : 'none';
-}
 function renderDropzoneHint() {
   var fn = currentFn();
   document.getElementById('dzHint').textContent = fn.multi ? '.xlsx (เลือกได้หลายไฟล์ เรียงตามลำดับที่ต้องการ)' : '.xlsx';
@@ -95,7 +93,8 @@ function renderFileList() {
   }).join('');
   var btn = document.getElementById('btnProcess');
   btn.style.display = 'inline-block';
-  btn.disabled = state.files.length < 2;
+  btn.textContent = fn.processLabel || '▶ เริ่มรวมไฟล์';
+  btn.disabled = state.files.length < (fn.minFiles || 2);
 }
 
 function resetOutputUI() {
@@ -116,6 +115,11 @@ function resetForNewFile() {
   if (dz) dz.style.display = '';
 }
 
+function renderPanels() {
+  var isSplit = currentFn().panel === 'split';
+  document.getElementById('genericPanel').style.display = isSplit ? 'none' : '';
+  document.getElementById('splitPanel').style.display = isSplit ? '' : 'none';
+}
 function selectFunction(id) {
   state.fnId = id;
   state.files = [];
@@ -123,10 +127,10 @@ function selectFunction(id) {
   resetOutputUI();
   renderSidebar();
   renderFnDesc();
-  renderPanels();
   renderExtraLineOptions();
   renderDropzoneHint();
   renderFileList();
+  renderPanels();
   document.getElementById('fileInput').value = '';
 }
 function removeFile(i) {
@@ -156,7 +160,9 @@ async function handleIncomingFiles(fileList) {
   if (fn.multi) {
     state.files = state.files.concat(files);
     renderFileList();
-    setStatus('✅ เพิ่มไฟล์แล้ว (' + state.files.length + ' ไฟล์) — เรียงลำดับถูกต้องหรือยัง? กด "เริ่มรวมไฟล์" เมื่อพร้อม', 'info');
+    setStatus(fn.batch
+      ? '✅ เพิ่มไฟล์แล้ว (' + state.files.length + ' ไฟล์) — เพิ่มไฟล์ได้อีก หรือกด "เริ่มลบบรรทัด" เมื่อพร้อม'
+      : '✅ เพิ่มไฟล์แล้ว (' + state.files.length + ' ไฟล์) — เรียงลำดับถูกต้องหรือยัง? กด "เริ่มรวมไฟล์" เมื่อพร้อม', 'info');
     return;
   }
 
@@ -173,7 +179,10 @@ async function runProcessing() {
     resetOutputUI();
 
     var result;
-    if (fn.multi) {
+    state.resultFileName = null;
+    if (fn.batch) {
+      result = await runDeleteGLBatch(state.files);
+    } else if (fn.multi) {
       var bufs = [], names = state.files.map(function (f) { return f.name; });
       for (var i = 0; i < state.files.length; i++) bufs.push(await state.files[i].arrayBuffer());
       result = await runMergeFunction(bufs, names);
@@ -259,6 +268,54 @@ var CHANGE_HEADER_COLUMNS = [
   { label: 'ชื่อใหม่', render: function (r) { return esc_(r.newLabel); } }
 ];
 
+function fmtAmount(n) { return typeof n === 'number' ? n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : esc_(n); }
+var DELETE_GL_FILE_COLUMNS = [
+  { label: 'ชื่อไฟล์', wrap: true, render: function (r) { return esc_(r.fileName); } },
+  { label: 'แถวที่ลบ', render: function (r) { return esc_(r.count); } },
+  { label: 'ยอด Amount ที่ลบ', render: function (r) { return fmtAmount(r.amount); } },
+  { label: 'หมายเหตุ', render: function (r) { return noteBadge(r.note); } }
+];
+var DELETE_GL_ROW_COLUMNS = [
+  { label: 'ไฟล์', wrap: true, render: function (r) { return esc_(r.fileName); } },
+  { label: 'แถวที่ (เดิม)', render: function (r) { return esc_(r.row); } },
+  { label: 'ชื่อ', render: function (r) { return esc_(r.name); } },
+  { label: 'EMP ID', render: function (r) { return esc_(r.empId); } },
+  { label: 'Paycode Name', wrap: true, render: function (r) { return esc_(r.paycodeName); } },
+  { label: 'Grouping', render: function (r) { return esc_(r.grouping); } },
+  { label: 'Amount', render: function (r) { return fmtAmount(r.amount); } }
+];
+
+// Runs function 4 over every uploaded file. Each file keeps its own original name; 1 file is
+// downloaded as-is, 2+ files as one ZIP. Files that can't be read are reported and left out.
+async function runDeleteGLBatch(files) {
+  var summary = { files: [], rows: [], rejected: [], totalDeleted: 0 };
+  var outs = [];
+  for (var i = 0; i < files.length; i++) {
+    var f = files[i];
+    setStatus('⏳ กำลังประมวลผล ' + (i + 1) + '/' + files.length + ': ' + f.name, 'info');
+    try {
+      var r = await runDeleteGLFunction(await f.arrayBuffer());
+      var s = r.summary;
+      outs.push({ name: f.name, data: r.outputBytes });
+      summary.totalDeleted += s.deleted.length;
+      summary.files.push({ fileName: f.name, count: s.deleted.length, amount: s.amount,
+        note: s.unchanged ? 'ไม่พบ GL 51110129 (ไฟล์เดิม)' : 'ลบแล้ว' });
+      s.deleted.forEach(function (d) { d.fileName = f.name; summary.rows.push(d); });
+    } catch (err) {
+      summary.rejected.push({ fileName: f.name, reason: 'อ่านไฟล์ไม่สำเร็จ: ' + err.message });
+    }
+  }
+  if (!outs.length) return { ok: false, summary: { errors: summary.rejected.map(function (r) { return r.fileName + ': ' + r.reason; }) } };
+  state.sourceLabel = files.map(function (f) { return f.name; }).join(', ');
+  if (outs.length === 1) {
+    state.resultFileName = outs[0].name;
+    return { ok: true, summary: summary, outputBytes: outs[0].data };
+  }
+  var d = new Date(), ymd = d.getFullYear() + ('0' + (d.getMonth() + 1)).slice(-2) + ('0' + d.getDate()).slice(-2);
+  state.resultFileName = 'GL_Invoice_ลบGL51110129_' + ymd + '.zip';
+  return { ok: true, summary: summary, outputBytes: buildZip(outs) };
+}
+
 function buildResultBody(fn, summary) {
   var html = '';
   if (fn.id === 'duplicate') {
@@ -277,6 +334,19 @@ function buildResultBody(fn, summary) {
     if (summary.rejected && summary.rejected.length) {
       html += summary.rejected.map(function (r) {
         return '<div class="err-line">⚠ ไฟล์ที่ ' + esc_(r.fileIndex) + ': ' + esc_(r.reason) + '</div>';
+      }).join('');
+    }
+  } else if (fn.id === 'deleteGL') {
+    html += statRowHtml([
+      { value: summary.files.length, label: 'ไฟล์ที่ประมวลผล', color: 'blue' },
+      { value: summary.totalDeleted, label: 'แถวที่ลบออก', color: 'red' },
+      { value: summary.rejected.length, label: 'ไฟล์ที่อ่านไม่ได้', color: 'orange' }
+    ]);
+    html += '<div class="result-sub">แยกตามไฟล์</div>' + detailTableHtml(DELETE_GL_FILE_COLUMNS, summary.files);
+    if (summary.rows.length) html += '<div class="result-sub">แถวที่ลบ</div>' + detailTableHtml(DELETE_GL_ROW_COLUMNS, summary.rows);
+    if (summary.rejected.length) {
+      html += summary.rejected.map(function (r) {
+        return '<div class="err-line">⚠ ' + esc_(r.fileName) + ': ' + esc_(r.reason) + ' (ไม่ได้ใส่ในไฟล์ผลลัพธ์)</div>';
       }).join('');
     }
   } else if (fn.id === 'changeHeaderDynamic') {
@@ -311,10 +381,11 @@ function renderSummary(fn, summary) {
 
 function downloadResult() {
   if (!state.resultBytes) return;
-  var blob = new Blob([state.resultBytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  var isZip = !!state.resultFileName && /\.zip$/i.test(state.resultFileName);
+  var blob = new Blob([state.resultBytes], { type: isZip ? 'application/zip' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   var url = URL.createObjectURL(blob);
   var a = document.createElement('a');
-  a.href = url; a.download = (state.resultBaseName || 'GL_Invoice') + '_' + state.fnId + '.xlsx';
+  a.href = url; a.download = state.resultFileName || ((state.resultBaseName || 'GL_Invoice') + '_' + state.fnId + '.xlsx');
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(function () { URL.revokeObjectURL(url); }, 3000);
 }
