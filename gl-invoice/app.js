@@ -11,7 +11,7 @@ var FUNCTIONS = [
   { id: 'changeHeaderDynamic', label: '3. Change Header (ไฟล์รูปแบบใหม่)', multi: false,
     desc: 'สำหรับไฟล์รูปแบบใหม่ที่ระบบเพิ่มแถว metadata มา (Start-End Period, Payment Date)\nลบแถว metadata ทั้งหมดตั้งแต่แถวที่ 4 จนถึงก่อนแถว Header (หาอัตโนมัติ) + เปลี่ยนชื่อ Column:\n• Period → Calendar Group\n• Paycode Code → PIN Name' },
   { id: 'deleteGL', label: '4.ลบบรรทัด EWF GL 51110129', multi: true, batch: true, minFiles: 1, processLabel: '▶ เริ่มลบบรรทัด',
-    desc: 'ลบทุกแถวที่ Account = 51110129 แล้วเลื่อนแถวถัดไปขึ้นมาแทน\nข้อมูลอื่น รูปแบบ สี และ Head Count ไม่เปลี่ยน\nเลือกได้หลายไฟล์ ได้ไฟล์แยกเหมือนเดิม ชื่อไฟล์เดิม (หลายไฟล์ดาวน์โหลดเป็น ZIP)\nไฟล์ที่ไม่มี GL 51110129 จะได้ไฟล์เดิมกลับมาโดยไม่แก้ไขอะไร' },
+    desc: 'ลบทุกแถวที่ Account = 51110129 แล้วเลื่อนแถวถัดไปขึ้นมาแทน\nข้อมูลอื่น รูปแบบ สี และ Head Count ไม่เปลี่ยน\nเลือกได้หลายไฟล์ ได้ไฟล์แยกเหมือนเดิม ชื่อไฟล์เดิม (หลายไฟล์ดาวน์โหลดเป็น ZIP)\nไฟล์ที่ไม่มี EWF GL 51110129 จะได้ไฟล์เดิมกลับมาโดยไม่แก้ไขอะไร' },
   // panel:'split' = ฟังก์ชันนี้มีหน้าจอของตัวเอง (split.js) ไม่ใช้กล่องอัปโหลด/สรุปผลร่วมของฟังก์ชัน 1-4
   { id: 'split', label: '5. แยกไฟล์ตามคอลัมน์', multi: false, panel: 'split',
     desc: 'อัปโหลดไฟล์ GL Invoice แล้วติ๊กคอลัมน์ที่ต้องการใช้แยก ระบบจะสร้างไฟล์ใหม่ต่อค่าที่ไม่ซ้ำกัน\nโดยคงข้อมูลและรูปแบบเดิมไว้ทุกอย่าง ยกเว้นช่อง Head Count ที่ปรับตามจำนวนพนักงานในไฟล์นั้น' }
@@ -21,7 +21,7 @@ var FN_META = {
   duplicate: { icon: '➕', title: 'สรุปผล Duplicate — แถวที่เพิ่ม/อัพเดท' },
   merge: { icon: '🔗', title: 'สรุปผล Merge — รวมไฟล์' },
   changeHeaderDynamic: { icon: '📝', title: 'สรุปผล Change Header (ไฟล์รูปแบบใหม่)' },
-  deleteGL: { icon: '🗑️', title: 'สรุปผล ลบบรรทัด GL 51110129' }
+  deleteGL: { icon: '🗑️', title: 'สรุปผล ลบบรรทัด EWF GL 51110129' }
 };
 
 var state = { fnId: FUNCTIONS[0].id, files: [], resultBytes: null, resultBaseName: null, processedAt: null, sourceLabel: null, extraLineTypes: ['EXPENSE'] };
@@ -299,7 +299,7 @@ async function runDeleteGLBatch(files) {
       outs.push({ name: f.name, data: r.outputBytes });
       summary.totalDeleted += s.deleted.length;
       summary.files.push({ fileName: f.name, count: s.deleted.length, amount: s.amount,
-        note: s.unchanged ? 'ไม่พบ GL 51110129 (ไฟล์เดิม)' : 'ลบแล้ว' });
+        note: s.unchanged ? 'ไม่พบ EWF GL 51110129 (ไฟล์เดิม)' : 'ลบแล้ว' });
       s.deleted.forEach(function (d) { d.fileName = f.name; summary.rows.push(d); });
     } catch (err) {
       summary.rejected.push({ fileName: f.name, reason: 'อ่านไฟล์ไม่สำเร็จ: ' + err.message });
