@@ -10,7 +10,7 @@ var FUNCTIONS = [
     desc: 'โยนไฟล์ที่ 1 แล้วโยนไฟล์ที่ 2 แล้วโยนไฟล์ที่ 3-6 ตามลำดับ\nระบบจะนำข้อมูล (หลัง header) ของไฟล์ที่ 2-6 ต่อท้ายไฟล์ที่ 1\nHeader ของ output ยึดตามไฟล์ที่ 1 ทั้งหมด รูปแบบของไฟล์ห้ามเปลี่ยนแปลง' },
   { id: 'changeHeaderDynamic', label: '3. Change Header (ไฟล์รูปแบบใหม่)', multi: false,
     desc: 'สำหรับไฟล์รูปแบบใหม่ที่ระบบเพิ่มแถว metadata มา (Start-End Period, Payment Date)\nลบแถว metadata ทั้งหมดตั้งแต่แถวที่ 4 จนถึงก่อนแถว Header (หาอัตโนมัติ) + เปลี่ยนชื่อ Column:\n• Period → Calendar Group\n• Paycode Code → PIN Name' },
-  { id: 'deleteGL', label: '4. ลบบรรทัด GL 51110129', multi: true, batch: true, minFiles: 1, processLabel: '▶ เริ่มลบบรรทัด',
+  { id: 'deleteGL', label: '4.ลบบรรทัด EWF GL 51110129', multi: true, batch: true, minFiles: 1, processLabel: '▶ เริ่มลบบรรทัด',
     desc: 'ลบทุกแถวที่ Account = 51110129 แล้วเลื่อนแถวถัดไปขึ้นมาแทน\nข้อมูลอื่น รูปแบบ สี และ Head Count ไม่เปลี่ยน\nเลือกได้หลายไฟล์ ได้ไฟล์แยกเหมือนเดิม ชื่อไฟล์เดิม (หลายไฟล์ดาวน์โหลดเป็น ZIP)\nไฟล์ที่ไม่มี GL 51110129 จะได้ไฟล์เดิมกลับมาโดยไม่แก้ไขอะไร' },
   // panel:'split' = ฟังก์ชันนี้มีหน้าจอของตัวเอง (split.js) ไม่ใช้กล่องอัปโหลด/สรุปผลร่วมของฟังก์ชัน 1-4
   { id: 'split', label: '5. แยกไฟล์ตามคอลัมน์', multi: false, panel: 'split',
