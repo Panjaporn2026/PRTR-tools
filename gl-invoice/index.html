@@ -134,6 +134,65 @@
   #splitPanel .foot{color:var(--prtr-text-subtle);font-size:13px;margin-top:var(--prtr-space-4);}
   #splitPanel .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
   @media (max-width:560px){#splitPanel .actions .btn{flex:1 1 100%;}}
+
+  /* ── ฟังก์ชัน 6: ปลดรหัสไฟล์ Excel (สไตล์จากเครื่องมือ Excel Unlock, scope ใต้ #unlockPanel) ── */
+  #unlockPanel{font-size:14px;line-height:1.6;}
+  #unlockPanel .ds-step { background: var(--prtr-surface); border: 1px solid var(--prtr-border); border-radius: var(--prtr-radius-lg); padding: var(--prtr-space-5); margin-bottom: var(--prtr-space-4); min-width: 0; }
+  #unlockPanel .ds-step[aria-disabled="true"] { opacity: .5; pointer-events: none; }
+  #unlockPanel .ds-head { display: flex; align-items: baseline; gap: var(--prtr-space-3); margin-bottom: var(--prtr-space-4); }
+  #unlockPanel .ds-num { flex: none; width: 28px; height: 28px; border-radius: var(--prtr-radius-full); border: 1px solid var(--prtr-border-strong); display: grid; place-items: center; font-weight: 600; font-size: 14px; line-height: 1; transform: translateY(4px); }
+  #unlockPanel .ds-title { font-size: 16px; line-height: 1.5; font-weight: 600; color: var(--prtr-text); }
+  #unlockPanel .ds-hint { color: var(--prtr-text-muted); font-size: 13px; margin-top: 2px; }
+  #unlockPanel .ds-drop { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--prtr-space-2); text-align: center; border: 1px dashed var(--prtr-border-strong); border-radius: var(--prtr-radius-md); padding: var(--prtr-space-6) var(--prtr-space-4); cursor: pointer; background: var(--prtr-bg-subtle); }
+  #unlockPanel .ds-drop:hover, #unlockPanel .ds-drop.is-over { border-color: var(--prtr-accent); background: var(--prtr-surface-hover); }
+  #unlockPanel .ds-drop:focus-within { outline: 2px solid var(--prtr-focus-ring); outline-offset: 2px; }
+  #unlockPanel .ds-drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  #unlockPanel .ds-drop__main { font-weight: 600; font-size: 15px; }
+  #unlockPanel .ds-drop__sub { color: var(--prtr-text-muted); font-size: 13px; }
+  #unlockPanel .file-list { margin-top: var(--prtr-space-3); display: flex; flex-direction: column; gap: 6px; }
+  #unlockPanel .file-row { display: flex; align-items: center; gap: var(--prtr-space-2); border: 1px solid var(--prtr-border); border-radius: var(--prtr-radius-md); padding: 6px 10px; font-size: 13px; }
+  #unlockPanel .file-row .fname { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  #unlockPanel .file-row .fsize { color: var(--prtr-text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #unlockPanel .icon-btn { background: none; border: 0; color: var(--prtr-text-muted); cursor: pointer; font-size: 14px; padding: 4px 6px; border-radius: var(--prtr-radius-sm); }
+  #unlockPanel .icon-btn:hover { background: var(--prtr-surface-hover); color: var(--prtr-error-text); }
+  #unlockPanel .list-actions { display: flex; justify-content: space-between; align-items: center; margin-top: var(--prtr-space-2); font-size: 13px; color: var(--prtr-text-muted); }
+  #unlockPanel .pw-list { display: flex; flex-direction: column; gap: var(--prtr-space-2); max-width: 480px; }
+  #unlockPanel .pw-row { display: flex; gap: var(--prtr-space-2); align-items: center; }
+  #unlockPanel .pw-row .pw-idx { width: 22px; text-align: right; color: var(--prtr-text-muted); font-size: 13px; font-variant-numeric: tabular-nums; flex: none; }
+  #unlockPanel .pw-row input { flex: 1; min-width: 0; font: inherit; font-size: 13px; padding: 8px var(--prtr-space-3); border: 1px solid var(--prtr-border-strong); border-radius: var(--prtr-radius-md); background: var(--prtr-surface); color: var(--prtr-text); }
+  #unlockPanel .pw-row input:focus { outline: 2px solid var(--prtr-focus-ring); outline-offset: 1px; }
+  #unlockPanel .pw-tools { display: flex; gap: var(--prtr-space-3); margin-top: var(--prtr-space-3); flex-wrap: wrap; }
+  #unlockPanel .ds-btn { font: inherit; font-size: 13px; font-weight: 600; line-height: 1.4; border-radius: var(--prtr-radius-md); padding: 10px var(--prtr-space-4); cursor: pointer; min-height: 44px; border: 1px solid transparent; }
+  #unlockPanel .ds-btn:focus-visible { outline: 2px solid var(--prtr-focus-ring); outline-offset: 2px; }
+  #unlockPanel .ds-btn:disabled { opacity: .5; cursor: not-allowed; }
+  #unlockPanel .ds-btn--primary { background: var(--prtr-btn-primary-bg); color: var(--prtr-btn-primary-text); }
+  #unlockPanel .ds-btn--primary:hover:not(:disabled) { background: var(--prtr-btn-primary-hover); }
+  #unlockPanel .ds-btn--secondary { background: transparent; color: var(--prtr-text); border-color: var(--prtr-border-strong); }
+  #unlockPanel .ds-btn--secondary:hover:not(:disabled) { background: var(--prtr-surface-hover); }
+  #unlockPanel .ds-btn--ghost { background: transparent; color: var(--prtr-text-muted); padding: 6px var(--prtr-space-3); min-height: 36px; }
+  #unlockPanel .ds-btn--ghost:hover:not(:disabled) { background: var(--prtr-surface-hover); color: var(--prtr-text); }
+  #unlockPanel .ds-actions { display: flex; flex-wrap: wrap; gap: var(--prtr-space-3); align-items: center; }
+  #unlockPanel .ds-actions + .ds-tablewrap, #unlockPanel .ds-tablewrap + .ds-actions { margin-top: var(--prtr-space-4); }
+  #unlockPanel .ds-status { font-size: 13px; color: var(--prtr-text-muted); }
+  #unlockPanel .ds-tablewrap { overflow-x: auto; border: 1px solid var(--prtr-border); border-radius: var(--prtr-radius-md); }
+  #unlockPanel .ds-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  #unlockPanel .ds-table th { background: var(--prtr-bg-subtle); color: var(--prtr-text-muted); font-weight: 600; text-align: left; padding: var(--prtr-space-2) var(--prtr-space-3); white-space: nowrap; border-bottom: 1px solid var(--prtr-border); }
+  #unlockPanel .ds-table td { padding: var(--prtr-space-2) var(--prtr-space-3); border-bottom: 1px solid var(--prtr-border); vertical-align: middle; }
+  #unlockPanel .ds-table tr:last-child td { border-bottom: 0; }
+  #unlockPanel .ds-table td.fn { overflow-wrap: anywhere; min-width: 220px; }
+  #unlockPanel .ds-table .num { text-align: right; white-space: nowrap; }
+  #unlockPanel .badge { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px var(--prtr-space-2); border-radius: var(--prtr-radius-full); white-space: nowrap; }
+  #unlockPanel .b-ok { background: var(--prtr-success-bg); color: var(--prtr-success-text); }
+  #unlockPanel .b-plain { background: var(--prtr-surface-hover); color: var(--prtr-text-muted); }
+  #unlockPanel .b-bad { background: var(--prtr-error-bg); color: var(--prtr-error-text); }
+  #unlockPanel .b-wait { background: var(--prtr-info-bg); color: var(--prtr-info-text); }
+  #unlockPanel .ds-note { margin-top: var(--prtr-space-4); font-size: 13px; color: var(--prtr-text-muted); line-height: 1.7; }
+  #unlockPanel .ds-msg { display: none; margin-top: var(--prtr-space-4); padding: var(--prtr-space-3) var(--prtr-space-4); border-radius: var(--prtr-radius-md); font-size: 13px; background: var(--prtr-warning-bg); color: var(--prtr-warning-text); }
+  #unlockPanel .ds-msg.show { display: block; }
+  @media (max-width:560px){#unlockPanel .ds-actions .ds-btn{flex:1 1 100%;}}
+  #unlockPanel .ds-title{margin:0;}
+  #unlockPanel .file-row{margin-top:0;}
+  #unlockPanel .file-row .fname{white-space:normal;overflow:visible;text-overflow:clip;}
 </style>
 </head>
 <body>
@@ -213,6 +272,44 @@
 
         <p class="foot">ชื่อไฟล์ใหม่ = ชื่อไฟล์เดิม_ค่าของคอลัมน์ที่ติ๊ก (เรียงตามลำดับที่ติ๊ก) และอักขระที่ใช้ในชื่อไฟล์ไม่ได้ เช่น / \ : * ? " &lt; &gt; | จะถูกแทนด้วย -</p>
       </div>
+
+      <div id="unlockPanel" style="display:none">
+        <section class="ds-step" id="ul_s1" aria-labelledby="ul_t1">
+          <div class="ds-head"><span class="ds-num">1</span><div><h2 class="ds-title" id="ul_t1">เลือกไฟล์ที่ล็อกรหัส</h2><p class="ds-hint">.xlsx / .xlsm ได้หลายไฟล์ ลากเพิ่มทีหลังได้ ไฟล์ถูกประมวลผลในเบราว์เซอร์นี้เท่านั้น</p></div></div>
+          <label class="ds-drop" id="ul_drop">
+            <input type="file" id="ul_fileInput" accept=".xlsx,.xlsm" multiple>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+            <span class="ds-drop__main">ลากไฟล์มาวาง หรือคลิกเพื่อเลือก</span>
+            <span class="ds-drop__sub">เลือกได้หลายไฟล์พร้อมกัน</span>
+          </label>
+          <div class="file-list" id="ul_fileList"></div>
+          <div class="list-actions" id="ul_listActions" hidden><span id="ul_fileCount"></span><button type="button" class="ds-btn ds-btn--ghost" id="ul_btnClear">ล้างรายการทั้งหมด</button></div>
+        </section>
+
+        <section class="ds-step" id="ul_s2" aria-labelledby="ul_t2">
+          <div class="ds-head"><span class="ds-num">2</span><div><h2 class="ds-title" id="ul_t2">ใส่รหัสผ่าน</h2><p class="ds-hint">ใส่ได้หลายรหัส ระบบจะลองทีละรหัสกับทุกไฟล์ จนกว่าจะเจอรหัสที่ถูก รหัสไม่ถูกบันทึกไว้ที่ไหน</p></div></div>
+          <div class="pw-list" id="ul_pwList"></div>
+          <div class="pw-tools">
+            <button type="button" class="ds-btn ds-btn--secondary" id="ul_btnAddPw">+ เพิ่มรหัส</button>
+            <button type="button" class="ds-btn ds-btn--ghost" id="ul_btnShowPw">แสดงรหัส</button>
+          </div>
+        </section>
+
+        <section class="ds-step" id="ul_s3" aria-labelledby="ul_t3">
+          <div class="ds-head"><span class="ds-num">3</span><div><h2 class="ds-title" id="ul_t3">ปลดรหัสและดาวน์โหลด</h2><p class="ds-hint" id="ul_summary">เลือกไฟล์และใส่รหัสอย่างน้อย 1 รหัส</p></div></div>
+          <div class="ds-actions">
+            <button type="button" class="ds-btn ds-btn--primary" id="ul_btnRun" disabled>🔓 ปลดรหัส</button>
+            <span class="ds-status" id="ul_status" aria-live="polite"></span>
+          </div>
+          <div id="ul_result"></div>
+          <div class="ds-actions" id="ul_dlActions" style="margin-top:16px" hidden>
+            <button type="button" class="ds-btn ds-btn--primary" id="ul_btnZip">ดาวน์โหลด ZIP</button>
+            <button type="button" class="ds-btn ds-btn--secondary" id="ul_btnEach">ดาวน์โหลดแยกทีละไฟล์</button>
+          </div>
+          <div class="ds-msg" id="ul_warn"></div>
+          <p class="ds-note">ไฟล์ที่ได้คือไฟล์ Excel ตัวเดิมก่อนใส่รหัส (ไม่ได้บันทึกใหม่) ข้อมูล สูตร และรูปแบบจึงเหมือนเดิมทุกอย่าง ชื่อไฟล์คงเดิม ไฟล์ที่ไม่ได้ล็อกรหัสอยู่แล้วจะได้ไฟล์เดิมกลับไป รองรับเฉพาะ "รหัสเปิดไฟล์" ของ .xlsx / .xlsm ยังไม่รองรับ .xls รุ่นเก่า และรหัสป้องกัน sheet</p>
+        </section>
+      </div>
     </div>
   </div>
 </div>
@@ -221,11 +318,14 @@
 <footer class="prtr-footer">OSInvoice Tools สำหรับทีม PRTR</footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="excel.js"></script>
-<script src="sheetmodel.js"></script>
-<script src="styles.js"></script>
-<script src="functions.js"></script>
-<script src="app.js"></script>
-<script src="split.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="officecrypto.js?v=20261009a"></script>
+<script src="excel.js?v=20261009a"></script>
+<script src="sheetmodel.js?v=20261009a"></script>
+<script src="styles.js?v=20261009a"></script>
+<script src="functions.js?v=20261009a"></script>
+<script src="app.js?v=20261009a"></script>
+<script src="split.js?v=20261009a"></script>
+<script src="unlock.js?v=20261009a"></script>
 </body>
 </html>

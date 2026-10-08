@@ -14,7 +14,10 @@ var FUNCTIONS = [
     desc: 'ลบทุกแถวที่ Account = 51110129 แล้วเลื่อนแถวถัดไปขึ้นมาแทน\nข้อมูลอื่น รูปแบบ สี และ Head Count ไม่เปลี่ยน\nเลือกได้หลายไฟล์ ได้ไฟล์แยกเหมือนเดิม ชื่อไฟล์เดิม (หลายไฟล์ดาวน์โหลดเป็น ZIP)\nไฟล์ที่ไม่มี EWF GL 51110129 จะได้ไฟล์เดิมกลับมาโดยไม่แก้ไขอะไร' },
   // panel:'split' = ฟังก์ชันนี้มีหน้าจอของตัวเอง (split.js) ไม่ใช้กล่องอัปโหลด/สรุปผลร่วมของฟังก์ชัน 1-4
   { id: 'split', label: '5. แยกไฟล์ตามคอลัมน์', multi: false, panel: 'split',
-    desc: 'อัปโหลดไฟล์ GL Invoice แล้วติ๊กคอลัมน์ที่ต้องการใช้แยก ระบบจะสร้างไฟล์ใหม่ต่อค่าที่ไม่ซ้ำกัน\nโดยคงข้อมูลและรูปแบบเดิมไว้ทุกอย่าง ยกเว้นช่อง Head Count ที่ปรับตามจำนวนพนักงานในไฟล์นั้น' }
+    desc: 'อัปโหลดไฟล์ GL Invoice แล้วติ๊กคอลัมน์ที่ต้องการใช้แยก ระบบจะสร้างไฟล์ใหม่ต่อค่าที่ไม่ซ้ำกัน\nโดยคงข้อมูลและรูปแบบเดิมไว้ทุกอย่าง ยกเว้นช่อง Head Count ที่ปรับตามจำนวนพนักงานในไฟล์นั้น' },
+  // panel:'unlock' = หน้าจอของตัวเอง (unlock.js + officecrypto.js)
+  { id: 'unlock', label: '6. ปลดรหัสไฟล์ Excel', multi: false, panel: 'unlock',
+    desc: 'ปลดรหัสเปิดไฟล์ Excel (.xlsx / .xlsm) ทีละหลายไฟล์ ด้วยรหัสที่รู้อยู่แล้ว (ใส่ได้หลายรหัส ระบบลองให้ทีละรหัส)\nได้ไฟล์ตัวเดิมก่อนใส่รหัส ข้อมูล สูตร และรูปแบบเหมือนเดิมทุกอย่าง ชื่อไฟล์คงเดิม' }
 ];
 
 var FN_META = {
@@ -116,9 +119,10 @@ function resetForNewFile() {
 }
 
 function renderPanels() {
-  var isSplit = currentFn().panel === 'split';
-  document.getElementById('genericPanel').style.display = isSplit ? 'none' : '';
-  document.getElementById('splitPanel').style.display = isSplit ? '' : 'none';
+  var panel = currentFn().panel;
+  document.getElementById('genericPanel').style.display = panel ? 'none' : '';
+  document.getElementById('splitPanel').style.display = panel === 'split' ? '' : 'none';
+  document.getElementById('unlockPanel').style.display = panel === 'unlock' ? '' : 'none';
 }
 function selectFunction(id) {
   state.fnId = id;
