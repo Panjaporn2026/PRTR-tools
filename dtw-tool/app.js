@@ -213,24 +213,58 @@ function toggleNoVatAccount(input) {
 
 // ── Step 3: Detail of Invoice ─────────────────────────────────────────────────────────────────
 
-wireDropzone($('detailDrop'), $('detailInput'), function (files) { loadDetail(files[0]); }, false);
+wireDropzone($('detailDrop'), $('detailInput'), function (files) { loadDetails(files); }, true);
 
-async function loadDetail(file) {
-  if (!file) return;
-  var statusEl = $('detailStatus');
-  try {
-    setStatus(statusEl, '⏳ กำลังอ่านไฟล์...', '');
-    var buf = await readFileBuf(file);
-    var aoa = sheetToAoa(buf);
-    state.detailAoa = aoa;
-    state.detailParsed = parseDetailOfInvoice(aoa);
-    var msg = '✅ อ่านไฟล์สำเร็จ — พบพนักงาน ' + state.detailParsed.byAltId.size + ' ราย';
-    if (!state.detailParsed.hasTotalColumn) msg += ' (ไม่พบคอลัมน์ยอดรวมต่อคน — จะเช็คได้แค่สถานะ Pending ไม่เช็คยอด reconcile)';
-    setStatus(statusEl, msg, 'ms-ok');
-  } catch (err) {
-    setStatus(statusEl, '❌ ' + err.message + ' — ยังสามารถทำงานต่อได้โดยข้ามการเช็ค Pending/reconcile', 'ms-warn');
-    state.detailParsed = null;
+// Several Detail of Invoice files can be used together (e.g. one per cost center). Dropping more
+// files ADDS them (a file with the same name replaces the earlier one); every file's rows are
+// combined into one ground truth by mergeDetailOfInvoices (same Alternate ID -> totals summed).
+state.detailFiles = [];
+
+async function loadDetails(fileList) {
+  var files = Array.prototype.filter.call(fileList || [], function (f) { return f && /\.xlsx$/i.test(f.name); });
+  if (!files.length) return;
+  setStatus($('detailStatus'), '⏳ กำลังอ่านไฟล์...', '');
+  for (var i = 0; i < files.length; i++) {
+    var f = files[i], entry = { name: f.name, parsed: null, error: null };
+    try { entry.parsed = parseDetailOfInvoice(sheetToAoa(await readFileBuf(f))); }
+    catch (err) { entry.error = err.message; }
+    state.detailFiles = state.detailFiles.filter(function (x) { return x.name !== f.name; });
+    state.detailFiles.push(entry);
   }
+  refreshDetailState();
+}
+
+function removeDetailFile(i) {
+  state.detailFiles.splice(i, 1);
+  refreshDetailState();
+}
+
+function refreshDetailState() {
+  var statusEl = $('detailStatus');
+  var ok = state.detailFiles.filter(function (x) { return x.parsed; });
+  state.detailAoa = null;
+  state.detailParsed = ok.length ? mergeDetailOfInvoices(ok.map(function (x) { return x.parsed; })) : null;
+  if (!state.detailFiles.length) { statusEl.className = 'mapping-status'; statusEl.innerHTML = ''; return; }
+  var dup = 0;
+  if (state.detailParsed) state.detailParsed.byAltId.forEach(function (v) { if (v.rows > 1) dup++; });
+  var list = state.detailFiles.map(function (x, i) {
+    var info = x.parsed
+      ? 'พนักงาน ' + x.parsed.byAltId.size + ' ราย' + (x.parsed.hasTotalColumn ? '' : ' (ไม่พบคอลัมน์ยอดรวมต่อคน)')
+      : '❌ ' + esc(x.error);
+    return '<div style="display:flex;gap:8px;align-items:center;margin-top:4px">' +
+      '<span style="flex:1;min-width:0;overflow-wrap:anywhere">' + (i + 1) + '. ' + esc(x.name) + ' — ' + info + '</span>' +
+      '<button type="button" onclick="removeDetailFile(' + i + ')" title="เอาไฟล์นี้ออก" style="border:0;background:none;color:var(--prtr-error-text);cursor:pointer;font-size:14px">✕</button></div>';
+  }).join('');
+  var head, cls;
+  if (!state.detailParsed) {
+    head = '❌ อ่านไฟล์ไม่สำเร็จ — ยังสามารถทำงานต่อได้โดยข้ามการเช็ค Pending/reconcile'; cls = 'ms-warn';
+  } else {
+    head = '✅ ใช้ ' + ok.length + ' ไฟล์ รวมพนักงาน ' + state.detailParsed.byAltId.size + ' ราย' +
+      (dup ? ' (มี ' + dup + ' รายที่อยู่หลายแถว รวมยอดให้แล้ว)' : '');
+    if (!state.detailParsed.hasTotalColumn) head += ' — บางไฟล์ไม่มีคอลัมน์ยอดรวมต่อคน จะเช็คได้แค่สถานะ Pending ไม่เช็คยอด reconcile';
+    cls = ok.length === state.detailFiles.length && state.detailParsed.hasTotalColumn ? 'ms-ok' : 'ms-warn';
+  }
+  setStatus(statusEl, '<div style="width:100%">' + head + list + '</div>', cls);
 }
 
 // ── Step 5: preview ───────────────────────────────────────────────────────────────────────────
