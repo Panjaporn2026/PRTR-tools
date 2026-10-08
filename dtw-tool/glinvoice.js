@@ -100,11 +100,23 @@ function detectCandidateKeyColumns(parsedFiles) {
 
 // Keep only Expense/Cost-side rows (Grouping prefixed "E") -- Debit/clearing-side rows
 // (net pay, statutory deductions, prefixed "D") are never invoiced, per skill step 3.
+// Exception (confirmed by the user): a "D511..." row is a deduction booked against the same
+// 5111xxxx cost account as its E511 salary row -- e.g. TLWOP (leave without pay) on D51110101
+// against salary on E51110101 -- so it IS kept, and its amount is SUBTRACTED (see signedAmount).
+function isDeductionRow(row) {
+  return /^D511/.test(normTextUpper(row.get('Grouping')));
+}
 function filterExpenseRows(rows) {
   return rows.filter(function (row) {
     var g = normText(row.get('Grouping'));
-    return g.charAt(0).toUpperCase() === 'E';
+    return g.charAt(0).toUpperCase() === 'E' || isDeductionRow(row);
   });
+}
+// The amount a row contributes to the invoice: D511 deductions always reduce the total,
+// whichever sign the export happens to store them with.
+function signedAmount(row) {
+  var n = Number(row.get('Amount')) || 0;
+  return isDeductionRow(row) ? -Math.abs(n) : n;
 }
 
 // Maps every kept row's Cost Account through the Cost->Income table. Rows whose Account isn't in
@@ -165,7 +177,7 @@ function buildInvoiceGroups(mappedRows, groupingKeyCol, refNoCol, noVatIncomeAcc
     g.rows.forEach(function (entry) {
       var target = noVatIncomeAccounts.has(entry.incomeAccount) ? noVatLines : vatLines;
       var cur = target.get(entry.incomeAccount) || { incomeAccount: entry.incomeAccount, incomeName: entry.incomeName, amount: 0 };
-      cur.amount += Number(entry.row.get('Amount')) || 0;
+      cur.amount += signedAmount(entry.row);
       target.set(entry.incomeAccount, cur);
     });
     function toInvoice(linesMap, isNoVat) {

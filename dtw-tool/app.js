@@ -183,7 +183,7 @@ function onKeyColumnsChanged() {
     var accounts = new Map();
     result.mapped.forEach(function (e) {
       var cur = accounts.get(e.incomeAccount) || { incomeAccount: e.incomeAccount, incomeName: e.incomeName, amount: 0 };
-      cur.amount += Number(e.row.get('Amount')) || 0;
+      cur.amount += signedAmount(e.row);
       accounts.set(e.incomeAccount, cur);
     });
     state.incomeAccountsPresent = Array.from(accounts.values()).sort(function (a, b) { return b.amount - a.amount; });
