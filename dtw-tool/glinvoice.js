@@ -149,6 +149,14 @@ function periodOfRow(row) {
   return hasPeriodValue(cg) ? cg : row.get('Period');
 }
 
+// Extra Reference No. (NumAtCard) choice that isn't a GL column: the expense month of the invoice
+// as MMYY (period "9/2026" -> "0926"), taken from the same Calendar Group / Period value as above.
+var REF_NO_PERIOD_MMYY = 'เดือนค่าใช้จ่าย (MMYY)';
+function periodToMMYY(periodVal) {
+  var p = parsePeriod(periodVal);
+  return String(p.month).padStart(2, '0') + String(p.year).slice(-2);
+}
+
 function buildInvoiceGroups(mappedRows, groupingKeyCol, refNoCol, noVatIncomeAccounts) {
   var groups = new Map(); // groupKey -> { key, refNo, rows: [] }
   mappedRows.forEach(function (entry) {
@@ -170,6 +178,20 @@ function buildInvoiceGroups(mappedRows, groupingKeyCol, refNoCol, noVatIncomeAcc
     if (!hasPeriodValue(grp.period)) grp.period = periodOfRow(entry.row); // first row blank -> take the next one that has it
     grp.rows.push(entry);
   });
+
+  if (refNoCol === REF_NO_PERIOD_MMYY) {
+    // One invoice can only carry one month -- if a group's rows span several months (e.g. GL files of
+    // two months uploaded together), stop and say so rather than pick one of them.
+    var mixed = [];
+    groups.forEach(function (g) {
+      var months = new Set();
+      g.rows.forEach(function (e) { var p = periodOfRow(e.row); if (hasPeriodValue(p)) months.add(periodToMMYY(p)); });
+      if (!months.size) throw new Error('ไม่พบงวด (Calendar Group / Period) ของ "' + g.key + '" จึงสร้าง Reference No. แบบ MMYY ไม่ได้');
+      if (months.size > 1) mixed.push(g.key + ' (' + Array.from(months).join(', ') + ')');
+      g.refNo = Array.from(months)[0];
+    });
+    if (mixed.length) throw new Error('มี ' + mixed.length + ' กลุ่มที่มีค่าใช้จ่ายหลายเดือนในกลุ่มเดียวกัน ใช้ Reference No. แบบ MMYY ไม่ได้ -- แยกไฟล์ทีละเดือน หรือเลือก grouping key อื่น: ' + mixed.slice(0, 5).join(', ') + (mixed.length > 5 ? ' ...' : ''));
+  }
 
   var invoices = [];
   groups.forEach(function (g) {

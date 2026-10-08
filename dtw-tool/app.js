@@ -153,7 +153,7 @@ function refreshKeyColumnPickers() {
     state.groupingKeyCol = val;
     onKeyColumnsChanged();
   });
-  renderRadioChips('refNoList', 'refNoCol', candidates, function (val) {
+  renderRadioChips('refNoList', 'refNoCol', candidates.concat([REF_NO_PERIOD_MMYY]), function (val) {
     state.refNoCol = val;
     onKeyColumnsChanged();
   });
