@@ -289,7 +289,7 @@ function renderPreview() {
     '</div>';
 
   if (state.detailParsed) {
-    var pending = findPossiblyPending(invoices, state.detailParsed);
+    var pending = findPossiblyPending(invoices, state.detailParsed, state.groupingKeyCol);
     if (pending.length) {
       html += '<div class="warn-box">⚠️ พบ ' + pending.length + ' invoice ที่ไม่พบ "' + esc(state.groupingKeyCol) + '" ในไฟล์ Detail of Invoice เลย (อาจเป็น Pending) — กรุณาตรวจสอบก่อนกรอกไฟล์จริง: ' +
         pending.slice(0, 20).map(function (i) { return esc(i.groupKey); }).join(', ') + (pending.length > 20 ? ' ...' : '') + '</div>';

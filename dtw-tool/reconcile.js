@@ -28,7 +28,7 @@ function parseDetailOfInvoice(aoa) {
     if (!altId) continue;
     byAltId.set(altId, { total: totalCol != null ? row[totalCol] : null });
   }
-  return { byAltId: byAltId, hasTotalColumn: totalCol != null };
+  return { byAltId: byAltId, hasTotalColumn: totalCol != null, aoa: aoa, headerRow: headerRow };
 }
 
 // Compares each invoice's own computed total (before VAT) against the ground truth's per-person
@@ -53,6 +53,22 @@ function reconcileInvoices(invoices, detailOfInvoice, altIdColUsedAsKey) {
 // Anyone whose grouping-key value doesn't appear in the ground truth at all is surfaced as
 // "possibly Pending" -- never silently dropped from the invoice list. The caller renders this as
 // a reviewable warning list; excluding them is an explicit user action, not automatic.
-function findPossiblyPending(invoices, detailOfInvoice) {
-  return invoices.filter(function (inv) { return !detailOfInvoice.byAltId.has(inv.groupKey); });
+// Besides Alternate ID, the key is also looked up in the Detail-of-Invoice column with the same
+// header as the chosen grouping-key column (e.g. "Cost Center 4") -- a group keyed by a line
+// manager's name (real MICHELIN case: K.Chanpen Chaisutartip) never matches any Alternate ID even
+// though its employees are in the Detail file, which produced a false Pending warning.
+function detailValuesOfColumn(detailOfInvoice, colName) {
+  var values = new Set();
+  if (!colName || !detailOfInvoice.aoa) return values;
+  var col;
+  try { col = findColByHeaderText(detailOfInvoice.aoa, detailOfInvoice.headerRow, colName); } catch (e) { return values; }
+  for (var r = detailOfInvoice.headerRow; r < detailOfInvoice.aoa.length; r++) {
+    var v = normText((detailOfInvoice.aoa[r] || [])[col]);
+    if (v) values.add(v);
+  }
+  return values;
+}
+function findPossiblyPending(invoices, detailOfInvoice, groupingKeyCol) {
+  var keyValues = detailValuesOfColumn(detailOfInvoice, groupingKeyCol);
+  return invoices.filter(function (inv) { return !detailOfInvoice.byAltId.has(inv.groupKey) && !keyValues.has(inv.groupKey); });
 }
