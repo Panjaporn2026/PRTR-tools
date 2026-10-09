@@ -105,7 +105,7 @@
 <header class="hero">
   <div class="wrap">
     <h1>🧾 Fill DTW — GL Manual</h1>
-    <p>อัปโหลดไฟล์ต้นทาง (ไฟล์ที่ชื่อมีคำว่า "GL") ได้สูงสุด 10 ไฟล์ แล้วกด Process — ระบบจะรวมข้อมูลทุกไฟล์แล้วเติมชีต Head และ Line ให้อัตโนมัติ โดย DocNum/ParentKey จะเรียงต่อเนื่องกันข้ามไฟล์ พร้อม preview และดาวน์โหลดผลลัพธ์ได้ทันที (ประมวลผลในเบราว์เซอร์ล้วนๆ ไม่มีการอัปโหลดข้อมูลขึ้นเซิร์ฟเวอร์ใดๆ)</p>
+    <p>อัปโหลดไฟล์ต้นทาง (ไฟล์ที่ชื่อมีคำว่า "GL") ได้สูงสุด 20 ไฟล์ แล้วกด Process — ระบบจะรวมข้อมูลทุกไฟล์แล้วเติมชีต Head และ Line ให้อัตโนมัติ โดย DocNum/ParentKey จะเรียงต่อเนื่องกันข้ามไฟล์ พร้อม preview และดาวน์โหลดผลลัพธ์ได้ทันที (ประมวลผลในเบราว์เซอร์ล้วนๆ ไม่มีการอัปโหลดข้อมูลขึ้นเซิร์ฟเวอร์ใดๆ)</p>
     <p style="margin-top:10px;">✨ <strong>ใหม่:</strong> ข้อมูลบริษัท/ลูกค้าอ่านได้ทั้งจาก metadata block เหนือหัวตาราง <em>และ</em> จากคอลัมน์ในตาราง — ใส่หลายบริษัทในชีตเดียวได้แล้ว</p>
   </div>
 </header>
@@ -140,12 +140,12 @@
 <div class="wrap">
 
   <section>
-    <h2><span class="num">1</span> อัปโหลดไฟล์ต้นทาง (สูงสุด 10 ไฟล์)</h2>
+    <h2><span class="num">1</span> อัปโหลดไฟล์ต้นทาง (สูงสุด 20 ไฟล์)</h2>
     <p class="hint">เลือกได้หลายไฟล์พร้อมกัน หรือเพิ่มทีละไฟล์ก็ได้ — ฟอร์มของแต่ละไฟล์ไม่จำเป็นต้องเหมือนกัน ระบบจะตรวจจับรูปแบบให้อัตโนมัติทีละไฟล์ ลำดับในรายการด้านล่างคือลำดับที่จะใช้กำหนด DocNum/ParentKey ต่อเนื่องกันในไฟล์ output ใช้ปุ่ม ▲▼ เพื่อจัดลำดับ หรือ ✕ เพื่อลบไฟล์ออก</p>
     <div class="upload-box" id="dropZone">
       <label for="srcFile">เลือกไฟล์ต้นทาง (.xlsx, เลือกได้หลายไฟล์)</label>
       <input type="file" id="srcFile" accept=".xlsx" multiple>
-      <div id="fileListBox"><p class="hint">ยังไม่ได้เลือกไฟล์ — ลากไฟล์มาวางที่นี่ได้เช่นกัน (สูงสุด 10 ไฟล์)</p></div>
+      <div id="fileListBox"><p class="hint">ยังไม่ได้เลือกไฟล์ — ลากไฟล์มาวางที่นี่ได้เช่นกัน (สูงสุด 20 ไฟล์)</p></div>
     </div>
 
     <details class="help">
@@ -225,7 +225,7 @@ function b64ToU8(b64) {
   return bytes;
 }
 
-const MAX_FILES = 10;
+const MAX_FILES = 20;
 const MAX_SHEETS_PER_FILE = 10;
 let uploadedFiles = []; // [{name, sheets: [{sheetName, rows}]}]
 let computedLineRows = [];
