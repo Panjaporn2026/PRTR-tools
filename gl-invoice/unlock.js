@@ -9,6 +9,9 @@
   'use strict';
   var $ = function (id) { return document.getElementById('ul_' + id); }; // ids prefixed ul_ inside #unlockPanel
   var state = { files: [], results: null, busy: false };
+  // Default passwords (user's request): always tried first, in this order, for every locked file.
+  // Passwords typed in step 2 are only tried after both of these fail.
+  var DEFAULT_PASSWORDS = ['prtr2026', 'PRTR2026'];
 
   function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   function fmtSize(n) { return n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB'; }
@@ -84,9 +87,9 @@
 
   // ---- run ----
   function refreshRun() {
-    var n = state.files.length, p = passwords().length;
-    $('btnRun').disabled = state.busy || !n || !p;
-    $('summary').textContent = !n || !p ? 'เลือกไฟล์และใส่รหัสอย่างน้อย 1 รหัส' : n + ' ไฟล์, ' + p + ' รหัส';
+    var n = state.files.length, p = passwords().filter(function (v) { return DEFAULT_PASSWORDS.indexOf(v) < 0; }).length;
+    $('btnRun').disabled = state.busy || !n;
+    $('summary').textContent = !n ? 'เลือกไฟล์อย่างน้อย 1 ไฟล์' : n + ' ไฟล์, รหัสตั้งต้น ' + DEFAULT_PASSWORDS.length + ' รหัส' + (p ? ' + รหัสที่ใส่เพิ่ม ' + p + ' รหัส' : '');
   }
   function resetResults() { state.results = null; $('result').innerHTML = ''; $('dlActions').hidden = true; status(''); }
 
@@ -96,7 +99,8 @@
     if (state.busy) return;
     if (typeof XLSX === 'undefined' || !XLSX.CFB || !window.crypto || !crypto.subtle) { status('โหลดตัวอ่านไฟล์ไม่สำเร็จ ตรวจการเชื่อมต่ออินเทอร์เน็ตแล้วรีเฟรชหน้านี้'); return; }
     state.busy = true; refreshRun(); warn('');
-    var pws = passwords(), lastOk = -1, results = state.files.map(function (f) { return { file: f, state: 'wait' }; });
+    var extra = passwords().filter(function (v) { return DEFAULT_PASSWORDS.indexOf(v) < 0; });
+    var pws = DEFAULT_PASSWORDS.concat(extra), nDef = DEFAULT_PASSWORDS.length, lastOk = -1, results = state.files.map(function (f) { return { file: f, state: 'wait' }; });
     state.results = results; render();
     for (var i = 0; i < results.length; i++) {
       var r = results[i];
@@ -106,16 +110,17 @@
         if (x.kind === 'plain') { r.state = 'plain'; r.data = bytes; }
         else if (x.kind !== 'agile' && x.kind !== 'standard') { r.state = 'bad'; r.reason = KIND_TEXT[x.kind]; }
         else {
-          r.state = 'bad'; r.reason = 'ไม่มีรหัสที่ใส่ไว้ตรงกับไฟล์นี้';
-          // try the password that worked for the previous file first: batches usually share one
+          r.state = 'bad'; r.reason = extra.length ? 'รหัสตั้งต้นและรหัสที่ใส่เพิ่มไม่ตรงกับไฟล์นี้' : 'รหัสตั้งต้นไม่ตรงกับไฟล์นี้ — ใส่รหัสเพิ่มในขั้นที่ 2 แล้วกดปลดรหัสอีกครั้ง';
+          // default passwords always first (in order); among the typed ones, the one that worked for
+          // the previous file goes first: batches usually share one
           var order = pws.map(function (_, j) { return j; });
-          if (lastOk >= 0) order = [lastOk].concat(order.filter(function (j) { return j !== lastOk; }));
+          if (lastOk >= nDef) order = order.slice(0, nDef).concat([lastOk], order.slice(nDef).filter(function (j) { return j !== lastOk; }));
           for (var t = 0; t < order.length; t++) {
             var k = order[t];
             status('ไฟล์ ' + (i + 1) + '/' + results.length + ': กำลังลองรหัส (' + (t + 1) + '/' + pws.length + ')');
             await new Promise(function (res) { setTimeout(res, 0); }); // let the page repaint between tries
             var out = await OfficeCrypto.tryPassword(x, pws[k]);
-            if (out) { r.state = 'ok'; r.data = out; r.pwIndex = k + 1; lastOk = k; break; }
+            if (out) { r.state = 'ok'; r.data = out; r.pwLabel = k < nDef ? 'รหัสตั้งต้น ' + (k + 1) : 'รหัสที่ใส่เพิ่ม ' + (extra.indexOf(pws[k]) + 1); lastOk = k; break; }
           }
         }
       } catch (e) { r.state = 'bad'; r.reason = 'อ่านไฟล์ไม่สำเร็จ: ' + (e && e.message || e); }
@@ -129,7 +134,7 @@
 
   function render() {
     var rows = state.results.map(function (r, i) {
-      var badge = r.state === 'ok' ? '<span class="badge b-ok">ปลดรหัสแล้ว (รหัสที่ ' + r.pwIndex + ')</span>'
+      var badge = r.state === 'ok' ? '<span class="badge b-ok">ปลดรหัสแล้ว (' + r.pwLabel + ')</span>'
         : r.state === 'plain' ? '<span class="badge b-plain">ไม่ได้ล็อกอยู่แล้ว (ไฟล์เดิม)</span>'
         : r.state === 'wait' ? '<span class="badge b-wait">รอ</span>'
         : '<span class="badge b-bad">ไม่สำเร็จ</span> ' + esc(r.reason);
