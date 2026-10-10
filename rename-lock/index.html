@@ -804,15 +804,44 @@ function findColAfterLabel(sheetXml, sharedStrings, targetLabelsLower, maxRow) {
 function findColsAfterMemoOrTotal(sheetXml, sharedStrings) {
   const maxRow = 30;
   let col = findColAfterLabel(sheetXml, sharedStrings, ['memo'], maxRow);
+  // Templates whose last billing column is "TOTAL MEMO" (after TOTAL INVOICE BEFORE VAT / VAT /
+  // TOTAL INVOICE, e.g. Allianz): hide only what comes after it, and keep TOTAL MEMO itself visible
+  // even when it is 0 (otherwise the zero-value rule would hide it). Same rule as Detail of Invoice Tools.
+  let keepCol = null;
+  if (col === null) { col = findColAfterLabel(sheetXml, sharedStrings, ['total memo'], maxRow); if (col !== null) keepCol = col; }
   if (col === null) col = findColAfterLabel(sheetXml, sharedStrings, ['total invoice before vat'], maxRow);
   if (col === null) return [];
   const dimMatch = /<dimension ref="[A-Z]+\d+:([A-Z]+)\d+"/.exec(sheetXml);
-  const maxCol = dimMatch ? colLettersToIndex(dimMatch[1]) : col;
+  let maxCol = dimMatch ? colLettersToIndex(dimMatch[1]) : col;
+  // No <dimension> (some files re-saved by other tools omit it): use the right-most used cell.
+  if (!dimMatch) { const cr = /<c r="([A-Z]+)\d+"/g; let m; while ((m = cr.exec(sheetXml))) { const ci = colLettersToIndex(m[1]); if (ci > maxCol) maxCol = ci; } }
   // Leave one column visible right after Memo/Total Invoice Before Vat as a spacer before the
   // hidden columns start, so the hide boundary doesn't look like it's cutting off mid-table.
   const toHide = [];
   for (let c = col + 2; c <= maxCol; c++) toHide.push(c);
+  toHide.keepVisible = keepCol !== null ? [keepCol] : [];
   return toHide;
+}
+
+// Part paths of the sheets named like "Detail of Invoice" (e.g. "Detail of Invoice", "Detail of
+// Invoice(New)", "Detail of Invoice (2)"), resolved through workbook.xml + its relationships.
+async function detailOfInvoiceSheetPaths(zip) {
+  const wbFile = zip.file('xl/workbook.xml'), relFile = zip.file('xl/_rels/workbook.xml.rels');
+  if (!wbFile || !relFile) return [];
+  const wb = await wbFile.async('string'), rels = await relFile.async('string');
+  const targets = {};
+  rels.replace(/<Relationship\b([^>]*?)\/?>/g, function (m, a) {
+    const id = /\bId="([^"]*)"/.exec(a), t = /\bTarget="([^"]*)"/.exec(a);
+    if (id && t) targets[id[1]] = t[1].charAt(0) === '/' ? t[1].slice(1) : 'xl/' + t[1].replace(/^\.\//, '');
+    return m;
+  });
+  const out = [];
+  wb.replace(/<sheet\b([^>]*?)\/?>/g, function (m, a) {
+    const n = /\bname="([^"]*)"/.exec(a), r = /\br:id="([^"]*)"/.exec(a);
+    if (n && r && /detail\s*of\s*invoice/i.test(decodeXmlEntities(n[1])) && targets[r[1]]) out.push(targets[r[1]]);
+    return m;
+  });
+  return out;
 }
 
 async function applyColumnHiding(buffer, opts) {
@@ -821,11 +850,27 @@ async function applyColumnHiding(buffer, opts) {
   const sheetPaths = Object.keys(zip.files).filter(function (name) {
     return /^xl\/worksheets\/sheet\d+\.xml$/.test(name);
   });
+  // Multi-sheet workbooks (several Detail of Invoice sheets): the zero-value rule must hide the SAME
+  // columns on every Detail of Invoice sheet -- a column is hidden only if its SUBTOTAL is 0 on ALL
+  // of them (user's decision). Other sheets (e.g. HRIS PAYROLL REPORT) keep their own per-sheet
+  // result exactly as before. The after-Memo rule is per sheet (each sheet's own header layout).
+  const xmls = {};
+  for (const path of sheetPaths) xmls[path] = await zip.file(path).async('string');
+  const detailPaths = await detailOfInvoiceSheetPaths(zip);
+  let commonZero = null;
+  if (opts.hideZeroSubtotal) {
+    sheetPaths.forEach(function (path) {
+      if (detailPaths.indexOf(path) < 0) return;
+      const z = findZeroSubtotalColumns(xmls[path]);
+      commonZero = commonZero === null ? z.slice() : commonZero.filter(function (c) { return z.indexOf(c) >= 0; });
+    });
+  }
   for (const path of sheetPaths) {
-    const xml = await zip.file(path).async('string');
-    let toHide = opts.hideZeroSubtotal ? findZeroSubtotalColumns(xml) : [];
-    if (opts.hideAfterMemo) toHide = toHide.concat(findColsAfterMemoOrTotal(xml, sharedStrings));
-    toHide = Array.from(new Set(toHide));
+    const xml = xmls[path];
+    let toHide = !opts.hideZeroSubtotal ? [] : (detailPaths.indexOf(path) >= 0 ? commonZero.slice() : findZeroSubtotalColumns(xml));
+    let keepVisible = [];
+    if (opts.hideAfterMemo) { const after = findColsAfterMemoOrTotal(xml, sharedStrings); keepVisible = after.keepVisible || []; toHide = toHide.concat(after); }
+    toHide = Array.from(new Set(toHide)).filter(function (c) { return keepVisible.indexOf(c) < 0; });
     if (toHide.length) zip.file(path, hideColumnsInSheetXml(xml, toHide));
   }
   return await zip.generateAsync({ type: 'uint8array' });
