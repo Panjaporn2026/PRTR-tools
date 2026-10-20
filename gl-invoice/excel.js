@@ -87,6 +87,51 @@ function buildZip(files) {
   ].concat([files.length&0xFF,(files.length>>8)&0xFF], [files.length&0xFF,(files.length>>8)&0xFF], u32(cdSize), u32(cdStart), [0,0]));
   return concatBytes(locals.concat(cds).concat([eocd]));
 }
+// Same as buildZip, but each entry is DEFLATE-compressed (method 8) like Excel's own files --
+// buildZip stores entries uncompressed, which made output workbooks ~10x the input size
+// (real case: SAMSUNG PC (NON PC) GL_Invoice 231 KB -> 2,064 KB after Change Header). An entry is
+// only stored as-is when compressing wouldn't make it smaller. Contents are byte-identical either way.
+async function deflateRaw(data) {
+  var cs = new CompressionStream('deflate-raw');
+  var w = cs.writable.getWriter(), r = cs.readable.getReader();
+  w.write(data); w.close();
+  var chunks = [], tot = 0;
+  while (true) { var {done,value} = await r.read(); if(done) break; chunks.push(value); tot+=value.length; }
+  var out = new Uint8Array(tot), off = 0;
+  for (var c of chunks) { out.set(c,off); off+=c.length; }
+  return out;
+}
+async function buildZipDeflate(files) {
+  var enc = new TextEncoder();
+  var locals = [], cds = [], offset = 0;
+  for (var fi=0; fi<files.length; fi++) {
+    var f = files[fi];
+    var nb = enc.encode(f.name);
+    var crc = crc32(f.data);
+    var comp = await deflateRaw(f.data);
+    var method = comp.length < f.data.length ? 8 : 0;
+    var body = method === 8 ? comp : f.data;
+    var lh = new Uint8Array([
+      0x50,0x4B,0x03,0x04, 0x14,0x00, 0x00,0x00, method,0x00,
+      0x00,0x00, 0x00,0x00
+    ].concat(u32(crc), u32(body.length), u32(f.data.length), [nb.length&0xFF,(nb.length>>8)&0xFF], [0,0]));
+    var lhFull = concatBytes([lh, nb]);
+    var cd = new Uint8Array([
+      0x50,0x4B,0x01,0x02, 0x14,0x00, 0x14,0x00, 0x00,0x00, method,0x00,
+      0x00,0x00, 0x00,0x00
+    ].concat(u32(crc), u32(body.length), u32(f.data.length), [nb.length&0xFF,(nb.length>>8)&0xFF], [0,0,0,0,0,0,0,0,0,0,0,0], u32(offset)));
+    var cdFull = concatBytes([cd, nb]);
+    locals.push(lhFull, body);
+    cds.push(cdFull);
+    offset += lhFull.length + body.length;
+  }
+  var cdStart = offset, cdSize = 0;
+  for (var c of cds) cdSize += c.length;
+  var eocd = new Uint8Array([
+    0x50,0x4B,0x05,0x06, 0x00,0x00, 0x00,0x00
+  ].concat([files.length&0xFF,(files.length>>8)&0xFF], [files.length&0xFF,(files.length>>8)&0xFF], u32(cdSize), u32(cdStart), [0,0]));
+  return concatBytes(locals.concat(cds).concat([eocd]));
+}
 function concatBytes(parts) {
   var tot = 0;
   for (var p of parts) tot += p.length;

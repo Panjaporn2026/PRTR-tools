@@ -274,7 +274,7 @@ async function buildOutputZip(ctx, sheetXml, wbXml) {
     zipFiles.push({ name: nm, data: data });
   }
   zipFiles = applyCalcChainFix(zipFiles, enc);
-  return buildZip(zipFiles);
+  return await buildZipDeflate(zipFiles);
 }
 
 function applyCalcChainFix(zipFiles, enc) {
