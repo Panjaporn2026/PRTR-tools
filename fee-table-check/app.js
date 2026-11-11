@@ -30,19 +30,65 @@ function isBlank(v) { return v === null || v === undefined || String(v).trim() =
 function cellVal(ws, r, c) {
   var addr = XLSX.utils.encode_cell({ r: r, c: c });
   var cell = ws[addr];
-  return cell ? (cell.v === undefined ? null : cell.v) : null;
+  if (!cell) return null;
+  // Error cells (#N/A, #REF!, ...) come back from SheetJS as t:'e' with a numeric error code in .v
+  // (#N/A = 42) -- return the error text instead, otherwise #N/A shows up as "4200%".
+  if (cell.t === 'e') return cell.w || '#ERROR';
+  return cell.v === undefined ? null : cell.v;
 }
+
+function headerKey(v) { return normText(v).replace(/\s+/g, ' ').toUpperCase(); }
 
 // ── Sheet selection ─────────────────────────────────────────────────────────────────────────
 // Client files use varying sheet names (Sheet1, "2. Fee table - Ipop 21.07", etc.) -- there's
 // normally exactly one sheet with data, so just take the first one.
 function findClientSheet(wb) { return wb.Sheets[wb.SheetNames[0]]; }
 
-// The Master workbook has 30+ tabs (working scratch sheets, per-person copies, old versions...).
-// The one with real project rows is named MASTER_SHEET_NAME as of this writing; if that ever
-// changes, fall back to whichever sheet has the most populated Agreement No. (column D) cells.
-function findMasterSheet(wb) {
-  if (wb.SheetNames.indexOf(MASTER_SHEET_NAME) !== -1) return { ws: wb.Sheets[MASTER_SHEET_NAME], name: MASTER_SHEET_NAME };
+// The Master workbook has 30+ tabs (working scratch sheets, per-person copies, old versions such as
+// "Fee table-No use"...), and the live tab gets renamed every update ("2. Fee table - Ipop 21.07"
+// -> "... Ipop 02Nov"). Pick it in this order:
+//   1. the sheet the user chose in the result dropdown;
+//   2. a Master sheet with exactly the same name as the client file's sheet (the client file is cut
+//      from the Master, so they normally match);
+//   3. among sheets that contain the project's Agreement No. and aren't marked "no use / not use /
+//      back up", the one whose row-4 column headers (S..MQ) match the client file's best;
+//   4. the old fallback: whichever sheet has the most populated Agreement No. cells.
+var SKIP_SHEET_RE = /no\s*use|not\s*use|back\s*up/i;
+
+function headerMatchScore(wsA, wsB) {
+  var s = XLSX.utils.decode_col(FIRST_COL), e = XLSX.utils.decode_col(LAST_COL), n = 0;
+  for (var c = s; c <= e; c++) {
+    var a = headerKey(cellVal(wsA, DETAIL_ROW, c));
+    if (a && a === headerKey(cellVal(wsB, DETAIL_ROW, c))) n++;
+  }
+  return n;
+}
+
+function sheetHasAgreement(ws, agreement) {
+  if (isBlank(agreement)) return false;
+  var maxR = sheetRowCount(ws), want = normText(agreement);
+  for (var r = 0; r < maxR; r++) { if (normText(cellVal(ws, r, AGREEMENT_COL)) === want) return true; }
+  return false;
+}
+
+function findMasterSheet(wb, ctx) {
+  ctx = ctx || {};
+  if (ctx.override && wb.Sheets[ctx.override]) return { ws: wb.Sheets[ctx.override], name: ctx.override, how: 'เลือกเอง' };
+  if (ctx.clientSheetName && wb.Sheets[ctx.clientSheetName]) {
+    return { ws: wb.Sheets[ctx.clientSheetName], name: ctx.clientSheetName, how: 'ชื่อชีตตรงกับไฟล์ client' };
+  }
+  if (ctx.wsClient && ctx.agreement) {
+    var bestS = null, bestScore = -1;
+    wb.SheetNames.forEach(function (name) {
+      if (SKIP_SHEET_RE.test(name)) return;
+      var ws = wb.Sheets[name];
+      if (!ws['!ref'] || !sheetHasAgreement(ws, ctx.agreement)) return;
+      var score = headerMatchScore(ctx.wsClient, ws);
+      if (score > bestScore) { bestScore = score; bestS = name; }
+    });
+    if (bestS) return { ws: wb.Sheets[bestS], name: bestS, how: 'หัวคอลัมน์ตรงกับไฟล์ client มากที่สุด' };
+  }
+  if (wb.SheetNames.indexOf(MASTER_SHEET_NAME) !== -1) return { ws: wb.Sheets[MASTER_SHEET_NAME], name: MASTER_SHEET_NAME, how: 'ชื่อชีตเริ่มต้น' };
   var best = null, bestCount = -1, bestName = null;
   wb.SheetNames.forEach(function (name) {
     var ws = wb.Sheets[name];
@@ -53,7 +99,7 @@ function findMasterSheet(wb) {
     for (var r = range.s.r; r <= range.e.r; r++) { if (!isBlank(cellVal(ws, r, AGREEMENT_COL))) count++; }
     if (count > bestCount) { best = ws; bestCount = count; bestName = name; }
   });
-  return { ws: best, name: bestName };
+  return { ws: best, name: bestName, how: 'ชีตที่มี Agreement No. มากที่สุด (ควรตรวจสอบ)' };
 }
 
 function sheetRowCount(ws) {
@@ -131,23 +177,60 @@ function fmtVal(v) {
 // info (group/paycode/detail) can live on either sheet -- some client files leave a column's
 // header blank even though the sheet nominally extends that far (a template never filled out that
 // wide); fall back to the Master's header so the summary still reads sensibly, and flag it.
+//
+// Columns are matched by their row-4 header (e.g. "SALARYTHA2"), not by letter: if the client file
+// and the Master sheet don't have the columns in the same order, comparing by letter compares
+// unrelated pay codes. A repeated header is matched by occurrence (2nd "X" ↔ 2nd "X"). A blank
+// client header falls back to the same column letter.
+function sameVal(a, b) {
+  if (a === b) return true;
+  if (isBlank(a) && isBlank(b)) return true; // both empty in different flavors (null vs '')
+  if (typeof a === 'number' && typeof b === 'number') return Math.abs(a - b) < 1e-9;
+  if (a instanceof Date && b instanceof Date) return a.getTime() === b.getTime();
+  return false;
+}
+
 function diffColumns(wsClient, wsMaster, clientRow, masterRow) {
   var s = XLSX.utils.decode_col(FIRST_COL), e = XLSX.utils.decode_col(LAST_COL);
+  var masterByKey = {};
+  for (var mc0 = s; mc0 <= e; mc0++) {
+    var mk = headerKey(cellVal(wsMaster, DETAIL_ROW, mc0));
+    if (mk) (masterByKey[mk] = masterByKey[mk] || []).push(mc0);
+  }
+  var seenKey = {}, usedMaster = {};
   var diffs = [];
+  function hdr(ws, r, c) { return c === null ? null : cellVal(ws, r, c); }
+  function push(cc, mc, vc, vm, note) {
+    var group = hdr(wsClient, GROUP_ROW, cc); if (isBlank(group)) group = hdr(wsMaster, GROUP_ROW, mc);
+    var paycode = hdr(wsClient, PAYCODE_ROW, cc); if (isBlank(paycode)) paycode = hdr(wsMaster, PAYCODE_ROW, mc);
+    var detail = hdr(wsClient, DETAIL_ROW, cc); if (isBlank(detail)) detail = hdr(wsMaster, DETAIL_ROW, mc);
+    var colLabel = cc !== null ? XLSX.utils.encode_col(cc) : '-';
+    if (mc !== null && mc !== cc) colLabel += ' (Master ' + XLSX.utils.encode_col(mc) + ')';
+    diffs.push({ col: colLabel, group: group, paycode: paycode, detail: detail, clientVal: vc, masterVal: vm, note: note });
+  }
+
   for (var c = s; c <= e; c++) {
+    var key = headerKey(cellVal(wsClient, DETAIL_ROW, c));
+    var mc = c, note = '';
+    if (key) {
+      var n = seenKey[key] = (seenKey[key] || 0) + 1;
+      var list = masterByKey[key] || [];
+      mc = list.length >= n ? list[n - 1] : null;
+    }
     var vc = cellVal(wsClient, clientRow, c);
-    var vm = cellVal(wsMaster, masterRow, c);
-    if (vc === vm) continue;
-    if (isBlank(vc) && isBlank(vm)) continue; // both empty in different flavors (null vs '') -- not a real diff
-    var group = cellVal(wsClient, GROUP_ROW, c); if (isBlank(group)) group = cellVal(wsMaster, GROUP_ROW, c);
-    var paycode = cellVal(wsClient, PAYCODE_ROW, c); if (isBlank(paycode)) paycode = cellVal(wsMaster, PAYCODE_ROW, c);
-    var detail = cellVal(wsClient, DETAIL_ROW, c); if (isBlank(detail)) detail = cellVal(wsMaster, DETAIL_ROW, c);
-    var note = '';
-    if (isBlank(cellVal(wsClient, DETAIL_ROW, c))) note = 'ไฟล์ client ไม่มีคอลัมน์นี้ในหัวตาราง (header ว่าง)';
-    diffs.push({
-      col: XLSX.utils.encode_col(c), group: group, paycode: paycode, detail: detail,
-      clientVal: vc, masterVal: vm, note: note
-    });
+    var vm = mc === null ? null : cellVal(wsMaster, masterRow, mc);
+    if (mc !== null) usedMaster[mc] = true;
+    if (sameVal(vc, vm)) continue;
+    if (!key) note = 'ไฟล์ client ไม่มีคอลัมน์นี้ในหัวตาราง (header ว่าง)';
+    else if (mc === null) note = 'Master ไม่มีคอลัมน์ "' + normText(cellVal(wsClient, DETAIL_ROW, c)) + '"';
+    push(c, mc, vc, vm, note);
+  }
+  // Master columns that no client column mapped to, but which carry a value for this project.
+  for (var mc2 = s; mc2 <= e; mc2++) {
+    if (usedMaster[mc2]) continue;
+    var vm2 = cellVal(wsMaster, masterRow, mc2);
+    if (isBlank(vm2)) continue;
+    push(null, mc2, null, vm2, 'ไฟล์ client ไม่มีคอลัมน์นี้ (มีเฉพาะใน Master)');
   }
   return { diffs: diffs, totalChecked: e - s + 1 };
 }
@@ -175,7 +258,7 @@ async function loadWorkbookFile(file, kind) {
     var buf = await file.arrayBuffer();
     var wb = XLSX.read(buf, { type: 'array', cellDates: true });
     if (kind === 'master') {
-      state.masterWb = wb; state.masterFile = file;
+      state.masterWb = wb; state.masterFile = file; state.masterSheetOverride = null;
       document.getElementById('dropMaster').classList.add('done');
       document.getElementById('masterLabel').textContent = '✓ ' + file.name;
     } else {
@@ -198,15 +281,19 @@ function runComparison() {
   document.getElementById('resultCard').style.display = 'none';
   try {
     var wsClient = findClientSheet(state.clientWb);
-    var masterSheetInfo = findMasterSheet(state.masterWb);
-    var wsMaster = masterSheetInfo.ws;
-    if (!wsMaster) throw new Error('ไม่พบชีตข้อมูลใน Master (ไม่พบชีต "' + MASTER_SHEET_NAME + '" และไม่มีชีตอื่นที่มีคอลัมน์ Agreement No.)');
-
     var clientRows = findClientRows(wsClient);
     if (!clientRows.length) throw new Error('ไม่พบแถวข้อมูลในไฟล์ client (คาดว่าจะมีชื่อโปรเจคในคอลัมน์ C ตั้งแต่แถว 5 เป็นต้นไป)');
 
     var project = cellVal(wsClient, clientRows[0], PROJECT_COL);
     var agreement = cellVal(wsClient, clientRows[0], AGREEMENT_COL);
+
+    var masterSheetInfo = findMasterSheet(state.masterWb, {
+      override: state.masterSheetOverride, clientSheetName: state.clientWb.SheetNames[0],
+      wsClient: wsClient, agreement: agreement
+    });
+    state.masterSheetInfo = masterSheetInfo;
+    var wsMaster = masterSheetInfo.ws;
+    if (!wsMaster) throw new Error('ไม่พบชีตข้อมูลใน Master (ไม่พบชีต "' + MASTER_SHEET_NAME + '" และไม่มีชีตอื่นที่มีคอลัมน์ Agreement No.)');
     var found = findMasterRows(wsMaster, project, agreement);
     var candidates = found.exact.length ? found.exact : found.nameOnly;
     if (!candidates.length) {
@@ -221,7 +308,7 @@ function runComparison() {
       return;
     }
 
-    finishComparison(wsClient, wsMaster, pairs, masterSheetInfo.name);
+    finishComparison(wsClient, wsMaster, pairs, masterSheetInfo);
   } catch (err) {
     setStatus('❌ ' + err.message, 'err');
   }
@@ -259,13 +346,12 @@ function confirmCandidateSelection() {
   });
   if (!pairs.length) { setStatus('⚠️ กรุณาเลือกอย่างน้อย 1 แถว', 'warn'); return; }
   document.getElementById('candidateCard').style.display = 'none';
-  var masterSheetInfo = findMasterSheet(state.masterWb);
-  finishComparison(p.wsClient, p.wsMaster, pairs, masterSheetInfo.name);
+  finishComparison(p.wsClient, p.wsMaster, pairs, state.masterSheetInfo);
 }
 
 var lastResults = null;
 
-function finishComparison(wsClient, wsMaster, pairs, masterSheetName) {
+function finishComparison(wsClient, wsMaster, pairs, masterSheetInfo) {
   var results = pairs.map(function (pair) {
     var crow = pair[0], mrow = pair[1];
     var project = cellVal(wsClient, crow, PROJECT_COL);
@@ -274,11 +360,11 @@ function finishComparison(wsClient, wsMaster, pairs, masterSheetName) {
     return { clientRow: crow, masterRow: mrow, project: project, agreement: agreement, diffs: d.diffs, totalChecked: d.totalChecked };
   });
   lastResults = results;
-  renderResult(results, masterSheetName);
+  renderResult(results, masterSheetInfo);
   setStatus('✅ เปรียบเทียบเสร็จแล้ว', 'ok');
 }
 
-function renderResult(results, masterSheetName) {
+function renderResult(results, masterSheetInfo) {
   var totalDiffs = results.reduce(function (s, r) { return s + r.diffs.length; }, 0);
   var totalChecked = results.reduce(function (s, r) { return s + r.totalChecked; }, 0);
   var html = '<h2>📄 ผลการเปรียบเทียบ</h2>';
@@ -287,7 +373,10 @@ function renderResult(results, masterSheetName) {
     '<div class="stat-box"><div class="stat-num c-green">' + totalChecked + '</div><div class="stat-label">คอลัมน์ที่ตรวจสอบ (รวม)</div></div>' +
     '<div class="stat-box"><div class="stat-num ' + (totalDiffs ? 'c-red' : 'c-green') + '">' + totalDiffs + '</div><div class="stat-label">รายการที่ต่าง/เพิ่มจาก Master</div></div>' +
     '</div>';
-  html += '<div class="result-footer">Master sheet ที่ใช้: "' + esc_(masterSheetName) + '"</div>';
+  html += '<div class="result-footer">Master sheet ที่ใช้: <select id="masterSheetSel" style="font:inherit;padding:2px 6px;max-width:100%">' +
+    state.masterWb.SheetNames.map(function (n) {
+      return '<option value="' + esc_(n).replace(/"/g, '&quot;') + '"' + (n === masterSheetInfo.name ? ' selected' : '') + '>' + esc_(n) + '</option>';
+    }).join('') + '</select> <span>(' + esc_(masterSheetInfo.how || '') + ')</span></div>';
 
   results.forEach(function (r, i) {
     html += '<div class="row-block">';
@@ -319,6 +408,10 @@ function renderResult(results, masterSheetName) {
   card.style.display = 'block';
   document.getElementById('mainEmptyHint').style.display = 'none';
   document.getElementById('btnDownloadSummary').addEventListener('click', downloadSummary);
+  document.getElementById('masterSheetSel').addEventListener('change', function () {
+    state.masterSheetOverride = this.value;
+    runComparison();
+  });
 }
 
 // ── Excel summary export (ExcelJS -- brand-new workbook, no template to preserve) ──────────────
